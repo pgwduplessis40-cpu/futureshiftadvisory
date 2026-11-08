@@ -286,6 +286,72 @@ final class ForecastModelInputsTest extends TestCase
         self::assertSame(1, $model->revision, 'Every refused driver save leaves the stored revision alone.');
     }
 
+    public function test_a_schedule_month_outside_the_calendar_is_refused_rather_than_stored(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $beyond = $this->drivers();
+        // The calendar runs 2026-01 for 24 months. The revenue projection
+        // refuses a schedule that reaches past it rather than discarding the
+        // month, so storing one would store a model that cannot project.
+        $beyond['streams'][0]['schedule'][0]['period'] = '2029-05';
+
+        $this->post($this->url().'/drivers', $beyond)->assertSessionHasErrors('streams');
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertSame([], app(ForecastModelStore::class)->inputs($model)->streams);
+
+        // Reported against the collection that holds the month, so the
+        // advisor is sent to the one they have to change.
+        $capacity = $this->drivers();
+        $capacity['founder_months'][0]['period'] = '2029-05';
+        $this->post($this->url().'/drivers', $capacity)->assertSessionHasErrors('founder_months');
+    }
+
+    public function test_shortening_the_calendar_under_recorded_months_is_refused(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+
+        // The same unprojectable state, reached from the other form: the
+        // months stay where they are and the horizon moves out from under
+        // them.
+        $shortened = $this->payload();
+        $shortened['expected_revision'] = 2;
+        $shortened['months'] = 2;
+        $this->post($this->url(), $shortened)->assertSessionHasErrors('model');
+
+        $model = app(ForecastModelStore::class)->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertSame(24, app(ForecastModelStore::class)->inputs($model)->calendar->months,
+            'A refused calendar change leaves the stored horizon alone.');
+    }
+
+    public function test_the_engine_verdict_is_reported_beside_the_recorded_sections(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $complete = $this->drivers();
+        // The shared payload leaves extra capacity unstated, which is enough
+        // on its own to stop a month pricing. Stating it gives this test one
+        // month the engine can carry all the way to a revenue figure.
+        $complete['streams'][0]['schedule'][0]['additional_capacity_units'] = '0';
+        $this->post($this->url().'/drivers', $complete)->assertSessionHasNoErrors();
+
+        $page = $this->get($this->url())->viewData('page');
+        $projection = data_get($page, 'props.model.projection');
+        self::assertSame('cannot_verify', data_get($projection, 'status'),
+            'One month of capacity across a 24 month horizon is readable but not complete.');
+        self::assertSame(24, data_get($projection, 'months_projected'));
+        // Two units at 450, from twenty founder hours at ten hours a unit:
+        // the engine computed that from the stored reconstruction.
+        self::assertSame(1, data_get($projection, 'base_revenue_months'));
+        self::assertNull(data_get($projection, 'refusal'));
+        $reasons = array_column((array) data_get($projection, 'missing'), 'months', 'reason');
+        self::assertArrayHasKey('founder.available_hours', $reasons);
+        self::assertSame(23, $reasons['founder.available_hours'],
+            'A gap is counted once with its reach, not repeated for every month it touches.');
+    }
+
     public function test_an_unassigned_advisor_cannot_record_drivers(): void
     {
         $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();

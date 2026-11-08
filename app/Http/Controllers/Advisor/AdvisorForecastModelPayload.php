@@ -9,6 +9,7 @@ use App\Services\Entrepreneurs\Forecast\ActualMonth;
 use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\DriverNumbers;
+use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
@@ -39,8 +40,10 @@ use App\Services\Entrepreneurs\Forecast\TradeItem;
  * @phpstan-type AssetPayload array{id:string,source:string,cost:string|null,classification:string|null,policy_source:string|null,reviewed:bool|null,paid_on:string|null,recognition_start_on:string|null,life_months:int|null,residual:string|null,method:string|null,opening_depreciation:string|null}
  * @phpstan-type TaxPeriodPayload array{start_on:string,end_on:string,accounting_profit:string|null,tax_adjustments:string|null}
  * @phpstan-type TaxPayload array{entity_basis:string|null,rate_percent:string|null,losses_eligible:bool|null,policy_source:string|null,eligibility_source:string|null,version:string|null,periods:list<TaxPeriodPayload>}
+ * @phpstan-type GapPayload array{reason:string,months:int,first_period:string}
+ * @phpstan-type ProjectionPayload array{engine_version:string,status:string,months_projected:int,base_revenue_months:int,missing:list<GapPayload>,errors:list<GapPayload>,refusal:string|null}
  * @phpstan-type SectionPayload array{key:string,label:string,captured:bool,editable:bool,detail:string}
- * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,sections:list<SectionPayload>}
+ * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,sections:list<SectionPayload>}
  */
 final readonly class AdvisorForecastModelPayload
 {
@@ -52,7 +55,7 @@ final readonly class AdvisorForecastModelPayload
      */
     private const REVIEW_AT = 1000;
 
-    public function __construct(private ForecastModelStore $store) {}
+    public function __construct(private ForecastModelStore $store, private ForecastRun $run = new ForecastRun) {}
 
     /** @return ModelPayload|null */
     public function build(?EntrepreneurForecastModel $model): ?array
@@ -104,6 +107,7 @@ final readonly class AdvisorForecastModelPayload
             'owner_pay_steps' => array_map($this->ownerPayStep(...), $inputs->ownerPaySteps ?? []),
             'assets' => array_map($this->asset(...), $inputs->assets ?? []),
             'tax' => $this->tax($inputs),
+            'projection' => $inputs === null ? null : $this->projection($inputs),
             'sections' => $this->sections($inputs),
         ];
     }
@@ -320,6 +324,29 @@ final readonly class AdvisorForecastModelPayload
         $detail = $counted(count($inputs->taxPeriods), 'period');
 
         return $blank === [] ? $detail : $detail.' Policy still needs: '.implode(', ', $blank).'.';
+    }
+
+    /**
+     * What the engine makes of the reconstruction as it stands.
+     *
+     * The sections above report what has been recorded; this reports whether
+     * the recording adds up to something the engine can project. The two
+     * answer different questions, and a complete-looking set of sections can
+     * still fail to project.
+     *
+     * @return ProjectionPayload
+     */
+    private function projection(ForecastModelInputs $inputs): array
+    {
+        $run = $this->run->revenue($inputs);
+        $priced = array_filter($run['months'], fn (array $month): bool => $month['base_revenue'] !== null);
+
+        return ['engine_version' => $run['engine_version'], 'status' => $run['status'],
+            'months_projected' => count($run['months']), 'base_revenue_months' => count($priced),
+            // Capped for the screen. The count beside each reason already says
+            // how far it reaches, so a longer list adds length, not meaning.
+            'missing' => array_slice($run['missing'], 0, 12), 'errors' => array_slice($run['errors'], 0, 12),
+            'refusal' => $run['refusal']];
     }
 
     /** @return list<SectionPayload> */

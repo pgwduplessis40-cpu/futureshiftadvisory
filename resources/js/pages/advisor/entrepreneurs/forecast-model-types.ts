@@ -112,6 +112,24 @@ export type TaxRow = {
     version: string | null;
     periods: TaxPeriodRow[];
 };
+export type Gap = {
+    reason: string;
+    months: number;
+    first_period: string;
+};
+/** What the engine makes of the reconstruction, as distinct from what has
+ * been recorded into it. A complete-looking set of sections can still fail
+ * to project. */
+export type Projection = {
+    engine_version: string;
+    status: string;
+    months_projected: number;
+    base_revenue_months: number;
+    missing: Gap[];
+    errors: Gap[];
+    /** Set when the engine refused the reconstruction outright. */
+    refusal: string | null;
+};
 export type Section = {
     key: string;
     label: string;
@@ -137,6 +155,7 @@ export type ForecastModel = {
     owner_pay_steps: OwnerPayRow[];
     assets: AssetRow[];
     tax: TaxRow;
+    projection: Projection | null;
     sections: Section[];
 };
 /** The shape the save form posts. Actual rows carry strings for every field

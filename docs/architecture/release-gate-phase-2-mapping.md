@@ -238,6 +238,26 @@ Local verification passed 28 forecast-model feature tests with 198 assertions an
 
 Every input section now has an editor, so 2E-4 is no longer blocked on data entry. It remains blocked on the version-2 fact producer: the nine adapters read fact keys that neither `BudgetFacts` nor `PlanFacts` emits, and the three slices of 2E-3 have captured the inputs behind those keys without yet producing them.
 
+### Slice 2E-4a implementation record
+
+This slice set out to build the version-2 fact producer and found it blocked on something larger than a missing producer: **the version-2 forecast engine has no caller.** Every reference to `CashLedger`, `RevenueProjection`, `AssetSchedule`, `TaxProjection`, `ScenarioRunner` and the rest is inside the `Forecast` namespace itself. The components are complete and unit-tested, and nothing assembles them from a stored reconstruction. A fact producer has nothing to read until something runs the engine, so this slice builds that boundary and the next one produces facts from it.
+
+`ForecastRun` is that boundary, and it is deliberately narrow. It runs the revenue projection, which needs nothing the stored model does not already hold, and reports the result as a verdict rather than a value: a projection that cannot run comes back as a run that failed, with the engine's own reason attached. The alternative is an engine exception surfacing on a screen an advisor is reading. Gaps are counted by reason with the number of months each reaches, because a sixty-month calendar missing one field would otherwise report that field sixty times and bury every other reason behind it.
+
+The advisor screen now shows what the engine makes of the reconstruction, beside the table of what has been recorded into it. These answer different questions, and the distinction is the point: a complete-looking set of sections can still fail to project.
+
+**A defect found and fixed.** The driver form validated the shape of a month but not its membership of the calendar, and `RevenueProjection` throws on a schedule that reaches past its horizon rather than discarding the month. A stream month or a founder-capacity month recorded beyond the horizon therefore stored a reconstruction that could not be projected at all. It was latent only because nothing ran the engine. The same state was reachable from the other side, by shortening the calendar under months already recorded, so both forms now refuse it and name the month and the horizon it falls outside. This is the same class as the tax-period gap caught in 2E-3c: a stored model that fails when projected rather than when saved.
+
+**Three input gaps block the cash side**, found while reading the components this slice does not yet call:
+
+- `OwnerPaySchedule::calculate` requires a first payment date and a source, and `ForecastModelInputs` holds neither.
+- `TaxProjection::calculate` requires opening eligible losses, which the stored model does not hold.
+- PM-08 reads `allocation.policy`, `allocation.amount`, `allocation.trigger`, `allocation.schedule` and `allocation.duplicate_line` for giving, reinvestment and owner distribution. No input section holds any of them, so PM-08 would report every policy missing however well the rest of the model is filled in.
+
+The remainder of 2E-4 therefore runs: **2E-4b** the three missing inputs and the cash-side run; **2E-4c** capturing the selected reconstruction into the gate's source snapshot — `SourceCapture` records sections, the legacy budget, claims and evidence, and not the forecast model — together with the fact producer; **2E-4d** registering the nine rules, which is the first slice that moves a verdict and deserves to be the only thing in its own change; **2E-4e** extending MI-01 to MI-04 and SS-01 onto the new ledger.
+
+This slice changes no verdict. It registers no rule and emits no fact; the seventeen deferred rules stay deferred. Adding a file under `app/Services/Entrepreneurs` changes the dependency hash in `SourceCapture`, which invalidates prior risk acceptances, as every slice touching that tree does.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.
