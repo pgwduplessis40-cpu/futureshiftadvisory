@@ -55,7 +55,7 @@ final class EntrepreneurForecastModelController extends Controller
             'model' => $payload->build($store->forPlan($businessPlan)),
             'engine' => $payload->engine(),
             'can_edit' => Gate::forUser($actor)->allows('assess', $entrepreneurProfile),
-            'urls' => ['review' => $url, 'save' => $url, 'drivers' => $url.'/drivers', 'selection' => $url.'/selection',
+            'urls' => ['review' => $url, 'save' => $url, 'drivers' => $url.'/drivers', 'terms' => $url.'/terms', 'selection' => $url.'/selection',
                 'gate' => route('advisor.entrepreneurs.plans.release-gate.show', [$entrepreneurProfile, $businessPlan], absolute: false),
                 'workspace' => route('advisor.entrepreneurs.show', $entrepreneurProfile, absolute: false)],
         ]);
@@ -153,6 +153,40 @@ final class EntrepreneurForecastModelController extends Controller
         }
 
         return back()->with('status', 'forecast-model-drivers-saved');
+    }
+
+    /**
+     * Records the trade terms, owner pay steps, assets and tax planning that
+     * sit behind the cash ledger.
+     *
+     * The mapping itself lives in AdvisorForecastTerms, because these four
+     * sections carry the identity and ordering invariants the ledger depends
+     * on and those are worth reading in one place rather than threaded through
+     * a controller action.
+     */
+    public function terms(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan,
+        ForecastModelStore $store, AdvisorForecastTerms $terms): RedirectResponse
+    {
+        $actor = $this->editor($request, $entrepreneurProfile, $businessPlan);
+        $data = $request->validate($terms->rules());
+        $model = $store->forPlan($businessPlan);
+        $existing = $model === null ? null : $store->inputs($model);
+        if ($existing === null) {
+            // Depreciation and tax are both projected across a horizon. There
+            // is no horizon to project them across yet, so the screen says
+            // which step has to come first rather than inventing one.
+            throw ValidationException::withMessages([
+                'terms' => 'Record the forecast calendar and opening position before the trade, pay, asset and tax terms that sit inside it.',
+            ]);
+        }
+
+        try {
+            $store->save($businessPlan, $terms->apply($existing, $data), $actor, $data['expected_revision']);
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['terms' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'forecast-model-terms-saved');
     }
 
     public function selection(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, ForecastModelStore $store): RedirectResponse

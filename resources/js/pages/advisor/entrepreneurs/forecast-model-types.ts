@@ -57,6 +57,61 @@ export type FounderMonthRow = {
     administration_hours: string | null;
     business_development_hours: string | null;
 };
+export type SettlementRow = {
+    id: string;
+    source: string;
+    date: string | null;
+    amount: string | null;
+    category: string;
+    /** Three states: true verified, false not verified, null nobody has said. */
+    verified: boolean | null;
+};
+export type TradeItemRow = {
+    id: string;
+    source: string;
+    kind: string;
+    raised_on: string | null;
+    amount: string | null;
+    /** null when nobody has recorded how the item settles, which is not the
+     * same as an item recorded as settling with nothing. */
+    settlements: SettlementRow[] | null;
+};
+export type OwnerPayRow = {
+    effective_on: string;
+    weekly_amount: string | null;
+    trigger: string;
+    threshold: string | null;
+};
+export type AssetRow = {
+    id: string;
+    source: string;
+    cost: string | null;
+    /** Three states: 'capital', 'expense', or null for not yet classified. */
+    classification: string | null;
+    policy_source: string | null;
+    reviewed: boolean | null;
+    paid_on: string | null;
+    recognition_start_on: string | null;
+    life_months: number | null;
+    residual: string | null;
+    method: string | null;
+    opening_depreciation: string | null;
+};
+export type TaxPeriodRow = {
+    start_on: string;
+    end_on: string;
+    accounting_profit: string | null;
+    tax_adjustments: string | null;
+};
+export type TaxRow = {
+    entity_basis: string | null;
+    rate_percent: string | null;
+    losses_eligible: boolean | null;
+    policy_source: string | null;
+    eligibility_source: string | null;
+    version: string | null;
+    periods: TaxPeriodRow[];
+};
 export type Section = {
     key: string;
     label: string;
@@ -78,6 +133,10 @@ export type ForecastModel = {
     actuals: ActualRow[];
     streams: StreamRow[];
     founder_months: FounderMonthRow[];
+    trade_items: TradeItemRow[];
+    owner_pay_steps: OwnerPayRow[];
+    assets: AssetRow[];
+    tax: TaxRow;
     sections: Section[];
 };
 /** The shape the save form posts. Actual rows carry strings for every field
@@ -142,6 +201,64 @@ export type DriversForm = {
     streams: StreamInput[];
     founder_months: FounderMonthInput[];
 };
+/** Every yes/no question on the terms form posts '', 'yes' or 'no' rather
+ * than a boolean, so that "nobody has answered" survives the wire as itself
+ * instead of arriving indistinguishable from an answer of no. */
+export type SettlementInput = {
+    id: string;
+    source: string;
+    date: string;
+    amount: string;
+    category: string;
+    verified: string;
+};
+export type TradeItemInput = {
+    id: string;
+    source: string;
+    kind: string;
+    raised_on: string;
+    amount: string;
+    settlements: SettlementInput[];
+};
+export type OwnerPayInput = {
+    effective_on: string;
+    weekly_amount: string;
+    trigger: string;
+    threshold: string;
+};
+export type AssetInputRow = {
+    id: string;
+    source: string;
+    cost: string;
+    classification: string;
+    policy_source: string;
+    reviewed: string;
+    paid_on: string;
+    recognition_start_on: string;
+    life_months: string;
+    residual: string;
+    method: string;
+    opening_depreciation: string;
+};
+export type TaxPeriodInput = {
+    start_on: string;
+    end_on: string;
+    accounting_profit: string;
+    tax_adjustments: string;
+};
+export type TermsForm = {
+    expected_revision: number | null;
+    trade_items: TradeItemInput[];
+    owner_pay_steps: OwnerPayInput[];
+    assets: AssetInputRow[];
+    tax_entity_basis: string;
+    tax_rate_percent: string;
+    tax_losses_eligible: string;
+    tax_policy_source: string;
+    tax_eligibility_source: string;
+    tax_version: string;
+    tax_periods: TaxPeriodInput[];
+};
 export type ForecastModelProps = {
     model: ForecastModel | null;
     engine: { engine_version: string; components: Record<string, string> };
@@ -150,6 +267,7 @@ export type ForecastModelProps = {
         review: string;
         save: string;
         drivers: string;
+        terms: string;
         selection: string;
         gate: string;
         workspace: string;
