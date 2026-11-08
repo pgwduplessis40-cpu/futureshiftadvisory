@@ -14,9 +14,12 @@ use App\Services\Entrepreneurs\Forecast\ActualProfit;
 use App\Services\Entrepreneurs\Forecast\ActualSource;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
+use App\Services\Entrepreneurs\Forecast\FounderMonth;
 use App\Services\Entrepreneurs\Forecast\ReservePolicy;
+use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelStore;
+use App\Services\Entrepreneurs\Forecast\StreamMonth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -31,6 +34,14 @@ use Inertia\Response;
  * with no effect on any release verdict; selecting it is the separate act that
  * makes the plan a version-2 plan, and this slice still evaluates every plan
  * against the twenty enabled rules either way.
+ *
+ * The sections are posted in groups rather than as one form. Each group carries
+ * the sections it does not edit through unchanged, so recording founder hours
+ * cannot quietly discard a reserve policy somebody else recorded first.
+ *
+ * @phpstan-type StreamMonthRow array{period:string,booked_units:string|null,delivery_units:string|null,invoiced_units:string|null,founder_hours:string|null,additional_capacity_units:string|null,provider:string|null,provider_unit_cost:string|null,no_cost_basis:string|null}
+ * @phpstan-type StreamRow array{id:string,name:string,unit:string|null,price:string|null,preparation_hours_per_unit:string|null,delivery_hours_per_unit:string|null,in_base_case:string|null,evidence_status:string|null,schedule:list<StreamMonthRow>}
+ * @phpstan-type FounderRow array{period:string,available_hours:string|null,administration_hours:string|null,business_development_hours:string|null}
  */
 final class EntrepreneurForecastModelController extends Controller
 {
@@ -44,7 +55,7 @@ final class EntrepreneurForecastModelController extends Controller
             'model' => $payload->build($store->forPlan($businessPlan)),
             'engine' => $payload->engine(),
             'can_edit' => Gate::forUser($actor)->allows('assess', $entrepreneurProfile),
-            'urls' => ['review' => $url, 'save' => $url, 'selection' => $url.'/selection',
+            'urls' => ['review' => $url, 'save' => $url, 'drivers' => $url.'/drivers', 'selection' => $url.'/selection',
                 'gate' => route('advisor.entrepreneurs.plans.release-gate.show', [$entrepreneurProfile, $businessPlan], absolute: false),
                 'workspace' => route('advisor.entrepreneurs.show', $entrepreneurProfile, absolute: false)],
         ]);
@@ -90,6 +101,58 @@ final class EntrepreneurForecastModelController extends Controller
         }
 
         return back()->with('status', 'forecast-model-saved');
+    }
+
+    /**
+     * Records the revenue streams and the founder capacity behind them.
+     *
+     * A stream carries an explicit base-case flag with three states, because a
+     * stream nobody has classified is not the same as a stream excluded from
+     * the base case. Recording the difference here is what lets a later rule
+     * report an unflagged stream as unverifiable rather than silently leaving
+     * it out of a base-revenue total.
+     */
+    public function drivers(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, ForecastModelStore $store): RedirectResponse
+    {
+        $actor = $this->editor($request, $entrepreneurProfile, $businessPlan);
+        $month = ['required', 'string', 'regex:/^[1-9]\d{3}-(0[1-9]|1[0-2])$/'];
+        $number = ['present', 'nullable', 'string', 'max:30'];
+        $data = $request->validate([
+            'expected_revision' => ['present', 'nullable', 'integer', 'min:0'],
+            'streams' => ['present', 'array', 'max:20'],
+            'streams.*.id' => ['required', 'string', 'max:60'],
+            'streams.*.name' => ['required', 'string', 'max:160'],
+            'streams.*.unit' => ['present', 'nullable', 'string', 'max:60'],
+            'streams.*.price' => $number,
+            'streams.*.preparation_hours_per_unit' => $number,
+            'streams.*.delivery_hours_per_unit' => $number,
+            'streams.*.in_base_case' => ['present', 'nullable', 'in:base,upside'],
+            'streams.*.evidence_status' => ['present', 'nullable', 'in:verified,own_record,founder_stated,founder_assumption'],
+            'streams.*.schedule' => ['present', 'array', 'max:60'],
+            'streams.*.schedule.*.period' => $month,
+            'streams.*.schedule.*.booked_units' => $number,
+            'streams.*.schedule.*.delivery_units' => $number,
+            'streams.*.schedule.*.invoiced_units' => $number,
+            'streams.*.schedule.*.founder_hours' => $number,
+            'streams.*.schedule.*.additional_capacity_units' => $number,
+            'streams.*.schedule.*.provider' => ['present', 'nullable', 'string', 'max:160'],
+            'streams.*.schedule.*.provider_unit_cost' => $number,
+            'streams.*.schedule.*.no_cost_basis' => ['present', 'nullable', 'string', 'max:255'],
+            'founder_months' => ['present', 'array', 'max:60'],
+            'founder_months.*.period' => $month,
+            'founder_months.*.available_hours' => $number,
+            'founder_months.*.administration_hours' => $number,
+            'founder_months.*.business_development_hours' => $number,
+        ]);
+        $this->rejectDuplicates($data['streams'], $data['founder_months']);
+
+        try {
+            $store->save($businessPlan, $this->driverInputs($store, $businessPlan, $data), $actor, $data['expected_revision']);
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['drivers' => $e->getMessage()]);
+        }
+
+        return back()->with('status', 'forecast-model-drivers-saved');
     }
 
     public function selection(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, ForecastModelStore $store): RedirectResponse
@@ -145,6 +208,103 @@ final class EntrepreneurForecastModelController extends Controller
                 $blank($data['reserve_monthly_fixed_costs']), $data['reserve_months_covered'], $data['reserve_includes_owner_pay'],
                 $blank($data['reserve_one_off_cash_costs']), $data['reserve_contingency_rate'], $blank($data['reserve_basis']),
             ),
+        );
+    }
+
+    /**
+     * @param  list<StreamRow>  $streams
+     * @param  list<FounderRow>  $founderMonths
+     */
+    private function rejectDuplicates(array $streams, array $founderMonths): void
+    {
+        $ids = array_map(fn (array $stream): string => trim($stream['id']), $streams);
+        if (count($ids) !== count(array_unique($ids))) {
+            throw ValidationException::withMessages(['streams' => 'Each stream needs its own reference. Two streams share one, and findings are reported against it.']);
+        }
+        foreach ($streams as $index => $stream) {
+            $periods = array_column($stream['schedule'], 'period');
+            if (count($periods) !== count(array_unique($periods))) {
+                throw ValidationException::withMessages(['streams' => 'Stream '.($ids[$index] === '' ? (string) ($index + 1) : $ids[$index]).' has the same month twice. Record each month once.']);
+            }
+        }
+        $months = array_column($founderMonths, 'period');
+        if (count($months) !== count(array_unique($months))) {
+            throw ValidationException::withMessages(['founder_months' => 'Each month can hold one founder capacity record. Remove the duplicate month.']);
+        }
+    }
+
+    /**
+     * @param  array{expected_revision:int|null,streams:list<StreamRow>,founder_months:list<FounderRow>}  $data
+     */
+    private function driverInputs(ForecastModelStore $store, BusinessPlan $plan, array $data): ForecastModelInputs
+    {
+        $model = $store->forPlan($plan);
+        $existing = $model === null ? null : $store->inputs($model);
+        if ($existing === null) {
+            // A monthly schedule only means something inside a horizon. Rather
+            // than invent a calendar to hang these months on, the screen says
+            // which step has to come first.
+            throw ValidationException::withMessages([
+                'drivers' => 'Record the forecast calendar and opening position before the revenue streams that sit inside it.',
+            ]);
+        }
+        $blank = fn (?string $value): ?string => $value === null || trim($value) === '' ? null : trim($value);
+        $founderMonths = [];
+        foreach ($data['founder_months'] as $row) {
+            $founderMonths[$row['period']] = new FounderMonth(
+                $blank($row['available_hours']), $blank($row['administration_hours']), $blank($row['business_development_hours']),
+            );
+        }
+
+        // Everything this form does not show is read back from the stored
+        // reconstruction and written out unchanged.
+        return new ForecastModelInputs(
+            calendar: $existing->calendar,
+            streams: array_map(fn (array $row): RevenueStream => $this->stream($row, $blank), $data['streams']),
+            founderMonths: $founderMonths,
+            cashOpening: $existing->cashOpening,
+            bankOpening: $existing->bankOpening,
+            tradeItems: $existing->tradeItems,
+            ownerPaySteps: $existing->ownerPaySteps,
+            assets: $existing->assets,
+            taxPolicy: $existing->taxPolicy,
+            taxPeriods: $existing->taxPeriods,
+            actualMonths: $existing->actualMonths,
+            reservePolicy: $existing->reservePolicy,
+        );
+    }
+
+    /**
+     * @param  StreamRow  $row
+     * @param  callable(?string):?string  $blank
+     */
+    private function stream(array $row, callable $blank): RevenueStream
+    {
+        $schedule = [];
+        foreach ($row['schedule'] as $entry) {
+            $schedule[$entry['period']] = new StreamMonth(
+                $blank($entry['booked_units']), $blank($entry['delivery_units']), $blank($entry['invoiced_units']),
+                $blank($entry['founder_hours']), $blank($entry['additional_capacity_units']),
+                $blank($entry['provider']), $blank($entry['provider_unit_cost']), $blank($entry['no_cost_basis']),
+            );
+        }
+
+        return new RevenueStream(
+            id: trim($row['id']),
+            name: trim($row['name']),
+            unit: $blank($row['unit']),
+            price: $blank($row['price']),
+            preparationHoursPerUnit: $blank($row['preparation_hours_per_unit']),
+            deliveryHoursPerUnit: $blank($row['delivery_hours_per_unit']),
+            // Three states, not two. An unclassified stream stays null so a
+            // rule can report it as unverified rather than read it as upside.
+            inBaseCase: match ($row['in_base_case']) {
+                'base' => true,
+                'upside' => false,
+                default => null,
+            },
+            evidenceStatus: $blank($row['evidence_status']),
+            schedule: $schedule,
         );
     }
 

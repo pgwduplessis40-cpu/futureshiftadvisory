@@ -42,6 +42,39 @@ const model: ForecastModel = {
             pre_trading_evidence: null,
         },
     ],
+    streams: [
+        {
+            id: 'workshops',
+            name: 'Weekend workshops',
+            unit: 'workshop',
+            price: '450.00',
+            preparation_hours_per_unit: '4',
+            delivery_hours_per_unit: '6',
+            in_base_case: true,
+            evidence_status: 'own_record',
+            schedule: [
+                {
+                    period: '2026-03',
+                    booked_units: '2',
+                    delivery_units: '2',
+                    invoiced_units: '2',
+                    founder_hours: '20',
+                    additional_capacity_units: null,
+                    provider: null,
+                    provider_unit_cost: null,
+                    no_cost_basis: null,
+                },
+            ],
+        },
+    ],
+    founder_months: [
+        {
+            period: '2026-03',
+            available_hours: '120',
+            administration_hours: '20',
+            business_development_hours: '15',
+        },
+    ],
     sections: [
         {
             key: 'calendar',
@@ -53,6 +86,13 @@ const model: ForecastModel = {
         {
             key: 'streams',
             label: 'Revenue streams',
+            captured: true,
+            editable: true,
+            detail: '1 stream captured.',
+        },
+        {
+            key: 'trade_items',
+            label: 'Trade terms',
             captured: false,
             editable: false,
             detail: 'Not captured.',
@@ -69,6 +109,7 @@ const props: ForecastModelProps = {
     urls: {
         review: '/model',
         save: '/model',
+        drivers: '/model/drivers',
         selection: '/model/selection',
         gate: '/gate',
         workspace: '/plan',
@@ -105,9 +146,36 @@ test('the page states that saving a reconstruction changes no verdict', async ()
 
 test('uncaptured sections are reported rather than left blank', async () => {
     const html = await render();
-    assert.match(html, /Revenue streams/);
+    assert.match(html, /Trade terms/);
     assert.match(html, /Not captured/);
     assert.match(html, /On a later screen/);
+});
+
+test('the base-case question offers an unanswered state of its own', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Counted in the base case/);
+    assert.match(html, /Not yet decided/);
+    assert.match(html, /Yes, part of the base case/);
+    assert.match(html, /No, upside only/);
+    // An unanswered stream must not be presentable as a decision; the page
+    // says what the consequence of leaving it unanswered actually is.
+    assert.match(html, /reported as unverified/);
+    assert.match(html, /never treated/);
+});
+
+test('stored streams and founder hours load into the driver form', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Revenue streams and founder capacity/);
+    assert.match(html, /value="Weekend workshops"/);
+    assert.match(html, /value="workshops"/);
+    assert.match(html, /value="120"/);
+    assert.match(html, /Save streams and capacity/);
+});
+
+test('the driver form is withheld until a calendar exists to hang months on', async () => {
+    const html = await render({ can_edit: true, model: null });
+    assert.match(html, /A monthly schedule only means something inside a/);
+    assert.doesNotMatch(html, /Save streams and capacity/);
 });
 
 test('the reserve target is shown as a calculated figure with its parts', async () => {
@@ -133,6 +201,7 @@ test('the reserve target is shown as a calculated figure with its parts', async 
 test('an advisor without edit authority sees no form and no selection control', async () => {
     const html = await render();
     assert.doesNotMatch(html, /Save reconstruction/);
+    assert.doesNotMatch(html, /Save streams and capacity/);
     assert.doesNotMatch(html, /Select as the plan financial model/);
     const editable = await render({ can_edit: true });
     assert.match(editable, /Save reconstruction/);

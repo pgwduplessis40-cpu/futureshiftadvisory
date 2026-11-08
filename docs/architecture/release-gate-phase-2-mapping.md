@@ -194,6 +194,26 @@ One defect was found and fixed while wiring the form. After a successful save th
 
 Streams, founder capacity, trade terms, owner pay steps, assets and tax still have no editor. Until they do, a selected reconstruction will answer Cannot verify for the rules that read them, which is correct but is not a complete reconstruction. That editor and the rule activation remain 2E-4 and the slices after it.
 
+### Slice 2E-3b implementation record
+
+This slice adds the editor for the two sections the phase-2 rules read most: revenue streams and founder capacity. They were chosen ahead of the other four because PM-05, PM-06, PM-11 and MI-08 all read stream and capacity facts, so without them the rule activation in 2E-4 would register rules that no advisor could ever supply data for.
+
+The sections are posted in groups rather than as one form, at `POST .../forecast-model/drivers` beside the existing save route. Each group carries the sections it does not edit through unchanged, read back from the stored reconstruction rather than from the form. Recording founder hours therefore cannot discard a reserve policy somebody else recorded first, and a feature test asserts the calendar, opening cash, reserve policy and reviewed actuals all survive a driver save.
+
+**The base-case flag is a three-state question, not a checkbox.** `RevenueStream::$inBaseCase` is a nullable boolean, and the distinction matters: PM-06 builds a base-revenue total from the streams the model flags as included, and an unflagged stream read as excluded would quietly drop out of that total and turn into a confident mismatch against `model.base_revenue`. The form asks "Counted in the base case" with "Not yet decided", "Yes" and "No, upside only", stores the unanswered case as absent, and the section summary reports how many streams have no flag. A feature test posts the unanswered state and asserts it is stored as null rather than as exclusion. This is the same defect found and fixed inside the PM-06 adapter in 2E-2, prevented here at the point of entry.
+
+A stream's monthly schedule is stored as a sparse map keyed by month, because a month with no activity is genuinely absent rather than zero. The form matches that shape: an advisor adds the months that have activity instead of filling a grid of sixty. The payload sorts the map into a period-ordered list for display, so the months read in the order they occur whatever order they were written in.
+
+Driver entry is refused until a calendar exists. A schedule of months only means something inside a horizon, so rather than invent one the screen says which step has to come first, and the form is withheld with that explanation until a reconstruction has been saved. Duplicate stream references, a month recorded twice within one stream, and a month recorded twice in founder capacity are each refused against the field that holds them, as are values the engine's own constructors reject. Every refused save leaves the stored revision alone.
+
+Stream references are advisor-supplied and unique, not generated. Release findings are reported against the stream entity, so a reference that changes between saves would detach a finding from the stream it describes.
+
+This slice still changes no verdict. A test evaluates the release gate before and after recording drivers and selecting the model, asserts the serialised results are identical, and asserts the nine phase-2 rules remain among the seventeen deferred.
+
+Local verification passed 17 forecast-model feature tests with 110 assertions and 9 page tests. PHPStan level 6, `tsc --noEmit`, ESLint, Prettier and Pint are clean, and all six structural gates pass against `origin/main` — run with the comparison ref CI passes them, which the previous slice had not been doing locally. Exact-commit CI results are recorded on the pull request.
+
+Trade terms, owner pay steps, assets and tax still have no editor; they read the cash ledger that MI-01 to MI-04 already cover rather than the new nine, so they become 2E-3c. 2E-4 still has to build the version-2 fact producer before the nine rules can be registered: the adapters read fact keys that neither `BudgetFacts` nor `PlanFacts` emits, and this slice captures the inputs for those keys without yet producing them.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.
