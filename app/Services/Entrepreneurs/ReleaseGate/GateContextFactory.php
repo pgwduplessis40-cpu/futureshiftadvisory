@@ -8,7 +8,8 @@ use App\Models\BusinessPlan;
 
 final readonly class GateContextFactory
 {
-    public function __construct(private SourceCapture $capture, private BudgetFacts $budget, private PlanFacts $plan) {}
+    public function __construct(private SourceCapture $capture, private BudgetFacts $budget, private PlanFacts $plan,
+        private ForecastModelFacts $forecast = new ForecastModelFacts) {}
 
     public function current(BusinessPlan $plan, string $document, Audience $audience = Audience::External): DocumentContext
     {
@@ -18,7 +19,11 @@ final readonly class GateContextFactory
     public function fromSource(SourceVersion $version, string $document, Audience $audience = Audience::External): DocumentContext
     {
         $source = new SourceRecords($version);
-        $facts = [...$this->budget->capture($source), ...$this->plan->capture($source)];
+        // The version-2 producer runs last and emits nothing unless a
+        // reconstruction has been selected. It withholds the keys the enabled
+        // rules already read, so a selected model adds evidence beside the
+        // stored budget without displacing it.
+        $facts = [...$this->budget->capture($source), ...$this->plan->capture($source), ...$this->forecast->capture($source)];
         $required = $version->requiredHorizon;
         foreach ($facts as $fact) {
             if ($fact->key === 'scope.required_horizon' && $fact->number() !== null) {

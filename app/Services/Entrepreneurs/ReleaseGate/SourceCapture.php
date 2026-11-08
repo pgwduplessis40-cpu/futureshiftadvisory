@@ -6,6 +6,7 @@ namespace App\Services\Entrepreneurs\ReleaseGate;
 
 use App\Models\BusinessPlan;
 use App\Models\Document;
+use App\Models\EntrepreneurForecastModel;
 use App\Models\PlanClaimVersion;
 use App\Models\PlanGateRun;
 use App\Models\PlanSection;
@@ -46,11 +47,19 @@ final class SourceCapture
             }
         }
         $identity = $plan->entrepreneurProfile?->only(['id', 'company_name', 'name', 'concept_summary']);
+        // Only once it is selected. Saving a reconstruction is not choosing
+        // it, so a draft nobody has selected must not enter the snapshot, or
+        // every revision of a draft would invalidate risk decisions taken
+        // against a model it has no bearing on.
+        $forecast = ! $plan->exists ? null : EntrepreneurForecastModel::query()
+            ->where('business_plan_id', $plan->getKey())->whereNotNull('selected_at')->first();
+        $model = $forecast?->only(['id', 'revision', 'engine_version', 'selected_at', 'drivers', 'actuals', 'reserve_policy']);
         $source = ['plan_id' => (string) $plan->getKey(), 'identity' => $identity, 'sections' => $sections,
-            'budget' => $budget, 'claims' => $claims, 'evidence' => $evidence, 'required_horizon' => $requiredHorizon];
+            'budget' => $budget, 'claims' => $claims, 'evidence' => $evidence, 'forecast_model' => $model,
+            'required_horizon' => $requiredHorizon];
 
         return new SourceVersion(
-            (string) $plan->getKey(), CanonicalJson::hash([$identity, $inputs, $budget, $claims, $evidence]),
+            (string) $plan->getKey(), CanonicalJson::hash([$identity, $inputs, $budget, $claims, $evidence, $model]),
             CanonicalJson::hash($sections), $this->dependencies(), $requiredHorizon, now()->toDateString(), CanonicalJson::encode($source),
         );
     }

@@ -278,6 +278,43 @@ Gap aggregation had to grow a second shape for this. A weekly pay series missing
 
 This slice changes no verdict. No rule is registered and no fact is emitted.
 
+### Slice 2E-4c implementation record
+
+This slice captures the selected reconstruction into the gate's source snapshot and produces release-gate facts from it. Facts are evidenced against the snapshot rather than against live state, so a gate run and a later re-reading of it see the same model, and the reconstruction is decoded back through the engine's own codec — a payload the engine would refuse produces no facts at all rather than a thinner set that reads as a complete model with gaps.
+
+**Only once selected.** Saving a reconstruction is not choosing it, so a draft nobody has selected does not enter the snapshot. Were it captured, every revision of a draft would change the inputs hash and invalidate risk decisions taken against a model it has no bearing on. A feature test reads the gate context before and after selection and asserts the facts appear only after.
+
+**Four keys are deliberately withheld, and the withholding is enforced.** `FactSet::one()` resolves competing records to nothing rather than to the first of them, and several of the keys the nine deferred rules read are already read by enabled ones. Emitting them now would move verdicts before a single new rule is registered:
+
+| Key | Read by | Effect of emitting it now |
+|---|---|---|
+| `stream.revenue` | PM-04 (enabled) | PM-04 currently sees none; emitting would change its verdict |
+| `scope.required_horizon` | MI-06 (enabled) | Would raise the snapshot's own required horizon |
+| `scenario.lowest_cash` | SS-01 (enabled) | Would add scenarios SS-01 did not have |
+| `model.external_request` | PM-12 (enabled) | A second record makes the lookup ambiguous, so PM-12 reports missing where it had a value |
+
+They are listed in `ForecastModelFacts::WITHHELD`, a unit test asserts none is emitted, and a feature test asserts a selected model adds no competing record for any of them. They belong to the slice that registers the nine rules, where the interaction can be designed and tested as one change. The three existing "changes no release verdict" tests — each of which selects a model and compares the full serialised results — pass unchanged, which is the empirical proof that the analysis holds.
+
+**What the producer emits.** Periods follow the `month:N` convention the rest of the gate uses, counted from the model's own start, so a fact produced here can be compared with one produced from the stored budget. Every fact carries the captured record it came from; a unit test asserts that of all of them, because a fact without its source is an assertion rather than evidence.
+
+Two judgements inside it are worth naming. A stream nobody has classified emits no membership fact at all — the rules require a boolean, and an absent flag reported as missing is the finding, while a flag invented here would be the defect. And a stream whose provider changes from month to month emits no single provider, because naming one of them would be a claim nobody made.
+
+A test that expected a base revenue total found none, and the engine was right: one stream in that model is unclassified, so there is no total to publish. The three-state flag recorded on the advisor screen in 2E-3b reaches the fact as an absent figure rather than as a total that quietly leaves the unclassified stream out. That chain is now asserted end to end.
+
+**Inventory of the nine rules' remaining facts.** Rather than discover these one slice at a time, here is the whole picture:
+
+- **MI-07** is fully fed.
+- **PM-05** and **PM-06** have their model side fed. Their `plan.*` keys are the document's own claims and belong to `PlanFacts`, not here; PM-06 also needs the withheld `stream.revenue`.
+- **PM-11** is fed except `provider.capacity_hours` and `provider.start`. `StreamMonth` records additional capacity in units, not the provider's hours, and holds no start date for a provider — **two new inputs**.
+- **PM-10** needs the runway computed from the ledger checkpoints through `LenderMetrics::runway`. That is engine work, not a missing input.
+- **SS-02**, and SS-03's scenario facts, need `ScenarioRunner` and `ScenarioCatalogue`, which the run does not yet invoke. Engine work.
+- **SS-03** also needs five statements about the funding ask — basis, request metric, basis scenario, non-external total, reserve-only disclosure — which no input holds.
+- **PM-08** needs five allocation fields across three policies. No input section holds any of them.
+
+So what remains of 2E-4 is: **new inputs** (two for PM-11, five for SS-03, fifteen for PM-08), **engine work** (runway, and the scenario run), and then **2E-4d**, which registers the nine rules, emits the four withheld keys and updates the banner that currently promises selection moves no verdict — all as one change, because that is the change.
+
+This slice changes no verdict.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.

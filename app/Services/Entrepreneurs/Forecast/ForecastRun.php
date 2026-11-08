@@ -24,7 +24,8 @@ use App\Support\Methodology\ProvidesMethodology;
  * @phpstan-type RunMonth array{period:string,status:string,base_revenue:string|null,founder_hours_allocated:string|null,founder_hours_available:string|null}
  * @phpstan-type RunGap array{reason:string,months:int,first_period:string}
  * @phpstan-type RunResult array{engine_version:string,status:string,months:list<RunMonth>,missing:list<RunGap>,errors:list<RunGap>,refusal:string|null}
- * @phpstan-type CashResult array{engine_version:string,status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,missing:list<RunGap>,refusal:string|null}
+ * @phpstan-type CashMonth array{period:string,opening_cash:string|null,closing_cash:string|null}
+ * @phpstan-type CashResult array{engine_version:string,status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,months:list<CashMonth>,missing:list<RunGap>,refusal:string|null}
  */
 final class ForecastRun implements ProvidesMethodology
 {
@@ -123,6 +124,14 @@ final class ForecastRun implements ProvidesMethodology
             'cash_deficit' => $funding['cash_deficit'] ?? null,
             'reserve_target' => $funding['reserve_target'] ?? null,
             'reserve_shortfall' => $funding['reserve_shortfall'] ?? null,
+            // Carried through so a reader can see where the forecast resumes
+            // after the last reconciled month, which is the handover the
+            // elapsed-actuals rule checks.
+            'months' => array_map(
+                fn (array $month): array => ['period' => $month['period'],
+                    'opening_cash' => $month['opening_cash'], 'closing_cash' => $month['closing_cash']],
+                $ledger['months'],
+            ),
             'missing' => $missing, 'refusal' => null,
         ];
     }
@@ -203,7 +212,7 @@ final class ForecastRun implements ProvidesMethodology
     {
         return ['engine_version' => self::VERSION, 'status' => $status, 'movements_counted' => $counted,
             'settled_before_opening' => $early, 'lowest_cash' => $lowest, 'lowest_cash_date' => $lowestDate,
-            'cash_deficit' => null, 'reserve_target' => null, 'reserve_shortfall' => null,
+            'cash_deficit' => null, 'reserve_target' => null, 'reserve_shortfall' => null, 'months' => [],
             'missing' => $missing, 'refusal' => $refusal];
     }
 

@@ -13,6 +13,8 @@ use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelStore;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
 use App\Services\Entrepreneurs\ReleaseGate\CanonicalJson;
+use App\Services\Entrepreneurs\ReleaseGate\ForecastModelFacts;
+use App\Services\Entrepreneurs\ReleaseGate\GateContextFactory;
 use App\Services\Entrepreneurs\ReleaseGate\ReleaseGate;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -743,6 +745,39 @@ final class ForecastModelInputsTest extends TestCase
             'A pay arrangement recorded on the terms form must survive a save from either other form.');
         self::assertSame('2026-07-03', $carried->ownerPayFirstPaymentOn);
         self::assertSame('4500', $carried->openingEligibleLosses);
+    }
+
+    public function test_a_reconstruction_reaches_the_gate_as_evidenced_facts_only_once_selected(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+
+        // Saving is not selecting. A draft nobody has chosen must not enter
+        // the snapshot, or every revision of it would invalidate decisions
+        // taken against a model it has no bearing on.
+        $factory = app(GateContextFactory::class);
+        $before = $factory->current($this->plan->refresh(), 'plan');
+        self::assertSame([], $before->facts->all('model.start_period'));
+
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        $after = $factory->current($this->plan->refresh(), 'plan');
+        $start = $after->facts->one('model.start_period');
+        self::assertNotNull($start, 'A selected reconstruction is the plan financial model and must be evidence.');
+        self::assertSame('2026-01', $start->value);
+        self::assertNotSame([], $start->sources, 'A fact the gate reads must cite the captured record behind it.');
+        self::assertSame('captured_record', $start->sources[0]->kind);
+
+        // The keys the enabled rules already read stay withheld, so a
+        // selected model adds evidence beside the stored budget rather than
+        // competing with it.
+        foreach (ForecastModelFacts::WITHHELD as $withheld) {
+            self::assertCount(
+                count($before->facts->all($withheld)),
+                $after->facts->all($withheld),
+                $withheld.' must not gain a competing record from the reconstruction.',
+            );
+        }
     }
 
     public function test_the_dated_cash_run_is_reported_beside_the_projection(): void
