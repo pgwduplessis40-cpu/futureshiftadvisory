@@ -25,6 +25,7 @@ use App\Http\Controllers\Advisor\EntrepreneurBriefReleaseController;
 use App\Http\Controllers\Advisor\EntrepreneurBudgetCorrectionController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
+use App\Http\Controllers\Advisor\EntrepreneurForecastModelController;
 use App\Http\Controllers\Advisor\EntrepreneurMessageController;
 use App\Http\Controllers\Advisor\EntrepreneurPlanDocumentController;
 use App\Http\Controllers\Advisor\EntrepreneurReleaseGateController;
@@ -498,6 +499,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/brief-summary/retry', [EntrepreneurBriefReleaseController::class, 'retry'])
             ->middleware(['permission:'.Permission::ENTREPRENEURS_ASSESS->value, 'throttle:6,1'])
             ->name('entrepreneurs.plans.brief-summary.retry');
+        Route::prefix('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/forecast-model')
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)->group(function (): void {
+                Route::get('/', [EntrepreneurForecastModelController::class, 'show'])->name('entrepreneurs.plans.forecast-model.show');
+                Route::post('/', [EntrepreneurForecastModelController::class, 'save'])->name('entrepreneurs.plans.forecast-model.save');
+                Route::post('/selection', [EntrepreneurForecastModelController::class, 'selection'])->name('entrepreneurs.plans.forecast-model.selection');
+            });
         Route::prefix('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/release-gate')
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)->group(function (): void {
                 Route::get('/', [EntrepreneurReleaseGateController::class, 'show'])->name('entrepreneurs.plans.release-gate.show');

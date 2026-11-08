@@ -88,6 +88,14 @@ function BriefReleaseActions({ brief }: { brief: Brief }) {
                     Review release checks and source values
                 </a>
             ) : null}
+            {brief.forecast_model_url ? (
+                <a
+                    className="text-sm underline"
+                    href={brief.forecast_model_url}
+                >
+                    Build the version 2 financial model
+                </a>
+            ) : null}
             {brief.can_generate ? (
                 <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
