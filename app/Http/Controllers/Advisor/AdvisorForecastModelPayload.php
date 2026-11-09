@@ -11,6 +11,7 @@ use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\DriverNumbers;
 use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastEngineVersion;
@@ -34,6 +35,7 @@ use App\Services\Entrepreneurs\Forecast\TradeItem;
  * @phpstan-type StreamMonthPayload array{period:string,booked_units:string|null,delivery_units:string|null,invoiced_units:string|null,founder_hours:string|null,additional_capacity_units:string|null,provider:string|null,provider_unit_cost:string|null,no_cost_basis:string|null}
  * @phpstan-type StreamPayload array{id:string,name:string,unit:string|null,price:string|null,preparation_hours_per_unit:string|null,delivery_hours_per_unit:string|null,in_base_case:bool|null,evidence_status:string|null,schedule:list<StreamMonthPayload>}
  * @phpstan-type FounderMonthPayload array{period:string,available_hours:string|null,administration_hours:string|null,business_development_hours:string|null}
+ * @phpstan-type FundingPayload array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:bool|null}
  * @phpstan-type SettlementPayload array{id:string,source:string,date:string|null,amount:string|null,category:string,verified:bool|null}
  * @phpstan-type TradeItemPayload array{id:string,source:string,kind:string,raised_on:string|null,amount:string|null,settlements:list<SettlementPayload>|null}
  * @phpstan-type OwnerPayPayload array{effective_on:string,weekly_amount:string|null,trigger:string,threshold:string|null}
@@ -44,7 +46,7 @@ use App\Services\Entrepreneurs\Forecast\TradeItem;
  * @phpstan-type ProjectionPayload array{engine_version:string,status:string,months_projected:int,base_revenue_months:int,missing:list<GapPayload>,errors:list<GapPayload>,refusal:string|null}
  * @phpstan-type CashPayload array{status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,missing:list<GapPayload>,refusal:string|null}
  * @phpstan-type SectionPayload array{key:string,label:string,captured:bool,editable:bool,detail:string}
- * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
+ * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
  */
 final readonly class AdvisorForecastModelPayload
 {
@@ -104,6 +106,8 @@ final readonly class AdvisorForecastModelPayload
             'actuals' => array_map($this->actual(...), $inputs->actualMonths ?? []),
             'streams' => array_map($this->stream(...), $inputs->streams ?? []),
             'founder_months' => $this->founderMonths($inputs),
+            'funding_sources' => array_map($this->fundingSource(...), $inputs->fundingSources ?? []),
+            'funding_inventory_complete' => $inputs?->fundingInventoryComplete,
             'trade_items' => array_map($this->tradeItem(...), $inputs->tradeItems ?? []),
             'owner_pay_steps' => array_map($this->ownerPayStep(...), $inputs->ownerPaySteps ?? []),
             'assets' => array_map($this->asset(...), $inputs->assets ?? []),
@@ -200,6 +204,24 @@ final readonly class AdvisorForecastModelPayload
     }
 
     /**
+     * A funding source as the form shows it back.
+     *
+     * The draw the ledger builds from it is not presented as a field: its
+     * identity, direction and category all follow from the source, and
+     * showing them would invite an advisor to edit values the form does not
+     * accept.
+     *
+     * @return FundingPayload
+     */
+    private function fundingSource(FundingSource $funding): array
+    {
+        return ['id' => $funding->id, 'source' => $funding->source, 'identity' => $funding->identity,
+            'type' => $funding->type, 'amount' => $funding->amount, 'commitment' => $funding->commitment,
+            'available_from' => $funding->availableFrom, 'drawn_on' => $funding->drawnOn,
+            'restriction' => $funding->restriction, 'verified' => $funding->verified];
+    }
+
+    /**
      * A settlement's direction and its position within a day are both derived
      * from the item it settles and the order it is listed in, so neither is
      * presented back as a field: showing them would invite an advisor to edit
@@ -257,6 +279,30 @@ final readonly class AdvisorForecastModelPayload
                 $inputs->taxPeriods ?? [],
             ),
         ];
+    }
+
+    /**
+     * What the funding inventory holds, and whether anybody has finished it.
+     *
+     * A count of rows is not a complete inventory. The section counts as
+     * captured only once the advisor has said every source is recorded,
+     * because the funding total and available funds are both stated off that
+     * declaration, and the sum of a partial list is not a total.
+     *
+     * @param  callable(int,string):string  $counted
+     */
+    private function fundingDetail(?ForecastModelInputs $inputs, callable $counted): string
+    {
+        $sources = $inputs->fundingSources ?? [];
+        $complete = $inputs?->fundingInventoryComplete;
+        $unpriced = count(array_filter($sources, fn (FundingSource $funding): bool => $funding->amount === null));
+        $detail = $counted(count($sources), 'source').' '.match ($complete) {
+            true => 'The inventory is recorded as complete.',
+            false => 'The inventory is recorded as incomplete, so no funding total is stated.',
+            default => 'Nobody has said whether every source is recorded, so no funding total is stated.',
+        };
+
+        return $unpriced === 0 ? $detail : $detail.' '.$unpriced.' of them carry no amount.';
     }
 
     /**
@@ -395,6 +441,8 @@ final readonly class AdvisorForecastModelPayload
                 'detail' => $this->streamDetail($inputs->streams ?? [], $counted)],
             ['key' => 'founder_months', 'label' => 'Founder capacity', 'captured' => ($inputs->founderMonths ?? []) !== [], 'editable' => true,
                 'detail' => $counted(count($inputs->founderMonths ?? []), 'month')],
+            ['key' => 'funding_sources', 'label' => 'Funding sources', 'captured' => $inputs?->fundingInventoryComplete === true, 'editable' => true,
+                'detail' => $this->fundingDetail($inputs, $counted)],
             ['key' => 'trade_items', 'label' => 'Trade terms', 'captured' => ($inputs->tradeItems ?? []) !== [], 'editable' => true,
                 'detail' => $this->tradeDetail($inputs->tradeItems ?? [], $inputs, $counted)],
             ['key' => 'owner_pay_steps', 'label' => 'Owner pay schedule', 'captured' => ($inputs->ownerPaySteps ?? []) !== [], 'editable' => true,

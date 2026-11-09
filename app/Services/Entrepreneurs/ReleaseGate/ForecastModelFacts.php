@@ -55,20 +55,17 @@ final class ForecastModelFacts implements ProvidesMethodology
      * `scope.required_horizon` feeds MI-06 and the snapshot's own horizon; and
      * a second `model.external_request` would make PM-12's lookup ambiguous.
      *
-     * Two more are withheld because the reconstruction cannot state them, and
-     * both are also displaced from the budget by `SUPERSEDES` below.
-     * `scenario.lowest_cash` is the harder of the two: SS-01 compares it
-     * against the minimum of the month-end closing balances, while the
-     * ledger's own lowest cash is the balance after each individual movement
-     * and can dip below every month end. Publishing either figure under that
-     * key would misstate one of the two measures. `model.available_funds` is
-     * opening cash plus named funding, and this model holds no funding
-     * inventory at all, so it has no total to state.
+     * One more is withheld because the reconstruction cannot state it, and it
+     * is also displaced from the budget by `SUPERSEDES` below.
+     * `scenario.lowest_cash` is compared by SS-01 against the minimum of the
+     * month-end closing balances, while the ledger's own lowest cash is the
+     * balance after each individual movement and can dip below every month
+     * end. Publishing either figure under that key would misstate one of the
+     * two measures.
      *
      * @var list<string>
      */
-    public const WITHHELD = ['stream.revenue', 'scope.required_horizon', 'scenario.lowest_cash',
-        'model.external_request', 'model.available_funds'];
+    public const WITHHELD = ['stream.revenue', 'scope.required_horizon', 'scenario.lowest_cash', 'model.external_request'];
 
     /**
      * Keys a selected reconstruction takes over from the budget.
@@ -91,19 +88,26 @@ final class ForecastModelFacts implements ProvidesMethodology
      * reconstruction states no scenarios, and a check that passes against the
      * model a plan has stopped using is worth less than an honest gap.
      *
-     * Two keys are taken over without being replaced, and both are in
-     * `WITHHELD` above. Leaving the budget's record would be worse than
-     * leaving the figure unstated, because a rule would then reconcile a
-     * figure taken off the old cash curve against the new one.
-     * `model.cash_deficit` and `model.reserve_gap` come off that same old
-     * curve but are left alone: PM-12 tests them against the plan's own
-     * funding claim rather than against any curve, so they still stand on
-     * their own terms.
+     * The funding keys are here for the same reason the cash ones are. The
+     * reconstruction now holds its own funding inventory, so the budget's
+     * named sources and declared total belong to the model it replaced, and
+     * a rule iterating both would walk two models' funding at once. Where
+     * the reconstruction has no inventory, or has not had one declared
+     * complete, the figures go unstated rather than being borrowed back from
+     * the budget — an unestablished funding position reported as such.
+     *
+     * One key is taken over without being replaced, and it is in `WITHHELD`
+     * above. Leaving the budget's record would be worse than leaving the
+     * figure unstated, because a rule would then reconcile a figure taken off
+     * the old cash curve against the new one. `model.cash_deficit` and
+     * `model.reserve_gap` come off that same old curve but are left alone:
+     * PM-12 tests them against the plan's own funding claim rather than
+     * against any curve, so they still stand on their own terms.
      *
      * @var list<string>
      */
-    public const SUPERSEDES = ['model.opening_cash', 'model.available_funds', 'cash.opening', 'cash.movement',
-        'cash.closing', 'cash.annual_movement', 'cash.annual_closing', 'scenario.lowest_cash'];
+    public const SUPERSEDES = ['model.opening_cash', 'model.available_funds', 'model.funding_total', 'funding.amount',
+        'cash.opening', 'cash.movement', 'cash.closing', 'cash.annual_movement', 'cash.annual_closing', 'scenario.lowest_cash'];
 
     public function __construct(private readonly ForecastRun $run = new ForecastRun) {}
 
@@ -135,7 +139,57 @@ final class ForecastModelFacts implements ProvidesMethodology
 
         return [...$this->model($source, $inputs), ...$this->streams($source, $inputs),
             ...$this->actuals($source, $inputs), ...$this->cash($source, $inputs, $cash),
-            ...$this->ledger($source, $inputs, $cash)];
+            ...$this->ledger($source, $inputs, $cash), ...$this->funding($source, $inputs)];
+    }
+
+    /**
+     * The named funding behind the forecast, and what it adds up to.
+     *
+     * A total is published only once the advisor has said the inventory is
+     * complete and every source carries an amount. Summing a list nobody has
+     * finished would state the funding total of a business from the part of
+     * it somebody happened to record, and the sum of a partial list is not a
+     * total. The same bar governs available funds, which is that total on top
+     * of opening cash.
+     *
+     * @return list<Fact>
+     */
+    private function funding(SourceRecords $source, ForecastModelInputs $inputs): array
+    {
+        $facts = [];
+        $complete = $inputs->fundingInventoryComplete;
+        if ($complete !== null) {
+            $facts[] = new Fact('funding.inventory_complete', $complete, confirmed: true,
+                sources: [$source->reference('forecast_model.drivers.funding_inventory_complete')]);
+        }
+        $total = BigDecimal::zero();
+        foreach ($inputs->fundingSources as $index => $funding) {
+            $at = [$source->reference('forecast_model.drivers.funding_sources.'.$index)];
+            $total = $funding->amount === null ? null : $total?->plus($funding->amount);
+            $facts[] = new Fact('funding.amount', $funding->amount, $funding->id, unit: 'NZD',
+                confirmed: $funding->verified === true, sources: $at);
+            // Emitted whether or not they are answered. A key present with no
+            // value is the shape of an arrangement still being established,
+            // and the rule reads it as the gap it is; leaving the key out
+            // would hide which part of the source is unestablished.
+            foreach (['identity' => $funding->identity, 'type' => $funding->type, 'commitment' => $funding->commitment,
+                'availability' => $funding->availableFrom, 'draw_date' => $funding->drawnOn,
+                'restriction' => $funding->restriction] as $key => $value) {
+                $facts[] = new Fact('funding.'.$key, $value, $funding->id, confirmed: true, sources: $at);
+            }
+        }
+        if ($complete !== true || $total === null) {
+            return $facts;
+        }
+        $at = [$source->reference('forecast_model.drivers.funding_sources')];
+        $facts[] = new Fact('model.funding_total', (string) $total, unit: 'NZD', confirmed: true, sources: $at);
+        $opening = $inputs->cashOpening?->amount;
+        if ($opening !== null) {
+            $facts[] = new Fact('model.available_funds', (string) $total->plus($opening), unit: 'NZD', confirmed: true,
+                sources: [...$at, $source->reference('forecast_model.drivers.cash_opening')]);
+        }
+
+        return $facts;
     }
 
     /** @return list<Fact> */
@@ -326,6 +380,14 @@ final class ForecastModelFacts implements ProvidesMethodology
         $facts = [new Fact('model.opening_cash', $opening?->amount, unit: 'NZD', asOf: $inputs->calendar->startMonth.'-01',
             confirmed: $opening?->verified === true, sources: [$source->reference('forecast_model.drivers.cash_opening')])];
         $offsets = array_flip($inputs->calendar->periods);
+        // Which declared source each financing inflow came from. The rule
+        // requires every one of them to map to a named source, and the map is
+        // built from the inputs rather than guessed from the movement, so a
+        // source nobody has named leaves its draw unmapped and reported.
+        $funders = [];
+        foreach ($inputs->fundingSources as $funding) {
+            $funders[$funding->id.'.draw'] = $funding->identity;
+        }
         $years = [];
         foreach ($run['months'] as $month) {
             if (! isset($offsets[$month['period']])) {
@@ -390,6 +452,9 @@ final class ForecastModelFacts implements ProvidesMethodology
             $category = $this->category($movement);
             if ($category !== null) {
                 $facts[] = new Fact('ledger.category', $category, $movement->id, $label, confirmed: true, sources: $at);
+            }
+            if (($funders[$movement->id] ?? null) !== null) {
+                $facts[] = new Fact('ledger.funding_identity', $funders[$movement->id], $movement->id, $label, confirmed: true, sources: $at);
             }
         }
 

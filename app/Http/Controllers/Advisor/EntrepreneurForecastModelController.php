@@ -183,7 +183,7 @@ final class EntrepreneurForecastModelController extends Controller
             // is no horizon to project them across yet, so the screen says
             // which step has to come first rather than inventing one.
             throw ValidationException::withMessages([
-                'terms' => 'Record the forecast calendar and opening position before the trade, pay, asset and tax terms that sit inside it.',
+                'terms' => 'Record the forecast calendar and opening position before the funding, trade, pay, asset and tax terms that sit inside it.',
             ]);
         }
 
@@ -252,6 +252,8 @@ final class EntrepreneurForecastModelController extends Controller
             ownerPaySource: $existing?->ownerPaySource,
             ownerPayFirstPaymentOn: $existing?->ownerPayFirstPaymentOn,
             openingEligibleLosses: $existing?->openingEligibleLosses,
+            fundingSources: $existing->fundingSources ?? [],
+            fundingInventoryComplete: $existing?->fundingInventoryComplete,
         );
     }
 
@@ -357,6 +359,8 @@ final class EntrepreneurForecastModelController extends Controller
             ownerPaySource: $existing->ownerPaySource,
             ownerPayFirstPaymentOn: $existing->ownerPayFirstPaymentOn,
             openingEligibleLosses: $existing->openingEligibleLosses,
+            fundingSources: $existing->fundingSources,
+            fundingInventoryComplete: $existing->fundingInventoryComplete,
         );
     }
 

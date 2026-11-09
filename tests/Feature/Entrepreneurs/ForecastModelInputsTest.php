@@ -30,6 +30,20 @@ final class ForecastModelInputsTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Every rule a selected reconstruction can legitimately move.
+     *
+     * The six phase-2 rules read it by design. MI-01 reads its cash ledger,
+     * MI-02 its funding inventory, PM-12 the funding checks it copies from
+     * MI-02, and SS-01 loses the budget scenarios built off the cash curve
+     * the reconstruction replaced. Every other rule must be byte-identical
+     * across a selection, which is what the three canaries below prove.
+     *
+     * @var list<string>
+     */
+    private const FED_BY_THE_RECONSTRUCTION = ['PM-06', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03',
+        'MI-01', 'MI-02', 'PM-12', 'SS-01'];
+
     private BusinessPlan $plan;
 
     private EntrepreneurProfile $profile;
@@ -663,10 +677,8 @@ final class ForecastModelInputsTest extends TestCase
      */
     private function rulesEnabledBeforePhaseTwo(GateReport $report): array
     {
-        $phaseTwo = ['PM-06', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
-
         return array_values(array_filter($report->results,
-            fn (RuleResult $result): bool => ! in_array($result->definition->id, $phaseTwo, true)));
+            fn (RuleResult $result): bool => ! in_array($result->definition->id, self::FED_BY_THE_RECONSTRUCTION, true)));
     }
 
     /** @return list<Subcheck> */
@@ -786,6 +798,13 @@ final class ForecastModelInputsTest extends TestCase
     {
         return [
             'expected_revision' => 1,
+            'funding_sources' => [[
+                'id' => 'term-loan-2026', 'source' => 'Signed facility letter', 'identity' => 'Westpac',
+                'type' => 'Term loan', 'amount' => '25000', 'commitment' => 'committed',
+                'available_from' => '2026-02-01', 'drawn_on' => '2026-02-15',
+                'restriction' => 'unrestricted', 'verified' => 'yes',
+            ]],
+            'funding_inventory_complete' => 'yes',
             'trade_items' => [[
                 'id' => 'invoice-104', 'source' => 'Sales ledger export', 'kind' => 'receivable',
                 'raised_on' => '2026-03-02', 'amount' => '900',
@@ -907,10 +926,12 @@ final class ForecastModelInputsTest extends TestCase
             self::assertContains($check, $ids, $check.' is a reconciliation the ledger now makes possible.');
         }
         // The balances come off the reconstruction, not the stored budget:
-        // 1200 opening, less 2400 for the laptop in February.
+        // 1200 opening, less 2400 for the laptop and plus the 25000 term loan
+        // drawn in February. The draw reaching the curve is the funding
+        // inventory and the cash ledger meeting in one figure.
         $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
         self::assertSame('1200.00', $facts->one('cash.opening', period: 'month:1')?->value);
-        self::assertSame('-1200.00', $facts->one('cash.closing', period: 'month:2')?->value);
+        self::assertSame('23800.00', $facts->one('cash.closing', period: 'month:2')?->value);
     }
 
     public function test_a_reconstruction_reaching_past_the_plan_horizon_reports_the_cash_outside_it(): void
@@ -982,9 +1003,94 @@ final class ForecastModelInputsTest extends TestCase
         );
 
         $evidence = fn (GateReport $report): array => array_values(array_filter($report->results,
-            fn (RuleResult $result): bool => ! in_array($result->definition->id, [...$moved, 'MI-02', 'PM-12', 'SS-01'], true)));
+            fn (RuleResult $result): bool => ! in_array($result->definition->id, self::FED_BY_THE_RECONSTRUCTION, true)));
         self::assertSame(CanonicalJson::encode($evidence($before)), CanonicalJson::encode($evidence($after)),
             'A rule that reads neither the cash curve nor what came off it must be byte-identical.');
+    }
+
+    public function test_funding_sources_are_recorded_and_reach_the_ledger_as_dated_financing(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/terms', $this->terms())->assertSessionHasNoErrors();
+
+        $store = app(ForecastModelStore::class);
+        $inputs = $store->inputs($store->forPlan($this->plan));
+        self::assertCount(1, $inputs->fundingSources);
+        self::assertSame(['Westpac', 'committed', 'unrestricted', true], [$inputs->fundingSources[0]->identity,
+            $inputs->fundingSources[0]->commitment, $inputs->fundingSources[0]->restriction, $inputs->fundingSources[0]->verified]);
+        self::assertTrue($inputs->fundingInventoryComplete);
+
+        // Every other form rebuilds the whole reconstruction, so a section one
+        // of them does not show is a section it can silently drop.
+        $drivers = $this->drivers();
+        $drivers['expected_revision'] = 2;
+        $this->post($this->url().'/drivers', $drivers)->assertSessionHasNoErrors();
+        $carried = $store->inputs($store->forPlan($this->plan));
+        self::assertCount(1, $carried->fundingSources, 'Recording drivers must not discard the funding inventory.');
+        self::assertTrue($carried->fundingInventoryComplete);
+
+        // The draw is cash arriving, so it belongs in the dated ledger.
+        $cash = data_get($this->get($this->url())->viewData('page'), 'props.model.cash');
+        self::assertNull(data_get($cash, 'refusal'), 'A funding draw must hold its own position in the ledger.');
+        self::assertSame(0, data_get($cash, 'settled_before_opening'));
+    }
+
+    public function test_a_draw_outside_the_forecast_calendar_is_refused_in_the_direction_it_is_wrong(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        // Before the forecast opens: the money is already inside the opening
+        // balance, so counting it as funding too would count it twice.
+        $early = $this->terms();
+        $early['funding_sources'][0]['available_from'] = '2025-11-01';
+        $early['funding_sources'][0]['drawn_on'] = '2025-12-20';
+        $this->post($this->url().'/terms', $early)->assertSessionHasErrors('funding_sources');
+        self::assertStringContainsString('counted twice',
+            (string) session('errors')?->first('funding_sources'));
+
+        // After it ends: the money never arrives inside the horizon, so it is
+        // not funding this forecast can spend.
+        $late = $this->terms();
+        $late['funding_sources'][0]['drawn_on'] = '2028-06-01';
+        $this->post($this->url().'/terms', $late)->assertSessionHasErrors('funding_sources');
+        self::assertStringContainsString('not available to this forecast',
+            (string) session('errors')?->first('funding_sources'));
+
+        self::assertNull(app(ForecastModelStore::class)->forPlan($this->plan)?->drivers['funding_sources'][0] ?? null,
+            'A refused save must leave nothing behind.');
+    }
+
+    public function test_two_sources_under_one_name_are_refused_before_a_total_counts_them_twice(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $repeated = $this->terms();
+        $repeated['funding_sources'][] = [...$repeated['funding_sources'][0], 'id' => 'term-loan-second'];
+
+        $this->post($this->url().'/terms', $repeated)->assertSessionHasErrors('funding_sources');
+        self::assertStringContainsString('named the same', (string) session('errors')?->first('funding_sources'));
+    }
+
+    public function test_a_recorded_funding_inventory_is_what_the_funding_rule_was_missing(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $before = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-02');
+        self::assertSame('cannot_verify', $before->status?->value);
+
+        $this->twelveMonthsOfCash();
+        $after = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-02');
+        $unresolved = array_column(array_values(array_filter($after->subchecks,
+            fn (Subcheck $check): bool => $check->status->unresolved())), 'id');
+
+        // Everything the funding section establishes now reconciles: the named
+        // source, its dates, its commitment, its restriction, and the draw
+        // matching it in the financing ledger. What is left is one gap, and it
+        // is not a funding gap: the opening balance has no account and
+        // restriction scope, which the reconstruction holds in its bank
+        // reconciliation opening and no screen captures yet.
+        self::assertSame(['opening-provenance'], $unresolved,
+            'A recorded inventory should leave exactly the gap that is not about funding.');
+        self::assertSame('cannot_verify', $after->status?->value);
     }
 
     public function test_the_dated_cash_run_is_reported_beside_the_projection(): void

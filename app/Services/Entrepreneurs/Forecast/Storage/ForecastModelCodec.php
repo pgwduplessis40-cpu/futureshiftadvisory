@@ -39,6 +39,8 @@ final class ForecastModelCodec
             StoredValues::text($drivers, 'owner_pay_source'),
             StoredValues::text($drivers, 'owner_pay_first_payment_on'),
             StoredValues::text($drivers, 'opening_eligible_losses'),
+            DriverCodec::fundingSources($drivers, 'funding_sources'),
+            StoredValues::flag($drivers, 'funding_inventory_complete'),
         );
     }
 

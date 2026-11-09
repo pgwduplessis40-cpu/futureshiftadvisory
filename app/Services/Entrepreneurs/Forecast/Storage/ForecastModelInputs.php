@@ -10,6 +10,7 @@ use App\Services\Entrepreneurs\Forecast\BankOpening;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\ReservePolicy;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
@@ -35,6 +36,7 @@ final readonly class ForecastModelInputs
      * @param  list<AssetInput>  $assets
      * @param  list<TaxPeriod>  $taxPeriods
      * @param  list<ActualMonth>  $actualMonths
+     * @param  list<FundingSource>  $fundingSources
      */
     public function __construct(
         public ForecastCalendar $calendar,
@@ -60,10 +62,17 @@ final readonly class ForecastModelInputs
         // policy with losses eligible and no opening balance is a complete
         // policy with nothing carried in, not an incomplete one.
         public ?string $openingEligibleLosses = null,
+        public array $fundingSources = [],
+        // Whether the advisor has stated that every source is recorded. It
+        // cannot be read off the rows: an empty list is equally a business
+        // with no funding and a funding section nobody has filled in, and
+        // only somebody who looked can tell the two apart. Absent until they
+        // say, and never inferred from the count.
+        public ?bool $fundingInventoryComplete = null,
     ) {}
 
     /**
-     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string}
+     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool}
      */
     public function driversPayload(): array
     {
@@ -81,6 +90,8 @@ final readonly class ForecastModelInputs
             'tax_policy' => $this->taxPolicy,
             'tax_periods' => $this->taxPeriods,
             'opening_eligible_losses' => $this->openingEligibleLosses,
+            'funding_sources' => $this->fundingSources,
+            'funding_inventory_complete' => $this->fundingInventoryComplete,
         ];
     }
 

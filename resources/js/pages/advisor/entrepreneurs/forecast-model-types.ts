@@ -165,6 +165,8 @@ export type ForecastModel = {
     actuals: ActualRow[];
     streams: StreamRow[];
     founder_months: FounderMonthRow[];
+    funding_sources: FundingRow[];
+    funding_inventory_complete: boolean | null;
     trade_items: TradeItemRow[];
     owner_pay_steps: OwnerPayRow[];
     assets: AssetRow[];
@@ -283,8 +285,39 @@ export type TaxPeriodInput = {
     accounting_profit: string;
     tax_adjustments: string;
 };
+/** One named source of funding as the page shows it back. */
+export type FundingRow = {
+    id: string;
+    source: string;
+    identity: string | null;
+    type: string | null;
+    amount: string | null;
+    commitment: string | null;
+    available_from: string | null;
+    drawn_on: string | null;
+    restriction: string | null;
+    verified: boolean | null;
+};
+
+/** The same source as the form posts it: every field a string, so a box left
+ * empty stays an unanswered question rather than becoming an answer. */
+export type FundingInput = {
+    id: string;
+    source: string;
+    identity: string;
+    type: string;
+    amount: string;
+    commitment: string;
+    available_from: string;
+    drawn_on: string;
+    restriction: string;
+    verified: string;
+};
+
 export type TermsForm = {
     expected_revision: number | null;
+    funding_sources: FundingInput[];
+    funding_inventory_complete: string;
     trade_items: TradeItemInput[];
     owner_pay_steps: OwnerPayInput[];
     owner_pay_source: string;

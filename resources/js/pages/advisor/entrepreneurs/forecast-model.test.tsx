@@ -75,6 +75,23 @@ const model: ForecastModel = {
             business_development_hours: '15',
         },
     ],
+    funding_sources: [
+        {
+            id: 'term-loan-2026',
+            source: 'Signed facility letter',
+            identity: 'Westpac',
+            type: 'Term loan',
+            amount: '25000',
+            commitment: 'committed',
+            available_from: '2026-02-01',
+            drawn_on: '2026-02-15',
+            restriction: 'unrestricted',
+            verified: true,
+        },
+    ],
+    // Nobody has said whether the list is finished, which is the state the
+    // page has to show as unanswered rather than read off the row count.
+    funding_inventory_complete: null,
     trade_items: [
         {
             id: 'invoice-104',
@@ -254,6 +271,20 @@ test('the page states that saving a reconstruction changes no verdict', async ()
     assert.match(html, /cash-ledger check/);
     assert.match(html, /scenario reconciliation stops counting/);
     assert.match(html, /Saved but not selected/);
+});
+
+test('funding is asked for separately from the opening balance it is not part of', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Funding sources/);
+    assert.match(html, /Who is providing it/);
+    // Both halves of why a draw outside the calendar is refused, because an
+    // advisor meeting the refusal needs to know which one they hit.
+    assert.match(html, /counting it in both places counts it twice/);
+    assert.match(html, /never arrives inside the horizon/);
+    // The completeness question is the advisor's to answer, and the page says
+    // what staying silent costs rather than inferring an answer from the rows.
+    assert.match(html, /Is every funding source recorded\?/);
+    assert.match(html, /the sum of a partial list is not a\s+total/);
 });
 
 test('uncaptured sections are reported rather than left blank', async () => {

@@ -203,6 +203,30 @@ final class ForecastRun implements ProvidesMethodology
                 $flat[] = $asset->id.'.'.$reason;
             }
         }
+        foreach ($inputs->fundingSources as $fundingSource) {
+            // One sequence per source, so two drawn on one day hold different
+            // positions in the ledger rather than colliding.
+            $draw = $fundingSource->draw($next);
+            $next++;
+            if ($draw === null) {
+                // An arrangement with no amount or no draw date puts nothing
+                // in the ledger, and the gap says which of the two is absent
+                // rather than letting the source read as funding that arrives.
+                $flat[] = $fundingSource->id.'.'.($fundingSource->amount === null ? 'amount' : 'drawn_on');
+
+                continue;
+            }
+            if ($draw->date !== null && $draw->date < $opens) {
+                // Money drawn before the forecast opens is already inside the
+                // opening balance. The form refuses to record one, so this is
+                // the older-model path, and counting it would be the double
+                // count a funding reconciliation exists to catch.
+                $early++;
+
+                continue;
+            }
+            $movements[] = $draw;
+        }
 
         return [$movements, $early, $dated, $flat];
     }
