@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Entrepreneurs;
 
 use App\Models\BusinessPlan;
+use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\User;
+use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
@@ -670,13 +672,50 @@ final class ForecastModelInputsTest extends TestCase
     /** @return list<Subcheck> */
     private function subchecks(GateReport $report, string $ruleId): array
     {
+        return $this->ruleResult($report, $ruleId)->subchecks;
+    }
+
+    private function ruleResult(GateReport $report, string $ruleId): RuleResult
+    {
         foreach ($report->results as $result) {
             if ($result->definition->id === $ruleId) {
-                return $result->subchecks;
+                return $result;
             }
         }
 
-        return [];
+        throw new \RuntimeException($ruleId.' is not in the catalogue this report was built from.');
+    }
+
+    /**
+     * One stored budget, so the plan has a declared forecast horizon.
+     *
+     * The cash-ledger rule reads `model.horizon` before anything else, and
+     * only the budget states it: a plan with no budget has no stated horizon
+     * to measure a reconstruction against, and the rule saying so is right.
+     * These assertions need the horizon to exist.
+     */
+    private function budget(int $years = 1): void
+    {
+        EntrepreneurBudget::query()->create(['business_plan_id' => $this->plan->id, 'forecast_years' => $years,
+            'computed' => app(BudgetCalculator::class)->compute([], [], [], [], null, forecastYears: $years), 'status' => 'partial']);
+    }
+
+    /**
+     * A reconstruction whose every month closes, inside a one-year horizon.
+     *
+     * The pay step applies from its own date rather than waiting on trailing
+     * revenue, because an unknown weekly rate withholds every balance from
+     * the first payment onward and this is the case where the ledger closes.
+     */
+    private function twelveMonthsOfCash(): void
+    {
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $terms = $this->terms();
+        $terms['owner_pay_steps'] = [['effective_on' => '2026-07-01', 'weekly_amount' => '800', 'trigger' => 'base', 'threshold' => null]];
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
     }
 
     private function advisor(string $name): User
@@ -833,14 +872,119 @@ final class ForecastModelInputsTest extends TestCase
 
         // The keys the enabled rules already read stay withheld, so a
         // selected model adds evidence beside the stored budget rather than
-        // competing with it.
-        foreach (ForecastModelFacts::WITHHELD as $withheld) {
+        // competing with it. The two keys it also takes off the budget are
+        // left out here: those are asserted where a budget exists to lose
+        // them, which this plan does not have.
+        foreach (array_diff(ForecastModelFacts::WITHHELD, ForecastModelFacts::SUPERSEDES) as $withheld) {
             self::assertCount(
                 count($before->facts->all($withheld)),
                 $after->facts->all($withheld),
                 $withheld.' must not gain a competing record from the reconstruction.',
             );
         }
+    }
+
+    public function test_a_selected_reconstruction_becomes_the_cash_ledger_the_integrity_rule_reads(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+
+        // Before: nothing on this platform had ever produced a ledger entry,
+        // so the rule reported every month's ledger as missing however much
+        // the stored budget said about the balances. Cannot verify was as far
+        // as it could reach, on any plan.
+        $before = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-01');
+        self::assertSame('cannot_verify', $before->status?->value);
+        self::assertContains('ledger:month:1', array_column($before->subchecks, 'id'));
+
+        $this->twelveMonthsOfCash();
+
+        $after = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-01');
+        self::assertSame('pass', $after->status?->value,
+            'A dated, classified and sourced ledger is the evidence this rule was waiting for.');
+        $ids = array_column($after->subchecks, 'id');
+        foreach (['ledger:month:2', 'annual:1', 'opening-basis', 'continuity:2'] as $check) {
+            self::assertContains($check, $ids, $check.' is a reconciliation the ledger now makes possible.');
+        }
+        // The balances come off the reconstruction, not the stored budget:
+        // 1200 opening, less 2400 for the laptop in February.
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+        self::assertSame('1200.00', $facts->one('cash.opening', period: 'month:1')?->value);
+        self::assertSame('-1200.00', $facts->one('cash.closing', period: 'month:2')?->value);
+    }
+
+    public function test_a_reconstruction_reaching_past_the_plan_horizon_reports_the_cash_outside_it(): void
+    {
+        // One forecast year is declared, and the reconstruction runs for two.
+        $this->budget();
+        $calendar = $this->payload();
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $terms = $this->terms();
+        $terms['owner_pay_steps'] = [['effective_on' => '2026-07-01', 'weekly_amount' => '800', 'trigger' => 'base', 'threshold' => null]];
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        // A plan that declares one forecast year and selects a two-year model
+        // has cash movements outside the horizon being evaluated. The rule
+        // demonstrates it rather than reporting it unverifiable, and the
+        // advisor resolves it by aligning the two.
+        $result = $this->ruleResult(app(ReleaseGate::class)->evaluate($this->plan->refresh(), 'plan'), 'MI-01');
+        $outside = array_values(array_filter($result->subchecks, fn (Subcheck $check): bool => str_starts_with($check->id, 'ledger-horizon:')
+            && $check->status->unresolved()));
+        self::assertNotSame([], $outside, 'Cash dated past the evaluated horizon has to be named, not absorbed.');
+        self::assertSame('fail', $result->status?->value);
+    }
+
+    public function test_the_budget_scenarios_report_as_unestablished_rather_than_start_from_another_model(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $before = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'SS-01');
+        self::assertNotContains('scenarios', array_column($before->subchecks, 'id'),
+            'The stored budget does supply a scenario to reconcile before any reconstruction is selected.');
+
+        $this->twelveMonthsOfCash();
+
+        // A budget scenario's cash curve is built off the base curve the
+        // reconstruction replaced, and the rule checks each scenario's first
+        // month against the model's own opening cash, which is one figure with
+        // no scenario of its own. Left in place, every scenario would start
+        // from a balance this plan's financial model does not use, and the
+        // rule would demonstrate that as a mismatch. The reconstruction states
+        // no scenarios, so the rule says so.
+        $after = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'SS-01');
+        self::assertSame(['scenarios'], array_column($after->subchecks, 'id'));
+        self::assertSame('cannot_verify', $after->status?->value, 'An honest gap, not a mismatch nobody demonstrated.');
+    }
+
+    public function test_with_a_budget_in_place_only_the_cash_ledger_rule_changes_its_verdict(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $before = $gate->evaluate($this->plan->refresh(), 'plan');
+        $this->twelveMonthsOfCash();
+        $after = $gate->evaluate($this->plan->refresh(), 'plan');
+
+        // MI-01 is the rule this slice moves, beside the six registered in
+        // the slice before it. Every other verdict has to hold, including the
+        // three rules whose evidence changes: MI-02 and PM-12 lose an
+        // available-funds figure that was a mixture of two models, and SS-01
+        // loses the extremum taken off the cash curve the reconstruction
+        // replaced. Losing a stale figure must not move a verdict.
+        $verdicts = fn (GateReport $report): array => array_combine(
+            array_map(fn (RuleResult $result): string => $result->definition->id, $report->results),
+            array_map(fn (RuleResult $result): ?string => $result->status?->value, $report->results));
+        $moved = ['PM-06', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03', 'MI-01'];
+        self::assertSame(
+            array_diff_key($verdicts($before), array_flip($moved)),
+            array_diff_key($verdicts($after), array_flip($moved)),
+            'Only the cash-ledger rule and the six registered before it may change verdict on a selection.',
+        );
+
+        $evidence = fn (GateReport $report): array => array_values(array_filter($report->results,
+            fn (RuleResult $result): bool => ! in_array($result->definition->id, [...$moved, 'MI-02', 'PM-12', 'SS-01'], true)));
+        self::assertSame(CanonicalJson::encode($evidence($before)), CanonicalJson::encode($evidence($after)),
+            'A rule that reads neither the cash curve nor what came off it must be byte-identical.');
     }
 
     public function test_the_dated_cash_run_is_reported_beside_the_projection(): void

@@ -171,6 +171,32 @@ final class ForecastRunTest extends TestCase
         self::assertSame('42800.00', $run['lowest_cash']);
     }
 
+    public function test_the_run_carries_each_month_its_own_receipts_payments_and_positioned_lines(): void
+    {
+        $run = (new ForecastRun)->cash(new ForecastModelInputs(
+            calendar: new ForecastCalendar('2026-01', 3),
+            cashOpening: new CashOpening('5000', 'Bank statement to 31 December 2025', true),
+            tradeItems: [$this->receivable('2026-02-10')],
+            assets: [$this->asset('2026-02-10')],
+        ));
+
+        // The month's own receipts and payments, not a difference taken back
+        // off the two balances. A caller reconciling opening plus movement
+        // against closing needs the ledger's arithmetic, not its own.
+        self::assertSame(['2026-01', '0.00', '0.00'],
+            [$run['months'][0]['period'], $run['months'][0]['receipts'], $run['months'][0]['payments']],
+            'A month nothing moved in received nothing and paid nothing, which is not the same as unknown.');
+        self::assertSame('900.00', $run['months'][1]['receipts']);
+        self::assertSame('2400.00', $run['months'][1]['payments']);
+        self::assertSame('5000.00', $run['months'][1]['opening_cash']);
+        self::assertSame('3500.00', $run['months'][1]['closing_cash']);
+
+        // The positioned lines themselves, so a caller can report the dated
+        // and classified movement behind a month and not only its total.
+        self::assertSame(['invoice-1.payment', 'laptop.purchase'],
+            array_map(fn (CashMovement $movement): string => $movement->id, $run['movements']));
+    }
+
     private function receivable(string $settledOn): TradeItem
     {
         return new TradeItem('invoice-1', 'Sales ledger export', 'receivable', '2026-01-05', '900', [

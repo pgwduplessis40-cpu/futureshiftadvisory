@@ -136,11 +136,14 @@ export default function ForecastModelReview({
                     Saving a reconstruction changes no release verdict.
                     Selecting one does.
                 </strong>{' '}
-                A selected reconstruction becomes the plan financial model and
-                is read by the elapsed-actuals check, which can hold up an
-                external release until every closed month is reconciled or
-                recorded as pre-trading. Saving leaves the plan on its budget
-                and moves nothing.
+                A selected reconstruction becomes the plan financial model. The
+                cash-ledger check then reads its dated ledger instead of the
+                budget&rsquo;s balances, and the elapsed-actuals check can hold
+                up an external release until every closed month is reconciled or
+                recorded as pre-trading. The budget&rsquo;s scenario
+                reconciliation stops counting, because a scenario built off the
+                replaced cash curve no longer describes this plan. Saving leaves
+                the plan on its budget and moves nothing.
             </p>
             {model === null ? (
                 <p>

@@ -248,6 +248,11 @@ test('the page states that saving a reconstruction changes no verdict', async ()
     assert.match(html, /Selecting one does/);
     assert.match(html, /elapsed-actuals check/);
     assert.match(html, /hold up an external release/);
+    // Selecting now takes the cash curve off the budget, so the banner has to
+    // name both halves of that: what the ledger check gains and what the
+    // budget's scenario reconciliation loses.
+    assert.match(html, /cash-ledger check/);
+    assert.match(html, /scenario reconciliation stops counting/);
     assert.match(html, /Saved but not selected/);
 });
 
