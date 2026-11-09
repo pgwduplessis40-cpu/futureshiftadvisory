@@ -13,6 +13,7 @@ use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastEngineVersion;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
@@ -205,15 +206,60 @@ final class ForecastModelFactsTest extends TestCase
 
     public function test_every_key_taken_over_from_the_budget_is_either_replaced_or_declared_unstated(): void
     {
-        // A full year, so every key a complete reconstruction can state is
-        // reachable and an absent one is a real gap rather than a short model.
-        $keys = array_unique(array_column($this->capture($this->cashModel(months: 12)), 'key'));
+        // A full year with a complete funding inventory, so every key a
+        // finished reconstruction can state is reachable and an absent one is
+        // a real gap rather than a short or half-filled model.
+        $keys = array_unique(array_column($this->capture($this->cashModel(months: 12, funded: true)), 'key'));
 
         self::assertSame([], array_values(array_diff(ForecastModelFacts::SUPERSEDES, $keys, ForecastModelFacts::WITHHELD)),
             'A key taken off the budget has to be replaced here or declared as one this model cannot state.');
-        self::assertSame(['model.available_funds', 'scenario.lowest_cash'],
+        self::assertSame(['scenario.lowest_cash'],
             array_values(array_intersect(ForecastModelFacts::SUPERSEDES, ForecastModelFacts::WITHHELD)),
             'Taking a figure off the budget and leaving it unstated is the exception, so it stays a short and named list.');
+    }
+
+    public function test_a_funding_source_is_published_with_the_provenance_a_reconciliation_needs(): void
+    {
+        $facts = $this->keyed($this->capture($this->cashModel(funded: true)));
+
+        self::assertSame('25000', $facts['funding.amount:term-loan:current']->value);
+        self::assertTrue($facts['funding.amount:term-loan:current']->confirmed, 'Evidence sighted is what confirms the figure.');
+        self::assertSame(['Westpac', 'Term loan', 'committed', '2026-02-01', '2026-02-15', 'unrestricted'], [
+            $facts['funding.identity:term-loan:current']->value, $facts['funding.type:term-loan:current']->value,
+            $facts['funding.commitment:term-loan:current']->value, $facts['funding.availability:term-loan:current']->value,
+            $facts['funding.draw_date:term-loan:current']->value, $facts['funding.restriction:term-loan:current']->value,
+        ]);
+        // The draw reaches the cash ledger as a financing inflow and carries
+        // the source it came from, so every inflow maps to a declared source.
+        self::assertSame('financing_inflows', $facts['ledger.category:term-loan.draw:month:2']->value);
+        self::assertSame('Westpac', $facts['ledger.funding_identity:term-loan.draw:month:2']->value);
+    }
+
+    public function test_no_funding_total_is_stated_until_somebody_says_the_inventory_is_finished(): void
+    {
+        // The same sources, with nobody having said whether that is all of
+        // them. A sum of a list nobody has finished is not a total.
+        $partial = $this->keyed($this->capture($this->cashModel(funded: true, inventoryComplete: null)));
+        self::assertArrayNotHasKey('model.funding_total:business:current', $partial);
+        self::assertArrayNotHasKey('model.available_funds:business:current', $partial);
+        self::assertArrayHasKey('funding.amount:term-loan:current', $partial, 'The source itself is still evidence.');
+        self::assertArrayNotHasKey('funding.inventory_complete:business:current', $partial,
+            'An unanswered question is absent, never an answer of no.');
+
+        $complete = $this->keyed($this->capture($this->cashModel(funded: true)));
+        self::assertSame('25000', $complete['model.funding_total:business:current']->value);
+        // 5000 already in the bank, 25000 arranged.
+        self::assertSame('30000', $complete['model.available_funds:business:current']->value);
+        self::assertTrue($complete['funding.inventory_complete:business:current']->value);
+    }
+
+    public function test_one_source_without_an_amount_withholds_the_total_the_others_would_imply(): void
+    {
+        $facts = $this->keyed($this->capture($this->cashModel(funded: true, unpriced: true)));
+
+        self::assertArrayNotHasKey('model.funding_total:business:current', $facts,
+            'A total that quietly leaves out the source nobody has priced would understate the funding.');
+        self::assertArrayNotHasKey('model.available_funds:business:current', $facts);
     }
 
     /**
@@ -222,8 +268,15 @@ final class ForecastModelFactsTest extends TestCase
      *
      * @param  list<TradeItem>  $tradeItems
      */
-    private function cashModel(int $months = 3, ?array $tradeItems = null): ForecastModelInputs
+    private function cashModel(int $months = 3, ?array $tradeItems = null, bool $funded = false,
+        ?bool $inventoryComplete = true, bool $unpriced = false): ForecastModelInputs
     {
+        $sources = ! $funded ? [] : [new FundingSource('term-loan', 'Signed facility letter', 'Westpac', 'Term loan',
+            '25000', 'committed', '2026-02-01', '2026-02-15', 'unrestricted', true)];
+        if ($funded && $unpriced) {
+            $sources[] = new FundingSource('grant', 'Grant letter', 'Callaghan', 'Grant', null, 'indicative', null, null, null, null);
+        }
+
         return new ForecastModelInputs(
             calendar: new ForecastCalendar('2026-01', $months),
             cashOpening: new CashOpening('5000', 'Bank statement to 31 December 2025', true),
@@ -232,6 +285,8 @@ final class ForecastModelFactsTest extends TestCase
             ])],
             assets: $tradeItems === null ? [new AssetInput('laptop', 'Supplier invoice 8831', '2400', 'capital',
                 'Capitalisation policy v2', true, '2026-02-10', '2026-02-01', 36, '200', 'straight_line_full_start_month', '0')] : [],
+            fundingSources: $sources,
+            fundingInventoryComplete: $funded ? $inventoryComplete : null,
         );
     }
 

@@ -1,8 +1,10 @@
 import { useForm } from '@inertiajs/react';
 import { AssetFields, TaxFields } from './forecast-model-assets';
+import { FundingFields } from './forecast-model-funding';
 import type {
     AssetInputRow,
     ForecastModel,
+    FundingInput,
     OwnerPayInput,
     SettlementInput,
     TaxPeriodInput,
@@ -76,6 +78,23 @@ function emptySettlement(): SettlementInput {
 function initial(model: ForecastModel | null): TermsForm {
     return {
         expected_revision: model?.revision ?? null,
+        funding_sources: (model?.funding_sources ?? []).map(
+            (source): FundingInput => ({
+                id: source.id,
+                source: source.source,
+                identity: text(source.identity),
+                type: text(source.type),
+                amount: text(source.amount),
+                commitment: text(source.commitment),
+                available_from: text(source.available_from),
+                drawn_on: text(source.drawn_on),
+                restriction: text(source.restriction),
+                verified: stated(source.verified),
+            }),
+        ),
+        funding_inventory_complete: stated(
+            model?.funding_inventory_complete ?? null,
+        ),
         trade_items: (model?.trade_items ?? []).map(
             (item): TradeItemInput => ({
                 id: item.id,
@@ -199,6 +218,14 @@ export function TermsFormSection({
                 form.post(url, { preserveScroll: true });
             }}
         >
+            <FundingFields
+                sources={form.data.funding_sources}
+                complete={form.data.funding_inventory_complete}
+                onChange={(sources) => form.setData('funding_sources', sources)}
+                onComplete={(value) =>
+                    form.setData('funding_inventory_complete', value)
+                }
+            />
             <fieldset className="rounded border p-4">
                 <legend className="font-semibold">Trade terms</legend>
                 <p className="my-2 text-sm">

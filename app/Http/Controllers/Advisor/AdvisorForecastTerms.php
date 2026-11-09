@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Advisor;
 use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\ForecastDates;
+use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\TaxPeriod;
@@ -29,7 +30,8 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type OwnerPayRow array{effective_on:string,weekly_amount:string|null,trigger:string,threshold:string|null}
  * @phpstan-type AssetRow array{id:string,source:string,cost:string|null,classification:string|null,policy_source:string|null,reviewed:string|null,paid_on:string|null,recognition_start_on:string|null,life_months:int|string|null,residual:string|null,method:string|null,opening_depreciation:string|null}
  * @phpstan-type TaxPeriodRow array{start_on:string,end_on:string,accounting_profit:string|null,tax_adjustments:string|null}
- * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null}
+ * @phpstan-type FundingRow array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:string|null}
+ * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null}
  */
 final readonly class AdvisorForecastTerms
 {
@@ -124,6 +126,21 @@ final readonly class AdvisorForecastTerms
             // made a loss is written with a leading minus.
             'tax_periods.*.accounting_profit' => ['present', 'nullable', 'string', 'max:31'],
             'tax_periods.*.tax_adjustments' => ['present', 'nullable', 'string', 'max:31'],
+            'funding_sources' => ['present', 'array', 'max:50'],
+            'funding_sources.*.id' => ['required', 'string', 'max:60'],
+            'funding_sources.*.source' => ['required', 'string', 'max:255'],
+            'funding_sources.*.identity' => ['present', 'nullable', 'string', 'max:255'],
+            'funding_sources.*.type' => ['present', 'nullable', 'string', 'max:120'],
+            'funding_sources.*.amount' => $number,
+            'funding_sources.*.commitment' => ['present', 'nullable', 'in:'.implode(',', FundingSource::COMMITMENTS)],
+            'funding_sources.*.available_from' => $date,
+            'funding_sources.*.drawn_on' => $date,
+            'funding_sources.*.restriction' => ['present', 'nullable', 'in:'.implode(',', FundingSource::RESTRICTIONS)],
+            'funding_sources.*.verified' => $stated,
+            // Whether every source is recorded, which no count can answer: an
+            // empty list is equally a business with no funding and a section
+            // nobody has filled in.
+            'funding_inventory_complete' => $stated,
         ];
     }
 
@@ -135,7 +152,7 @@ final readonly class AdvisorForecastTerms
      */
     public function apply(ForecastModelInputs $existing, array $data): ForecastModelInputs
     {
-        $this->guard($data);
+        $this->guard($data, $existing);
 
         return new ForecastModelInputs(
             calendar: $existing->calendar,
@@ -153,6 +170,18 @@ final readonly class AdvisorForecastTerms
             ownerPaySource: $this->blank($data['owner_pay_source']),
             ownerPayFirstPaymentOn: $this->blank($data['owner_pay_first_payment_on']),
             openingEligibleLosses: $this->blank($data['opening_eligible_losses']),
+            fundingSources: array_map($this->fundingSource(...), $data['funding_sources']),
+            fundingInventoryComplete: $this->stated($data['funding_inventory_complete']),
+        );
+    }
+
+    /** @param  FundingRow  $row */
+    private function fundingSource(array $row): FundingSource
+    {
+        return new FundingSource(
+            trim($row['id']), trim($row['source']), $this->blank($row['identity']), $this->blank($row['type']),
+            $this->blank($row['amount']), $this->blank($row['commitment']), $this->blank($row['available_from']),
+            $this->blank($row['drawn_on']), $this->blank($row['restriction']), $this->stated($row['verified']),
         );
     }
 
@@ -254,8 +283,16 @@ final readonly class AdvisorForecastTerms
     }
 
     /** @param  TermsData  $data */
-    private function guard(array $data): void
+    private function guard(array $data, ForecastModelInputs $existing): void
     {
+        $this->rejectRepeats(array_column($data['funding_sources'], 'id'), 'funding_sources',
+            'Each funding source needs its own reference. Two share one, and the ledger refuses to count a draw twice.');
+        // Two sources under one name are one source recorded twice as far as
+        // a reconciliation can tell, and the total would count it twice.
+        $this->rejectRepeats(array_values(array_filter(array_map(
+            fn (array $row): string => (string) $this->blank($row['identity']), $data['funding_sources']))),
+            'funding_sources', 'Two funding sources are named the same. A reconciliation cannot tell one from the other.');
+        $this->rejectDrawsOutsideCalendar($data['funding_sources'], $existing);
         $this->rejectRepeats(array_column($data['trade_items'], 'id'), 'trade_items',
             'Each trade item needs its own reference. Two share one, and the engine refuses to count a trade twice.');
         $this->rejectRepeats(array_column($data['assets'], 'id'), 'assets',
@@ -289,6 +326,37 @@ final readonly class AdvisorForecastTerms
         if (! in_array($category, self::CATEGORIES[$kind] ?? [], true)) {
             throw ValidationException::withMessages(['trade_items' => 'A '.$kind.' cannot settle as '.str_replace('_', ' ', $category)
                 .'. Cash moves '.($kind === 'receivable' ? 'in' : 'out').' on a '.$kind.', and that category moves it the other way.']);
+        }
+    }
+
+    /**
+     * A draw outside the forecast calendar overstates available funds, in one
+     * of two different ways.
+     *
+     * Money drawn before the forecast opens is already inside the opening
+     * balance, so adding it to opening cash counts it twice. Money drawn
+     * after the forecast ends never arrives inside the horizon, so it is not
+     * funding this forecast can spend. Both are refused here, where the
+     * source and the date can be named, rather than left to surface as a
+     * reconciliation failure nobody can act on.
+     *
+     * @param  list<FundingRow>  $rows
+     */
+    private function rejectDrawsOutsideCalendar(array $rows, ForecastModelInputs $existing): void
+    {
+        $opens = $existing->calendar->startMonth.'-01';
+        $closes = ForecastDates::end($existing->calendar);
+        foreach ($rows as $row) {
+            $drawn = $this->blank($row['drawn_on']);
+            if ($drawn === null || ($drawn >= $opens && $drawn <= $closes)) {
+                continue;
+            }
+            $named = trim($row['id']) === '' ? 'this funding source' : trim($row['id']);
+            throw ValidationException::withMessages(['funding_sources' => $drawn < $opens
+                ? $named.' is drawn on '.$drawn.', before the forecast opens on '.$opens
+                    .'. Money already received belongs in the opening balance, or it is counted twice.'
+                : $named.' is drawn on '.$drawn.', after the forecast ends on '.$closes
+                    .'. Funding that arrives later is not available to this forecast.']);
         }
     }
 

@@ -240,6 +240,7 @@ final class MethodologyDriftGuardTest extends TestCase
         Forecast\FounderMonth::class => 'Immutable founder-time input contract; calculations are owned by RevenueProjection.',
         Forecast\CashOpening::class => 'Immutable opening-cash input contract; calculations are owned by CashLedger.',
         Forecast\CashMovement::class => 'Immutable sourced cash movement; calculations are owned by CashLedger.',
+        Forecast\FundingSource::class => 'Immutable named funding input; its draw is the recorded amount on the recorded date, and the ledger it enters is owned by CashLedger.',
         Forecast\TradeItem::class => 'Immutable obligation and settlement contract; calculations are owned by TradeBalances.',
         Forecast\OwnerPayStep::class => 'Immutable dated pay-policy input; calculations are owned by OwnerPaySchedule.',
         Forecast\AssetInput::class => 'Immutable asset policy input; calculations are owned by AssetSchedule.',

@@ -10,6 +10,7 @@ use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
@@ -158,6 +159,28 @@ final class DriverCodec
         }
 
         return $movements;
+    }
+
+    /** @return list<FundingSource> */
+    public static function fundingSources(mixed $node, string $key): array
+    {
+        $sources = [];
+        foreach (StoredValues::items($node, $key) as $item) {
+            $sources[] = new FundingSource(
+                StoredValues::requiredText($item, 'id'),
+                StoredValues::requiredText($item, 'source'),
+                StoredValues::text($item, 'identity'),
+                StoredValues::text($item, 'type'),
+                StoredValues::text($item, 'amount'),
+                StoredValues::text($item, 'commitment'),
+                StoredValues::text($item, 'available_from'),
+                StoredValues::text($item, 'drawn_on'),
+                StoredValues::text($item, 'restriction'),
+                StoredValues::flag($item, 'verified'),
+            );
+        }
+
+        return $sources;
     }
 
     /** @return list<OwnerPayStep> */
