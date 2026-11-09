@@ -8,6 +8,8 @@ use App\Services\Entrepreneurs\Forecast\ActualBalances;
 use App\Services\Entrepreneurs\Forecast\ActualMonth;
 use App\Services\Entrepreneurs\Forecast\ActualProfit;
 use App\Services\Entrepreneurs\Forecast\ActualSource;
+use App\Services\Entrepreneurs\Forecast\AssetInput;
+use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
@@ -15,6 +17,7 @@ use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastEngineVersion;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
+use App\Services\Entrepreneurs\Forecast\TradeItem;
 use App\Services\Entrepreneurs\ReleaseGate\CanonicalJson;
 use App\Services\Entrepreneurs\ReleaseGate\Fact;
 use App\Services\Entrepreneurs\ReleaseGate\ForecastModelFacts;
@@ -105,6 +108,133 @@ final class ForecastModelFactsTest extends TestCase
         self::assertArrayHasKey('forecast.opening_cash:business:month:2', $facts);
     }
 
+    public function test_the_dated_cash_curve_and_its_ledger_come_from_the_reconstruction(): void
+    {
+        $facts = $this->keyed($this->capture($this->cashModel()));
+
+        // 5000 opening, 900 received and 2400 paid in February, nothing else.
+        self::assertSame(['5000.00', '0.00', '5000.00'], [$facts['cash.opening:business:month:1']->value,
+            $facts['cash.movement:business:month:1']->value, $facts['cash.closing:business:month:1']->value]);
+        self::assertSame(['5000.00', '-1500.00', '3500.00'], [$facts['cash.opening:business:month:2']->value,
+            $facts['cash.movement:business:month:2']->value, $facts['cash.closing:business:month:2']->value]);
+        self::assertSame('3500.00', $facts['cash.opening:business:month:3']->value, 'Each month opens on the balance before it closed.');
+        self::assertSame('2026-02-01', $facts['cash.period_start:business:month:2']->value);
+        self::assertSame('complete', $facts['ledger.coverage:business:month:2']->value);
+
+        // The dated and classified lines behind the month, which is evidence
+        // nothing on the platform produced before this.
+        self::assertSame('900', $facts['ledger.amount:invoice-1.payment:month:2']->value);
+        self::assertSame('2026-02-10', $facts['ledger.date:invoice-1.payment:month:2']->value);
+        self::assertSame('customer_receipts', $facts['ledger.category:invoice-1.payment:month:2']->value);
+        self::assertSame('capex', $facts['ledger.category:laptop.purchase:month:2']->value,
+            'A capital asset leaves cash as capital expenditure, not as an operating payment.');
+    }
+
+    public function test_the_opening_position_is_dated_where_the_forecast_opens_and_claims_no_restriction(): void
+    {
+        $opening = $this->keyed($this->capture($this->cashModel()))['model.opening_cash:business:current'];
+
+        self::assertSame(['5000', 'NZD', '2026-01-01', true], [$opening->value, $opening->unit, $opening->asOf, $opening->confirmed]);
+        self::assertNull($opening->basis, 'The reconstruction records no account or restriction scope, so none is claimed.');
+    }
+
+    public function test_a_ledger_line_stays_identifiable_when_one_record_settles_in_instalments(): void
+    {
+        $facts = $this->keyed($this->capture($this->cashModel(tradeItems: [
+            new TradeItem('invoice-1', 'Sales ledger export', 'receivable', '2026-01-05', '900', [
+                new CashMovement('invoice-1.deposit', 'Bank statement', '2026-02-10', '300', 'in', 'operating_receipt', 0, true),
+                new CashMovement('invoice-1.balance', 'Bank statement', '2026-02-24', '600', 'in', 'operating_receipt', 1, true),
+            ]),
+        ])));
+
+        // The rule requires each ledger line to be identifiable once. Two
+        // instalments of one invoice share a record, so the record on its own
+        // would read as the same line counted twice.
+        self::assertNotSame(
+            $facts['ledger.source:invoice-1.deposit:month:2']->value,
+            $facts['ledger.source:invoice-1.balance:month:2']->value,
+            'Two instalments are two ledger lines, not one line counted twice.',
+        );
+        self::assertStringContainsString('Bank statement', $facts['ledger.source:invoice-1.deposit:month:2']->value);
+    }
+
+    public function test_a_movement_the_gate_has_no_category_for_is_reported_rather_than_filed_under_one(): void
+    {
+        $facts = $this->keyed($this->capture($this->cashModel(tradeItems: [
+            // A GST refund. It is a receipt, but the rule's inflow categories
+            // are customer receipts, other operating receipts and financing
+            // inflows, and none of them describes a refund of GST without
+            // asserting something about it that nobody recorded.
+            new TradeItem('gst-q1', 'IRD assessment', 'receivable', '2026-01-31', '1200', [
+                new CashMovement('gst-q1.refund', 'IRD statement', '2026-02-20', '1200', 'in', 'gst', 0, true),
+            ]),
+        ])));
+
+        self::assertSame('1200', $facts['ledger.amount:gst-q1.refund:month:2']->value, 'The entry is still evidence.');
+        self::assertArrayNotHasKey('ledger.category:gst-q1.refund:month:2', $facts,
+            'An unclassifiable movement reported as such is the finding; a category invented here would be the defect.');
+    }
+
+    public function test_a_movement_the_ledger_cannot_date_withholds_the_balances_and_enters_no_month(): void
+    {
+        $facts = $this->keyed($this->capture($this->cashModel(tradeItems: [
+            new TradeItem('invoice-2', 'Sales ledger export', 'receivable', '2026-01-05', '900', [
+                new CashMovement('invoice-2.payment', 'Bank statement', null, '900', 'in', 'operating_receipt', 0, true),
+            ]),
+        ])));
+
+        // An undated movement can fall in any month, so the ledger withholds
+        // every balance rather than placing it. Nothing is hidden by leaving
+        // it out of the entries: the months report themselves unverifiable.
+        self::assertNull($facts['cash.opening:business:month:1']->value);
+        self::assertNull($facts['cash.movement:business:month:1']->value);
+        self::assertSame('incomplete', $facts['ledger.coverage:business:month:1']->value);
+        self::assertArrayNotHasKey('ledger.amount:invoice-2.payment:month:1', $facts);
+    }
+
+    public function test_an_annual_total_is_published_only_for_a_year_the_reconstruction_finishes(): void
+    {
+        $short = $this->keyed($this->capture($this->cashModel()));
+        self::assertArrayNotHasKey('cash.annual_movement:business:year:1', $short,
+            'A three-month reconstruction has no annual total, and a sum of three months is not one.');
+
+        $full = $this->keyed($this->capture($this->cashModel(months: 12)));
+        self::assertSame('-1500.00', $full['cash.annual_movement:business:year:1']->value);
+        self::assertSame('3500.00', $full['cash.annual_closing:business:year:1']->value);
+    }
+
+    public function test_every_key_taken_over_from_the_budget_is_either_replaced_or_declared_unstated(): void
+    {
+        // A full year, so every key a complete reconstruction can state is
+        // reachable and an absent one is a real gap rather than a short model.
+        $keys = array_unique(array_column($this->capture($this->cashModel(months: 12)), 'key'));
+
+        self::assertSame([], array_values(array_diff(ForecastModelFacts::SUPERSEDES, $keys, ForecastModelFacts::WITHHELD)),
+            'A key taken off the budget has to be replaced here or declared as one this model cannot state.');
+        self::assertSame(['model.available_funds', 'scenario.lowest_cash'],
+            array_values(array_intersect(ForecastModelFacts::SUPERSEDES, ForecastModelFacts::WITHHELD)),
+            'Taking a figure off the budget and leaving it unstated is the exception, so it stays a short and named list.');
+    }
+
+    /**
+     * A cash-shaped reconstruction: an opening balance, one receivable
+     * settling in February and a capital asset paid the same day.
+     *
+     * @param  list<TradeItem>  $tradeItems
+     */
+    private function cashModel(int $months = 3, ?array $tradeItems = null): ForecastModelInputs
+    {
+        return new ForecastModelInputs(
+            calendar: new ForecastCalendar('2026-01', $months),
+            cashOpening: new CashOpening('5000', 'Bank statement to 31 December 2025', true),
+            tradeItems: $tradeItems ?? [new TradeItem('invoice-1', 'Sales ledger export', 'receivable', '2026-01-05', '900', [
+                new CashMovement('invoice-1.payment', 'Bank statement', '2026-02-10', '900', 'in', 'operating_receipt', 0, true),
+            ])],
+            assets: $tradeItems === null ? [new AssetInput('laptop', 'Supplier invoice 8831', '2400', 'capital',
+                'Capitalisation policy v2', true, '2026-02-10', '2026-02-01', 36, '200', 'straight_line_full_start_month', '0')] : [],
+        );
+    }
+
     /** @return list<Fact> */
     private function facts(): array
     {
@@ -121,8 +251,19 @@ final class ForecastModelFactsTest extends TestCase
             cashOpening: new CashOpening('5000', 'Bank statement to 31 December 2025', true),
             actualMonths: [$this->actual()],
         );
-        $balances = fn (?string $cash): ActualBalances => new ActualBalances($cash, null, null, null, null, null);
 
+        return $this->capture($inputs);
+    }
+
+    /**
+     * Captures a reconstruction the way the gate does: through the stored
+     * payload and back out through the engine's own codec, so a model this
+     * test builds has to survive the round trip the producer relies on.
+     *
+     * @return list<Fact>
+     */
+    private function capture(ForecastModelInputs $inputs): array
+    {
         $records = ['plan_id' => 'p1', 'forecast_model' => [
             'engine_version' => ForecastEngineVersion::CURRENT,
             'drivers' => json_decode(CanonicalJson::encode($inputs->driversPayload()), true),

@@ -20,10 +20,22 @@ final readonly class GateContextFactory
     {
         $source = new SourceRecords($version);
         // The version-2 producer runs last and emits nothing unless a
-        // reconstruction has been selected. It withholds the keys the enabled
-        // rules already read, so a selected model adds evidence beside the
-        // stored budget without displacing it.
-        $facts = [...$this->budget->capture($source), ...$this->plan->capture($source), ...$this->forecast->capture($source)];
+        // reconstruction has been selected. Most of what it produces sits
+        // beside the stored budget, because it withholds the keys the older
+        // rules already read.
+        $forecast = $this->forecast->capture($source);
+        $facts = [...$this->budget->capture($source), ...$this->plan->capture($source)];
+        if ($forecast !== []) {
+            // A selected reconstruction is the plan financial model, so for
+            // the dated cash position it owns, the budget's record steps
+            // aside rather than competing with it: two records under one key
+            // resolve to nothing, which would turn a figure a rule can read
+            // into one it reports as missing. A model the engine cannot read
+            // produces no facts and therefore displaces nothing.
+            $facts = array_values(array_filter($facts,
+                fn (Fact $fact): bool => ! in_array($fact->key, ForecastModelFacts::SUPERSEDES, true)));
+        }
+        $facts = [...$facts, ...$forecast];
         $required = $version->requiredHorizon;
         foreach ($facts as $fact) {
             if ($fact->key === 'scope.required_horizon' && $fact->number() !== null) {

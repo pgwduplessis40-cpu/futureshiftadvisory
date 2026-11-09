@@ -10,11 +10,12 @@ use App\Support\Methodology\ProvidesMethodology;
 /**
  * Runs a stored reconstruction through the forecast engine.
  *
- * Until now the engine has been a library with no caller: every component is
- * unit-tested, and nothing assembles them from a stored reconstruction. This
- * is that boundary. It is deliberately narrow — it runs the revenue
- * projection, which needs nothing the stored model does not already hold —
- * and the cash side follows once the inputs it depends on exist.
+ * The engine was a library with no caller: every component unit-tested, and
+ * nothing assembling them from a stored reconstruction. This is that
+ * boundary. It runs the revenue projection and the dated cash side, and it
+ * stays narrow on purpose: the scenario run and the tax projection need
+ * inputs the reconstruction does not yet hold, so they are not run here
+ * rather than run against a model that cannot support them.
  *
  * Its first job is honesty about what the reconstruction can support. A
  * projection that cannot run is reported as a run that failed, with the
@@ -24,8 +25,8 @@ use App\Support\Methodology\ProvidesMethodology;
  * @phpstan-type RunMonth array{period:string,status:string,base_revenue:string|null,founder_hours_allocated:string|null,founder_hours_available:string|null}
  * @phpstan-type RunGap array{reason:string,months:int,first_period:string}
  * @phpstan-type RunResult array{engine_version:string,status:string,months:list<RunMonth>,missing:list<RunGap>,errors:list<RunGap>,refusal:string|null}
- * @phpstan-type CashMonth array{period:string,opening_cash:string|null,closing_cash:string|null}
- * @phpstan-type CashResult array{engine_version:string,status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,months:list<CashMonth>,missing:list<RunGap>,refusal:string|null}
+ * @phpstan-type CashMonth array{period:string,opening_cash:string|null,receipts:string|null,payments:string|null,closing_cash:string|null}
+ * @phpstan-type CashResult array{engine_version:string,status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,months:list<CashMonth>,movements:list<CashMovement>,missing:list<RunGap>,refusal:string|null}
  */
 final class ForecastRun implements ProvidesMethodology
 {
@@ -126,12 +127,20 @@ final class ForecastRun implements ProvidesMethodology
             'reserve_shortfall' => $funding['reserve_shortfall'] ?? null,
             // Carried through so a reader can see where the forecast resumes
             // after the last reconciled month, which is the handover the
-            // elapsed-actuals rule checks.
+            // elapsed-actuals rule checks. Receipts and payments come with
+            // them because the ledger's own net movement for a month is what
+            // the cash-ledger rule reconciles against the two balances, and
+            // deriving it from the balances instead would re-state the
+            // ledger's arithmetic rather than read it.
             'months' => array_map(
-                fn (array $month): array => ['period' => $month['period'],
-                    'opening_cash' => $month['opening_cash'], 'closing_cash' => $month['closing_cash']],
+                fn (array $month): array => ['period' => $month['period'], 'opening_cash' => $month['opening_cash'],
+                    'receipts' => $month['receipts'], 'payments' => $month['payments'], 'closing_cash' => $month['closing_cash']],
                 $ledger['months'],
             ),
+            // The positioned movements themselves, so a caller can report the
+            // dated and classified line behind each month rather than only the
+            // month's total. They arrive in the ledger's own order.
+            'movements' => $ledger['movements'],
             'missing' => $missing, 'refusal' => null,
         ];
     }
@@ -213,7 +222,7 @@ final class ForecastRun implements ProvidesMethodology
         return ['engine_version' => self::VERSION, 'status' => $status, 'movements_counted' => $counted,
             'settled_before_opening' => $early, 'lowest_cash' => $lowest, 'lowest_cash_date' => $lowestDate,
             'cash_deficit' => null, 'reserve_target' => null, 'reserve_shortfall' => null, 'months' => [],
-            'missing' => $missing, 'refusal' => $refusal];
+            'movements' => [], 'missing' => $missing, 'refusal' => $refusal];
     }
 
     /**
