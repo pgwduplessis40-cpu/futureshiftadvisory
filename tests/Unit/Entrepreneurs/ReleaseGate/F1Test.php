@@ -13,13 +13,13 @@ use PHPUnit\Framework\TestCase;
 
 final class F1Test extends TestCase
 {
-    public function test_all_twenty_enabled_rules_match_the_corrected_f1_package_expectations(): void
+    public function test_all_enabled_rules_match_the_corrected_f1_package_expectations(): void
     {
         $manifest = json_decode(file_get_contents(dirname(__DIR__, 3).'/Fixtures/Entrepreneurs/ReleaseGate/f1-manifest.json'), true, flags: JSON_THROW_ON_ERROR);
         $byRule = [];
         foreach (['plan', 'budget', 'brief'] as $kind) {
             $report = PhaseOneRules::evaluator()->evaluate(Fixture::f1($kind));
-            self::assertCount(17, $report->deferred());
+            self::assertCount(11, $report->deferred());
             self::assertFalse($report->checksResolved());
             self::assertFalse($report->jsonSerialize()['can_certify']);
             foreach ($report->results as $result) {
@@ -30,13 +30,24 @@ final class F1Test extends TestCase
                 }
             }
         }
-        self::assertCount(20, $byRule);
+        self::assertCount(26, $byRule);
+        $mismatched = [];
         foreach ($byRule as $id => $results) {
             $states = array_map(fn (RuleResult $r): CheckStatus => $r->status, $results);
+            // A rule that applies to none of the three documents is recorded
+            // as out of scope rather than folded into a pass, because a pass
+            // reads as a verified result nobody produced.
             $worst = in_array(CheckStatus::Fail, $states, true) ? CheckStatus::Fail
-                : (in_array(CheckStatus::CannotVerify, $states, true) ? CheckStatus::CannotVerify : CheckStatus::Pass);
-            self::assertSame($manifest['expectations'][$id]['result'], $worst->value, $id);
+                : (in_array(CheckStatus::CannotVerify, $states, true) ? CheckStatus::CannotVerify
+                    : (in_array(CheckStatus::Pass, $states, true) ? CheckStatus::Pass : CheckStatus::NotApplicable));
+            // Collected rather than asserted one at a time, so a change that
+            // moves several rules reports all of them instead of stopping at
+            // whichever happens to come first in the catalogue.
+            if ($manifest['expectations'][$id]['result'] !== $worst->value) {
+                $mismatched[$id] = $manifest['expectations'][$id]['result'].' expected, '.$worst->value.' produced';
+            }
         }
+        self::assertSame([], $mismatched, 'Enabled rules disagreeing with the F1 package expectations.');
         $cash = $byRule['MI-01'][0];
         $balances = array_filter($cash->subchecks, fn ($s) => str_starts_with($s->id, 'balance:'));
         self::assertCount(12, $balances);

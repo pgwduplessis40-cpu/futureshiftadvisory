@@ -76,7 +76,7 @@ final class ReleaseGateTest extends TestCase
         $gate = app(ReleaseGate::class);
         $report = $gate->evaluate($this->plan);
         $run = $gate->record($this->plan, $report, $this->principal);
-        self::assertCount(17, $report->deferred());
+        self::assertCount(11, $report->deferred());
         self::assertSame($report->context->hash(), $run->getAttribute('context_hash'));
         self::assertFalse($run->getAttribute('result_payload')['can_certify']);
         self::assertSame($report->context->hash(), $gate->evaluate($this->plan)->context->hash());

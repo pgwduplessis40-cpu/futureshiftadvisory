@@ -134,9 +134,13 @@ export default function ForecastModelReview({
             <p className="rounded border border-amber-500 bg-amber-50 p-4 text-amber-950">
                 <strong>
                     Saving a reconstruction changes no release verdict.
+                    Selecting one does.
                 </strong>{' '}
-                Every plan is still checked against the twenty enabled rules,
-                whether or not a reconstruction is selected here.
+                A selected reconstruction becomes the plan financial model and
+                is read by the elapsed-actuals check, which can hold up an
+                external release until every closed month is reconciled or
+                recorded as pre-trading. Saving leaves the plan on its budget
+                and moves nothing.
             </p>
             {model === null ? (
                 <p>
