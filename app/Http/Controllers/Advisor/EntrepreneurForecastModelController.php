@@ -254,6 +254,8 @@ final class EntrepreneurForecastModelController extends Controller
             openingEligibleLosses: $existing?->openingEligibleLosses,
             fundingSources: $existing->fundingSources ?? [],
             fundingInventoryComplete: $existing?->fundingInventoryComplete,
+            fixedCosts: $existing->fixedCosts ?? [],
+            fixedCostScheduleComplete: $existing?->fixedCostScheduleComplete,
         );
     }
 
@@ -361,6 +363,8 @@ final class EntrepreneurForecastModelController extends Controller
             openingEligibleLosses: $existing->openingEligibleLosses,
             fundingSources: $existing->fundingSources,
             fundingInventoryComplete: $existing->fundingInventoryComplete,
+            fixedCosts: $existing->fixedCosts,
+            fixedCostScheduleComplete: $existing->fixedCostScheduleComplete,
         );
     }
 

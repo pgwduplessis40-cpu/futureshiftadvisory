@@ -9,6 +9,7 @@ use App\Services\Entrepreneurs\Forecast\ActualMonth;
 use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\DriverNumbers;
+use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
@@ -20,6 +21,7 @@ use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelStore;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
 use App\Services\Entrepreneurs\Forecast\TaxPeriod;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
+use Brick\Math\BigDecimal;
 
 /**
  * Presents a stored version-2 reconstruction for advisor review.
@@ -36,6 +38,7 @@ use App\Services\Entrepreneurs\Forecast\TradeItem;
  * @phpstan-type StreamPayload array{id:string,name:string,unit:string|null,price:string|null,preparation_hours_per_unit:string|null,delivery_hours_per_unit:string|null,in_base_case:bool|null,evidence_status:string|null,schedule:list<StreamMonthPayload>}
  * @phpstan-type FounderMonthPayload array{period:string,available_hours:string|null,administration_hours:string|null,business_development_hours:string|null}
  * @phpstan-type FundingPayload array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:bool|null}
+ * @phpstan-type FixedCostPayload array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,first_invoice_on:string|null,last_invoice_on:string|null,creditor_days:int|null,reviewed:bool|null}
  * @phpstan-type SettlementPayload array{id:string,source:string,date:string|null,amount:string|null,category:string,verified:bool|null}
  * @phpstan-type TradeItemPayload array{id:string,source:string,kind:string,raised_on:string|null,amount:string|null,settlements:list<SettlementPayload>|null}
  * @phpstan-type OwnerPayPayload array{effective_on:string,weekly_amount:string|null,trigger:string,threshold:string|null}
@@ -46,7 +49,7 @@ use App\Services\Entrepreneurs\Forecast\TradeItem;
  * @phpstan-type ProjectionPayload array{engine_version:string,status:string,months_projected:int,base_revenue_months:int,missing:list<GapPayload>,errors:list<GapPayload>,refusal:string|null}
  * @phpstan-type CashPayload array{status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,missing:list<GapPayload>,refusal:string|null}
  * @phpstan-type SectionPayload array{key:string,label:string,captured:bool,editable:bool,detail:string}
- * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
+ * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
  */
 final readonly class AdvisorForecastModelPayload
 {
@@ -108,6 +111,8 @@ final readonly class AdvisorForecastModelPayload
             'founder_months' => $this->founderMonths($inputs),
             'funding_sources' => array_map($this->fundingSource(...), $inputs->fundingSources ?? []),
             'funding_inventory_complete' => $inputs?->fundingInventoryComplete,
+            'fixed_costs' => array_map($this->fixedCost(...), $inputs->fixedCosts ?? []),
+            'fixed_cost_schedule_complete' => $inputs?->fixedCostScheduleComplete,
             'trade_items' => array_map($this->tradeItem(...), $inputs->tradeItems ?? []),
             'owner_pay_steps' => array_map($this->ownerPayStep(...), $inputs->ownerPaySteps ?? []),
             'assets' => array_map($this->asset(...), $inputs->assets ?? []),
@@ -219,6 +224,50 @@ final readonly class AdvisorForecastModelPayload
             'type' => $funding->type, 'amount' => $funding->amount, 'commitment' => $funding->commitment,
             'available_from' => $funding->availableFrom, 'drawn_on' => $funding->drawnOn,
             'restriction' => $funding->restriction, 'verified' => $funding->verified];
+    }
+
+    /**
+     * A cost's position within a day is derived from the order it is listed
+     * in, so it is not presented back as a field: showing it would invite an
+     * advisor to edit a value the form does not accept.
+     *
+     * @return FixedCostPayload
+     */
+    private function fixedCost(FixedCost $cost): array
+    {
+        return ['id' => $cost->id, 'source' => $cost->source, 'rate' => $cost->rate, 'quantity' => $cost->quantity,
+            'frequency' => $cost->frequency, 'first_invoice_on' => $cost->firstInvoiceOn,
+            'last_invoice_on' => $cost->lastInvoiceOn, 'creditor_days' => $cost->creditorDays, 'reviewed' => $cost->reviewed];
+    }
+
+    /**
+     * What the overheads recognise a month, and what is still unanswered.
+     *
+     * The monthly figure is the one the whole section exists to produce, so
+     * it is stated where an advisor is deciding whether to select the model
+     * rather than left to be inferred from a list of rates and cadences. It
+     * is withheld as soon as one cost cannot be valued: the sum of the costs
+     * that happen to be priced is not the business's fixed cost.
+     *
+     * @param  callable(int,string):string  $counted
+     */
+    private function fixedCostDetail(?ForecastModelInputs $inputs, callable $counted): string
+    {
+        $costs = $inputs->fixedCosts ?? [];
+        $detail = $counted(count($costs), 'cost').' '.match ($inputs?->fixedCostScheduleComplete) {
+            true => 'The schedule is recorded as complete.',
+            false => 'The schedule is recorded as incomplete, so no monthly fixed cost is stated.',
+            default => 'Nobody has said whether every cost is recorded, so no monthly fixed cost is stated.',
+        };
+        if ($costs === [] || $inputs === null) {
+            return $detail;
+        }
+        $monthly = array_values(array_unique(array_values($this->run->fixedCosts($inputs)['totals'])));
+        $unpriced = count(array_filter($costs, fn (FixedCost $cost): bool => $cost->rate === null || $cost->quantity === null));
+
+        return $unpriced > 0 || count($monthly) !== 1 || $monthly[0] === null
+            ? $detail.' '.$unpriced.' of them carry no rate or quantity, so no monthly fixed cost is stated.'
+            : $detail.' They recognise '.DriverNumbers::money(BigDecimal::of($monthly[0])).' a month.';
     }
 
     /**
@@ -443,6 +492,8 @@ final readonly class AdvisorForecastModelPayload
                 'detail' => $counted(count($inputs->founderMonths ?? []), 'month')],
             ['key' => 'funding_sources', 'label' => 'Funding sources', 'captured' => $inputs?->fundingInventoryComplete === true, 'editable' => true,
                 'detail' => $this->fundingDetail($inputs, $counted)],
+            ['key' => 'fixed_costs', 'label' => 'Fixed costs', 'captured' => $inputs?->fixedCostScheduleComplete === true, 'editable' => true,
+                'detail' => $this->fixedCostDetail($inputs, $counted)],
             ['key' => 'trade_items', 'label' => 'Trade terms', 'captured' => ($inputs->tradeItems ?? []) !== [], 'editable' => true,
                 'detail' => $this->tradeDetail($inputs->tradeItems ?? [], $inputs, $counted)],
             ['key' => 'owner_pay_steps', 'label' => 'Owner pay schedule', 'captured' => ($inputs->ownerPaySteps ?? []) !== [], 'editable' => true,

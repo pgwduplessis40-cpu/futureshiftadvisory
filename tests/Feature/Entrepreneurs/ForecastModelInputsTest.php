@@ -39,6 +39,12 @@ final class ForecastModelInputsTest extends TestCase
      * the reconstruction replaced. Every other rule must be byte-identical
      * across a selection, which is what the three canaries below prove.
      *
+     * MI-03 is deliberately not here. It moves only when a fixed-cost
+     * schedule has been recorded, and these canaries select a reconstruction
+     * that carries none, so listing it would excuse it from the comparison
+     * rather than describe it. A reconstruction that does carry one is held
+     * to its own list, beside the costed canary below.
+     *
      * @var list<string>
      */
     private const FED_BY_THE_RECONSTRUCTION = ['PM-06', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03',
@@ -730,6 +736,43 @@ final class ForecastModelInputsTest extends TestCase
         $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
     }
 
+    /**
+     * Two recurring overheads, both invoiced monthly and paid inside the
+     * month they are invoiced in.
+     *
+     * The fixed-cost rule wants dated payments against every cost in every
+     * month, so this is the shape in which it can reconcile rather than
+     * report. A cost billed annually is recorded the same way and is covered
+     * separately, where what the rule says about it is the point.
+     *
+     * @return list<array<string,string|null>>
+     */
+    private function fixedCosts(): array
+    {
+        return [
+            ['id' => 'lease', 'source' => 'Signed lease to December 2026', 'rate' => '900', 'quantity' => '1',
+                'frequency' => 'monthly', 'first_invoice_on' => '2026-01-01', 'last_invoice_on' => '2026-12-01',
+                'creditor_days' => '20', 'reviewed' => 'yes'],
+            ['id' => 'software', 'source' => 'Subscription invoices 2026', 'rate' => '50', 'quantity' => '3',
+                'frequency' => 'monthly', 'first_invoice_on' => '2026-01-05', 'last_invoice_on' => '2026-12-05',
+                'creditor_days' => '10', 'reviewed' => 'yes'],
+        ];
+    }
+
+    /** A selected twelve-month reconstruction carrying a recorded fixed-cost schedule. */
+    private function twelveMonthsOfCostedCash(): void
+    {
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $terms = $this->terms();
+        $terms['owner_pay_steps'] = [['effective_on' => '2026-07-01', 'weekly_amount' => '800', 'trigger' => 'base', 'threshold' => null]];
+        $terms['fixed_costs'] = $this->fixedCosts();
+        $terms['fixed_cost_schedule_complete'] = 'yes';
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+    }
+
     private function advisor(string $name): User
     {
         $user = User::factory()->withTwoFactor()->create(['name' => $name, 'user_type' => 'advisor', 'primary_role' => 'advisor']);
@@ -836,6 +879,12 @@ final class ForecastModelInputsTest extends TestCase
                 'start_on' => '2026-04-01', 'end_on' => '2027-03-31',
                 'accounting_profit' => '-4500', 'tax_adjustments' => '500',
             ]],
+            // Left empty in the shared fixture on purpose. Recurring overheads
+            // are real cash leaving the business, so putting them here would
+            // move every cash balance in every other test on this form, and a
+            // fixture change is a poor way to discover that.
+            'fixed_costs' => [],
+            'fixed_cost_schedule_complete' => '',
         ];
     }
 
@@ -1058,6 +1107,196 @@ final class ForecastModelInputsTest extends TestCase
 
         self::assertNull(app(ForecastModelStore::class)->forPlan($this->plan)?->drivers['funding_sources'][0] ?? null,
             'A refused save must leave nothing behind.');
+    }
+
+    public function test_a_recorded_fixed_cost_schedule_is_what_the_fixed_cost_rule_was_missing(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $before = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-03');
+        // Nothing on the platform produced a fixed-cost rate before this, so
+        // the rule could only report its whole schedule missing.
+        self::assertSame('cannot_verify', $before->status?->value);
+        self::assertSame(['exact-schedule'], array_column($before->subchecks, 'id'));
+
+        $this->twelveMonthsOfCostedCash();
+        $after = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-03');
+        $unresolved = array_column(array_values(array_filter($after->subchecks,
+            fn (Subcheck $check): bool => $check->status->unresolved())), 'id');
+
+        self::assertSame([], $unresolved, 'A recorded schedule leaves the fixed-cost rule nothing to report.');
+        self::assertSame('pass', $after->status?->value);
+    }
+
+    public function test_the_fixed_cost_schedule_recognises_the_annualised_rate_unrounded(): void
+    {
+        $this->budget();
+        $this->twelveMonthsOfCostedCash();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // 900 a month and 50 times three a month. Both are stated against
+        // every month, because the rule reads a rate parallel to the expense
+        // of the month it belongs to.
+        self::assertSame('900.00000000', $facts->one('cost.expense', 'lease', 'month:1')?->value);
+        self::assertSame('150.00000000', $facts->one('cost.expense', 'software', 'month:7')?->value);
+        self::assertSame('1050.00000000', $facts->one('model.fixed_cost', period: 'month:7')?->value);
+        self::assertSame('12600.00000000', $facts->one('cost.annual_total', period: 'year:1')?->value);
+
+        // The lease is invoiced on the first and paid twenty days later, so
+        // the cash and the expense land in the same month and the accrual it
+        // carries at month end is nothing.
+        self::assertSame('900.00', $facts->one('cost.payment', 'lease', 'month:3')?->value);
+        self::assertSame('2026-03-21', $facts->one('cost.payment', 'lease', 'month:3')?->asOf);
+        self::assertSame('0.00000000', $facts->one('cost.accrual_movement', 'lease', 'month:3')?->value);
+    }
+
+    public function test_an_annually_billed_cost_is_spread_and_carries_the_prepayment_it_creates(): void
+    {
+        $this->budget();
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $terms = $this->terms();
+        // A premium that does not divide evenly into twelve months of cents,
+        // invoiced once in February and paid in March.
+        $terms['fixed_costs'] = [['id' => 'insurance', 'source' => 'Policy schedule 2026', 'rate' => '1000',
+            'quantity' => '1', 'frequency' => 'annual', 'first_invoice_on' => '2026-02-15',
+            'last_invoice_on' => '2026-02-15', 'creditor_days' => '30', 'reviewed' => 'yes']];
+        $terms['fixed_cost_schedule_complete'] = 'yes';
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // A twelfth of the premium every month, held unrounded. Rounding it to
+        // cents here would force the residual into one month, and a schedule
+        // with a residual month is not the straight line the rate describes.
+        self::assertSame('83.33333333', $facts->one('cost.expense', 'insurance', 'month:1')?->value);
+        self::assertSame('83.33333333', $facts->one('cost.expense', 'insurance', 'month:12')?->value);
+
+        // January accrues the month's share with no cash behind it yet; March
+        // pays the whole year and turns the position into a prepayment.
+        self::assertSame('83.33333333', $facts->one('cost.accrual_movement', 'insurance', 'month:1')?->value);
+        self::assertSame('-916.66666667', $facts->one('cost.accrual_movement', 'insurance', 'month:3')?->value);
+        self::assertSame('1000.00', $facts->one('cost.payment', 'insurance', 'month:3')?->value);
+
+        // The rule wants dated payments against every cost in every month, and
+        // an annual premium has cash in one of them. The eleven months it does
+        // not are reported rather than treated as nothing owed, which is the
+        // rule's own bar and not something this producer can answer for it.
+        $result = $this->ruleResult(app(ReleaseGate::class)->evaluate($this->plan->refresh(), 'plan'), 'MI-03');
+        $unresolved = array_column(array_values(array_filter($result->subchecks,
+            fn (Subcheck $check): bool => $check->status->unresolved())), 'id');
+        self::assertCount(11, $unresolved, 'Eleven months of an annual premium have no cash against them.');
+        self::assertSame([], array_values(array_filter($unresolved,
+            fn (string $id): bool => ! str_starts_with($id, 'payments:'))), 'Nothing but the payment months is unresolved.');
+    }
+
+    public function test_no_fixed_cost_total_until_the_schedule_is_finished_and_every_cost_priced(): void
+    {
+        $this->budget();
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $terms = $this->terms();
+        $terms['fixed_costs'] = $this->fixedCosts();
+
+        // Nobody has said the schedule is finished. The rows are still stated,
+        // because a recorded cost is evidence whether or not the list is
+        // closed, but the rule's coverage check reads the declaration.
+        $terms['fixed_cost_schedule_complete'] = '';
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+        self::assertNull($facts->one('cost.schedule_complete')?->value);
+        self::assertSame('1050.00000000', $facts->one('model.fixed_cost', period: 'month:1')?->value);
+        self::assertContains('schedule-coverage', array_column(array_values(array_filter(
+            $this->ruleResult(app(ReleaseGate::class)->evaluate($this->plan->refresh(), 'plan'), 'MI-03')->subchecks,
+            fn (Subcheck $check): bool => $check->status->unresolved())), 'id'));
+
+        // One cost nobody has priced withholds the month's total rather than
+        // understating it as the sum of the costs that happen to be known.
+        $unpriced = $terms;
+        $unpriced['expected_revision'] = null;
+        $unpriced['fixed_costs'][1]['rate'] = null;
+        $unpriced['fixed_cost_schedule_complete'] = 'yes';
+        $this->post($this->url().'/terms', $unpriced)->assertSessionHasNoErrors();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+        self::assertNull($facts->one('model.fixed_cost', period: 'month:1')?->value);
+        self::assertNull($facts->one('cost.annual_total', period: 'year:1'));
+    }
+
+    public function test_a_fixed_cost_invoiced_outside_the_calendar_is_refused_at_the_form(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+
+        // Charges raised before the forecast opens are already in the opening
+        // position; recognising them again would double the expense.
+        $early = $this->terms();
+        $early['fixed_costs'] = [[...$this->fixedCosts()[0], 'first_invoice_on' => '2025-11-01']];
+        $this->post($this->url().'/terms', $early)->assertSessionHasErrors('fixed_costs');
+        self::assertStringContainsString('already in the opening position',
+            (string) session('errors')?->first('fixed_costs'));
+
+        // A charge raised after the forecast ends is not an expense it carries.
+        $late = $this->terms();
+        $late['fixed_costs'] = [[...$this->fixedCosts()[0], 'last_invoice_on' => '2028-06-01']];
+        $this->post($this->url().'/terms', $late)->assertSessionHasErrors('fixed_costs');
+        self::assertStringContainsString('not an expense this forecast carries',
+            (string) session('errors')?->first('fixed_costs'));
+
+        self::assertSame([], app(ForecastModelStore::class)->forPlan($this->plan)?->drivers['fixed_costs'] ?? [],
+            'A refused save must leave nothing behind.');
+    }
+
+    public function test_fixed_cost_invoices_reach_the_cash_ledger_as_dated_payments(): void
+    {
+        $this->budget();
+        $this->twelveMonthsOfCostedCash();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // The overheads are real cash leaving the business, so they belong in
+        // the ledger beside the trade payables rather than only in the expense
+        // schedule. January pays the lease on the 21st and the software on the
+        // 15th: 1050 out, against an opening balance of 1200.
+        self::assertSame('1200.00', $facts->one('cash.opening', period: 'month:1')?->value);
+        self::assertSame('-1050.00', $facts->one('cash.movement', period: 'month:1')?->value);
+        self::assertSame('150.00', $facts->one('cash.closing', period: 'month:1')?->value);
+        self::assertSame('operating_payments', $facts->one('ledger.category', 'lease.0.payment', 'month:1')?->value);
+    }
+
+    public function test_a_recorded_fixed_cost_schedule_moves_only_the_rules_that_read_it(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $verdicts = fn (GateReport $report): array => array_combine(
+            array_map(fn (RuleResult $result): string => $result->definition->id, $report->results),
+            array_map(fn (RuleResult $result): ?string => $result->status?->value, $report->results));
+
+        $untouched = $gate->evaluate($this->plan->refresh(), 'plan');
+        $before = $verdicts($untouched);
+        $this->twelveMonthsOfCostedCash();
+        $costed = $gate->evaluate($this->plan->refresh(), 'plan');
+        $after = $verdicts($costed);
+
+        // Three verdicts change. The fixed-cost rule reaches a finding for the
+        // first time, and the two that read the cash curve move because the
+        // overheads put dated payments into it. The rest of the rules fed by
+        // the reconstruction keep the verdicts they had: a cost schedule does
+        // not resolve what was already unestablished about funding or
+        // scenarios, and reporting that it had would be the defect.
+        $moved = array_keys(array_filter($after, fn (?string $status, string $id): bool => $status !== $before[$id],
+            ARRAY_FILTER_USE_BOTH));
+        sort($moved);
+        self::assertSame(['MI-01', 'MI-03', 'MI-07'], $moved);
+
+        // Verdicts alone would not catch a rule quietly reading a cost fact
+        // without changing its mind, so every rule outside the set this
+        // reconstruction may touch is compared whole.
+        $reads = [...self::FED_BY_THE_RECONSTRUCTION, 'MI-03'];
+        $evidence = fn (GateReport $report): array => array_values(array_filter($report->results,
+            fn (RuleResult $result): bool => ! in_array($result->definition->id, $reads, true)));
+        self::assertSame(CanonicalJson::encode($evidence($untouched)), CanonicalJson::encode($evidence($costed)),
+            'A cost schedule is not evidence about revenue, capacity, documents or governance.');
     }
 
     public function test_two_sources_under_one_name_are_refused_before_a_total_counts_them_twice(): void

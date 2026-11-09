@@ -8,6 +8,7 @@ use App\Services\Entrepreneurs\Forecast\ActualMonth;
 use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\BankOpening;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
+use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
@@ -37,6 +38,7 @@ final readonly class ForecastModelInputs
      * @param  list<TaxPeriod>  $taxPeriods
      * @param  list<ActualMonth>  $actualMonths
      * @param  list<FundingSource>  $fundingSources
+     * @param  list<FixedCost>  $fixedCosts
      */
     public function __construct(
         public ForecastCalendar $calendar,
@@ -69,10 +71,15 @@ final readonly class ForecastModelInputs
         // only somebody who looked can tell the two apart. Absent until they
         // say, and never inferred from the count.
         public ?bool $fundingInventoryComplete = null,
+        public array $fixedCosts = [],
+        // The same question the funding inventory asks, for the same reason:
+        // no row count can tell a business with no overheads from a section
+        // nobody has filled in.
+        public ?bool $fixedCostScheduleComplete = null,
     ) {}
 
     /**
-     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool}
+     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool}
      */
     public function driversPayload(): array
     {
@@ -92,6 +99,8 @@ final readonly class ForecastModelInputs
             'opening_eligible_losses' => $this->openingEligibleLosses,
             'funding_sources' => $this->fundingSources,
             'funding_inventory_complete' => $this->fundingInventoryComplete,
+            'fixed_costs' => $this->fixedCosts,
+            'fixed_cost_schedule_complete' => $this->fixedCostScheduleComplete,
         ];
     }
 

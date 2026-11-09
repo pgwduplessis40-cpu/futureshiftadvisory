@@ -92,6 +92,20 @@ const model: ForecastModel = {
     // Nobody has said whether the list is finished, which is the state the
     // page has to show as unanswered rather than read off the row count.
     funding_inventory_complete: null,
+    fixed_costs: [
+        {
+            id: 'lease',
+            source: 'Signed lease to December 2026',
+            rate: '900',
+            quantity: '1',
+            frequency: 'monthly',
+            first_invoice_on: '2026-01-01',
+            last_invoice_on: '2026-12-01',
+            creditor_days: 20,
+            reviewed: true,
+        },
+    ],
+    fixed_cost_schedule_complete: null,
     trade_items: [
         {
             id: 'invoice-104',
@@ -285,6 +299,22 @@ test('funding is asked for separately from the opening balance it is not part of
     // what staying silent costs rather than inferring an answer from the rows.
     assert.match(html, /Is every funding source recorded\?/);
     assert.match(html, /the sum of a partial list is not a\s+total/);
+});
+
+test('fixed costs are asked for as a rate on a cadence, not as invoices', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Fixed costs/);
+    assert.match(html, /Rate per charge/);
+    assert.match(html, /How often it is charged/);
+    // The page has to say that an annual charge is spread rather than landing
+    // in the month it is invoiced, because the expense an advisor sees will
+    // otherwise look wrong beside the cash.
+    assert.match(html, /not a spike in March/);
+    assert.match(html, /accrual or prepayment the\s+cost carries/);
+    // Both halves of why an invoice outside the calendar is refused.
+    assert.match(html, /already in the opening\s+position/);
+    assert.match(html, /not expenses this forecast\s+carries/);
+    assert.match(html, /Is every fixed cost recorded\?/);
 });
 
 test('uncaptured sections are reported rather than left blank', async () => {

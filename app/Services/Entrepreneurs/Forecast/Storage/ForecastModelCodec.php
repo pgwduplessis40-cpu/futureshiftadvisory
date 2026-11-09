@@ -41,6 +41,8 @@ final class ForecastModelCodec
             StoredValues::text($drivers, 'opening_eligible_losses'),
             DriverCodec::fundingSources($drivers, 'funding_sources'),
             StoredValues::flag($drivers, 'funding_inventory_complete'),
+            DriverCodec::fixedCosts($drivers, 'fixed_costs'),
+            StoredValues::flag($drivers, 'fixed_cost_schedule_complete'),
         );
     }
 

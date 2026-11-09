@@ -6,6 +6,7 @@ namespace App\Services\Entrepreneurs\Forecast;
 
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Support\Methodology\ProvidesMethodology;
+use Brick\Math\BigDecimal;
 
 /**
  * Runs a stored reconstruction through the forecast engine.
@@ -27,6 +28,9 @@ use App\Support\Methodology\ProvidesMethodology;
  * @phpstan-type RunResult array{engine_version:string,status:string,months:list<RunMonth>,missing:list<RunGap>,errors:list<RunGap>,refusal:string|null}
  * @phpstan-type CashMonth array{period:string,opening_cash:string|null,receipts:string|null,payments:string|null,closing_cash:string|null}
  * @phpstan-type CashResult array{engine_version:string,status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,months:list<CashMonth>,movements:list<CashMovement>,missing:list<RunGap>,refusal:string|null}
+ * @phpstan-type CostMonth array{period:string,expense:string|null,paid:string|null,accrual_movement:string|null,payments:list<CashMovement>}
+ * @phpstan-type CostLine array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,reviewed:bool|null,recognition:string|null,invoices:int,months:list<CostMonth>,missing:list<string>}
+ * @phpstan-type CostResult array{engine_version:string,status:string,lines:list<CostLine>,totals:array<string,string|null>,movements:list<CashMovement>,missing:list<RunGap>,refusal:string|null}
  */
 final class ForecastRun implements ProvidesMethodology
 {
@@ -34,7 +38,7 @@ final class ForecastRun implements ProvidesMethodology
 
     public static function methodologyIds(): array
     {
-        return ['entrepreneur.driver_revenue'];
+        return ['entrepreneur.driver_revenue', 'entrepreneur.dated_cash'];
     }
 
     /** @return RunResult */
@@ -146,6 +150,128 @@ final class ForecastRun implements ProvidesMethodology
     }
 
     /**
+     * Runs the recurring overheads: what each one recognises every month, the
+     * invoices it raises, and the accrual position between the two.
+     *
+     * Recognition and payment are deliberately separate answers. A fixed cost
+     * relates to the period it covers, so it is recognised straight-line at
+     * its annualised rate; the invoices fall whenever the arrangement says
+     * they fall. The gap between them in a month is the accrual the cost
+     * carries, which is a position rather than a discrepancy, and reporting
+     * the two as one figure would hide an annual premium paid in advance.
+     *
+     * A cost missing its cadence or its invoice window raises nothing and
+     * recognises nothing. Assuming a cadence would put twelve charges a year
+     * behind a cost nobody has said recurs monthly.
+     *
+     * @return CostResult
+     */
+    public function fixedCosts(ForecastModelInputs $inputs, int $sequence = 0): array
+    {
+        $schedule = new ExpenseSchedule;
+        $lines = $movements = $missing = [];
+        // Null until a cost recognises something into the month, and null
+        // again as soon as one cost cannot be valued: a total summed over the
+        // costs that happen to be priced is not the month's fixed cost.
+        $totals = array_fill_keys($inputs->calendar->periods, null);
+        $unknown = [];
+        foreach ($inputs->fixedCosts as $cost) {
+            $recognition = $schedule->monthlyRecognition($cost->rate, $cost->quantity, $cost->frequency);
+            $gaps = [];
+            foreach (['rate' => $cost->rate, 'quantity' => $cost->quantity, 'frequency' => $cost->frequency,
+                'first_invoice_on' => $cost->firstInvoiceOn, 'last_invoice_on' => $cost->lastInvoiceOn] as $field => $value) {
+                if ($value === null) {
+                    $gaps[] = $field;
+                }
+            }
+            if ($cost->creditorDays === null) {
+                $gaps[] = 'creditor_days';
+            }
+            $obligations = [];
+            if ($cost->frequency !== null && $cost->firstInvoiceOn !== null && $cost->lastInvoiceOn !== null) {
+                try {
+                    $obligations = $schedule->fixed($inputs->calendar, $cost->id, $cost->source, $cost->rate, $cost->quantity,
+                        $cost->frequency, $cost->firstInvoiceOn, $cost->lastInvoiceOn,
+                        array_fill_keys($inputs->calendar->periods, '1'), $cost->creditorDays, $sequence)['obligations'];
+                } catch (\InvalidArgumentException $e) {
+                    // An invoice window the schedule will not accept produces
+                    // no invoices at all. The reason is carried rather than
+                    // swallowed, because a cost that raises nothing and a cost
+                    // whose window was refused are different states.
+                    return $this->costResult('fail', [], $totals, [], [], $e->getMessage());
+                }
+            }
+            $sequence++;
+            // Nothing paid is zero paid; an invoice nobody has priced is
+            // unknown. Collapsing the two would read an unpriced invoice as a
+            // month with no payment, and the accrual would absorb the whole
+            // expense as though the cost had simply not been billed yet.
+            $paid = array_fill_keys($inputs->calendar->periods, '0');
+            $unpriced = $settlements = [];
+            foreach ($obligations as $obligation) {
+                foreach ($obligation->settlements ?? [] as $settlement) {
+                    $movements[] = $settlement;
+                    $period = $settlement->date === null ? null : substr($settlement->date, 0, 7);
+                    if ($period === null || ! array_key_exists($period, $paid)) {
+                        // A payment falling past the calendar is deferred by
+                        // the ledger and belongs to no month here either. The
+                        // expense is still recognised, so the accrual carries
+                        // it, which is what an invoice paid after the forecast
+                        // ends actually leaves behind.
+                        continue;
+                    }
+                    $settlements[$period][] = $settlement;
+                    if ($settlement->amount === null) {
+                        $unpriced[$period] = true;
+                    } else {
+                        $paid[$period] = (string) BigDecimal::of($paid[$period])->plus($settlement->amount);
+                    }
+                }
+            }
+            $months = [];
+            foreach ($inputs->calendar->periods as $period) {
+                $cash = isset($unpriced[$period]) ? null : $paid[$period];
+                $months[] = ['period' => $period, 'expense' => $recognition, 'paid' => $cash,
+                    // Expense recognised less cash paid. Positive is an
+                    // accrual, negative a prepayment; both are ordinary.
+                    'accrual_movement' => $recognition === null || $cash === null
+                        ? null : (string) BigDecimal::of($recognition)->minus($cash),
+                    'payments' => $settlements[$period] ?? []];
+                if ($recognition === null) {
+                    $unknown[$period] = true;
+
+                    continue;
+                }
+                $totals[$period] = (string) BigDecimal::of($totals[$period] ?? '0')->plus($recognition);
+            }
+            $lines[] = ['id' => $cost->id, 'source' => $cost->source, 'rate' => $cost->rate, 'quantity' => $cost->quantity,
+                'frequency' => $cost->frequency, 'reviewed' => $cost->reviewed, 'recognition' => $recognition,
+                'invoices' => count($obligations), 'months' => $months, 'missing' => $gaps];
+            foreach ($gaps as $gap) {
+                $missing[] = $this->gap($cost->id.'.'.$gap, $inputs);
+            }
+        }
+        foreach (array_keys($unknown) as $period) {
+            $totals[$period] = null;
+        }
+
+        return $this->costResult($missing === [] ? 'pass' : 'cannot_verify', $lines, $totals, $movements, $missing, null);
+    }
+
+    /**
+     * @param  list<CostLine>  $lines
+     * @param  array<string,string|null>  $totals
+     * @param  list<CashMovement>  $movements
+     * @param  list<RunGap>  $missing
+     * @return CostResult
+     */
+    private function costResult(string $status, array $lines, array $totals, array $movements, array $missing, ?string $refusal): array
+    {
+        return ['engine_version' => self::VERSION, 'status' => $status, 'lines' => $lines, 'totals' => $totals,
+            'movements' => $movements, 'missing' => $missing, 'refusal' => $refusal];
+    }
+
+    /**
      * Assembles every dated movement the reconstruction implies.
      *
      * Sequence numbers decide the order of two movements landing on one day,
@@ -202,6 +328,27 @@ final class ForecastRun implements ProvidesMethodology
             foreach ([...$schedule['missing'], ...$schedule['errors']] as $reason) {
                 $flat[] = $asset->id.'.'.$reason;
             }
+        }
+        // Recurring overheads are real cash leaving the business, so the
+        // invoices they raise belong in the ledger beside the trade payables.
+        // One sequence per cost, assigned inside the run: a cost's own
+        // invoices never share a date, and two costs invoiced on the same day
+        // hold different positions rather than colliding.
+        $costs = $this->fixedCosts($inputs, $next);
+        $next += count($inputs->fixedCosts);
+        if ($costs['refusal'] !== null) {
+            throw new \InvalidArgumentException($costs['refusal']);
+        }
+        foreach ($costs['movements'] as $payment) {
+            if ($payment->date !== null && $payment->date < $opens) {
+                $early++;
+
+                continue;
+            }
+            $movements[] = $payment;
+        }
+        foreach ($costs['missing'] as $gap) {
+            $flat[] = $gap['reason'];
         }
         foreach ($inputs->fundingSources as $fundingSource) {
             // One sequence per source, so two drawn on one day hold different
