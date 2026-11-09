@@ -57,6 +57,64 @@ final class RedactorTest extends TestCase
         $this->assertMatchesRegularExpression('/\[ird:[a-f0-9]{10}\]/', $result);
     }
 
+    public function test_does_not_mask_a_uuid_whose_random_hex_reads_as_a_phone_number(): void
+    {
+        // The identifier from the CI failure that found this. Inside it,
+        // `063-4401472` satisfies the phone pattern: the `a` before it clears
+        // the lookbehind, `63-440147` supplies the digit groups, and the `c`
+        // after it clears the lookahead. Rewriting part of a UUID corrupts
+        // the identifier the audit row was written to preserve.
+        $uuid = '01a1be7f-a2b3-7101-a063-4401472c3aa6';
+
+        $this->assertSame($uuid, $this->redactor->redact($uuid));
+        $this->assertSame(['model_id' => $uuid], $this->redactor->redact(['model_id' => $uuid]));
+    }
+
+    public function test_no_uuid_is_rewritten_however_its_random_hex_falls(): void
+    {
+        // One in roughly a hundred UUIDs used to be rewritten, so a handful of
+        // fixed examples would have passed while the defect was live. This
+        // samples enough of the space to fail if any pattern reaches in again.
+        $rewritten = [];
+        for ($i = 0; $i < 3000; $i++) {
+            $uuid = sprintf('%08x-%04x-4%03x-%04x-%012x', random_int(0, 0xFFFFFFFF), random_int(0, 0xFFFF),
+                random_int(0, 0xFFF), random_int(0x8000, 0xBFFF), random_int(0, 0xFFFFFFFFFFFF));
+            if ($this->redactor->redact($uuid) !== $uuid) {
+                $rewritten[] = $uuid;
+            }
+        }
+
+        $this->assertSame([], $rewritten, 'An audit identifier must survive redaction whatever its random hex spells.');
+    }
+
+    public function test_protecting_a_uuid_does_not_shelter_pii_beside_or_inside_it(): void
+    {
+        $uuid = '01a1be7f-a2b3-7101-a063-4401472c3aa6';
+
+        // Beside it: the phone is still redacted and the identifier is intact.
+        $beside = (string) $this->redactor->redact('plan '.$uuid.' for 021 555 1234');
+        $this->assertStringContainsString($uuid, $beside);
+        $this->assertStringNotContainsString('021 555 1234', $beside);
+
+        // Inside it: an address that happens to carry a UUID in its local
+        // part is one address, and it is redacted whole.
+        $inside = (string) $this->redactor->redact('user+'.$uuid.'@example.com');
+        $this->assertStringNotContainsString('example.com', $inside);
+        $this->assertMatchesRegularExpression('/^\[email:[a-f0-9]{10}\]$/', $inside);
+    }
+
+    public function test_a_uuid_in_a_secret_position_is_still_redacted(): void
+    {
+        $uuid = '01a1be7f-a2b3-7101-a063-4401472c3aa6';
+
+        $keyed = $this->redactor->redact(['api_token' => $uuid]);
+        $this->assertIsArray($keyed);
+        $this->assertMatchesRegularExpression('/^\[secret:[a-f0-9]{10}\]$/', (string) $keyed['api_token']);
+
+        $query = (string) $this->redactor->redact('https://example.test/cb?token='.$uuid);
+        $this->assertStringNotContainsString($uuid, $query, 'Identifier protection must not become a way to leak a credential.');
+    }
+
     public function test_does_not_mask_nzbn(): void
     {
         // NZBN is a public identifier; redacting it would harm audit utility.
