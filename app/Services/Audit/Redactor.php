@@ -38,10 +38,34 @@ final class Redactor
 
     private const AUTH_HEADER_PATTERN = '/\b(authorization\s*[:=]\s*)(bearer\s+|basic\s+)?([A-Za-z0-9+\/._~=-]{8,})/i';
 
+    /**
+     * Canonical UUIDs, protected from the numeric patterns below.
+     *
+     * A UUID is an opaque identifier, not PII, and audit rows exist to carry
+     * identifiers. But its random hex can contain a digit run that reads as
+     * an NZ phone number — measured at roughly one UUID in a hundred — and
+     * rewriting part of one silently corrupts the identifier the row was
+     * written to preserve. Redacting it has no privacy gain to weigh against
+     * that, so the numeric patterns are kept away from it entirely.
+     *
+     * A UUID used as a credential is already gone by the time this applies:
+     * the secret passes run first and over the whole string.
+     */
+    private const UUID_PATTERN = '/\b([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\b/';
+
+    /**
+     * Patterns whose match can legitimately span a UUID, so they run over the
+     * whole string. An address like `user+<uuid>@example.com` is one address,
+     * and protecting the UUID inside it would leave the address unredacted.
+     *
+     * @var array<string, string> kind => regex
+     */
+    private const TEXT_PATTERNS = [
+        'email' => '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/',
+    ];
+
     /** @var array<string, string> kind => regex */
     private const PATTERNS = [
-        'email' => '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/',
-
         // More specific numeric identifiers run before the phone pattern so
         // it cannot partially consume a bank account or NZBN-like sequence.
         'bank' => '/\b\d{2}-\d{4}-\d{7}-\d{2,3}\b/',
@@ -105,7 +129,28 @@ final class Redactor
             $input,
         ) ?? $input;
 
-        foreach (self::PATTERNS as $kind => $pattern) {
+        $input = $this->apply(self::TEXT_PATTERNS, $input);
+
+        // Split so identifier segments pass through untouched. With one
+        // capture group the delimiters land on odd indices, and empty parts
+        // are kept rather than dropped so that alternation holds.
+        $parts = preg_split(self::UUID_PATTERN, $input, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) {
+            return $this->apply(self::PATTERNS, $input);
+        }
+        foreach ($parts as $index => $part) {
+            if ($index % 2 === 0) {
+                $parts[$index] = $this->apply(self::PATTERNS, $part);
+            }
+        }
+
+        return implode('', $parts);
+    }
+
+    /** @param  array<string, string>  $patterns */
+    private function apply(array $patterns, string $input): string
+    {
+        foreach ($patterns as $kind => $pattern) {
             $input = preg_replace_callback(
                 $pattern,
                 fn (array $m): string => $this->placeholder((string) $m[0], $kind),
