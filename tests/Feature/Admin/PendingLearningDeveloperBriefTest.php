@@ -8,6 +8,7 @@ use App\Models\LearningRecommendation;
 use App\Models\LearningUpdate;
 use App\Models\User;
 use App\Services\Learning\LearningRecommendationWorkflow;
+use Carbon\Carbon;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -104,6 +105,13 @@ final class PendingLearningDeveloperBriefTest extends TestCase
 
     public function test_empty_pending_queue_does_not_fall_back_to_delivery_history_in_download_or_command(): void
     {
+        // The brief stamps `Generated: ` with the clock at render time, and this
+        // test renders it twice: once here and once through the command. Without
+        // a frozen clock the two stamps differ whenever a second ticks over
+        // between them, so the comparison fails on timing rather than on the
+        // divergence it exists to catch.
+        Carbon::setTestNow('2026-05-23 10:00:00');
+
         $historical = $this->learning(LearningUpdate::STATUS_APPROVED, 'Already addressed historical matter');
         $this->recommendation($historical, LearningRecommendation::STATUS_APPROVED);
         $brief = app(LearningRecommendationWorkflow::class)->developerBrief();
