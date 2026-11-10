@@ -38,6 +38,30 @@ final class ForecastRun implements ProvidesMethodology
 {
     public const VERSION = 'phase-2e.1';
 
+    /**
+     * The reconstruction the two results below belong to.
+     *
+     * One pass over a reconstruction asks for the revenue projection three
+     * times — the cash side needs it for owner pay, the stream facts read it,
+     * and the profit decomposition reads it again — and for the expense
+     * schedules twice. Both are pure functions of an immutable input, so the
+     * answer cannot differ between calls; recomputing it only costs time, and
+     * a gate evaluation runs inside an HTTP request.
+     *
+     * One reconstruction is remembered rather than a map of them, because
+     * that is the shape of the work: a producer runs one model and asks
+     * repeatedly about it. The input is compared by identity, so a different
+     * reconstruction never reads another's answer, and at most one is held
+     * alive by this.
+     */
+    private ?ForecastModelInputs $computedFor = null;
+
+    /** @var RunResult|null */
+    private ?array $computedRevenue = null;
+
+    /** @var CostResult|null */
+    private ?array $computedCosts = null;
+
     public static function methodologyIds(): array
     {
         return ['entrepreneur.driver_revenue', 'entrepreneur.dated_cash'];
@@ -45,6 +69,26 @@ final class ForecastRun implements ProvidesMethodology
 
     /** @return RunResult */
     public function revenue(ForecastModelInputs $inputs): array
+    {
+        $this->remember($inputs);
+        $this->computedRevenue ??= $this->project($inputs);
+
+        return $this->computedRevenue;
+    }
+
+    /** Clears what was remembered when the reconstruction being asked about changes. */
+    private function remember(ForecastModelInputs $inputs): void
+    {
+        if ($this->computedFor === $inputs) {
+            return;
+        }
+        $this->computedFor = $inputs;
+        $this->computedRevenue = null;
+        $this->computedCosts = null;
+    }
+
+    /** @return RunResult */
+    private function project(ForecastModelInputs $inputs): array
     {
         if ($inputs->streams === []) {
             // No streams is not a failed projection; it is a projection with
@@ -224,6 +268,22 @@ final class ForecastRun implements ProvidesMethodology
      * @return CostResult
      */
     public function fixedCosts(ForecastModelInputs $inputs, int $sequence = 0): array
+    {
+        // Only the default numbering is remembered. A caller that asks for a
+        // sequence block is positioning these payments among others in the
+        // ledger, and the movements it gets back carry that numbering, so a
+        // cached answer from a different block would be the wrong one.
+        if ($sequence !== 0) {
+            return $this->schedule($inputs, $sequence);
+        }
+        $this->remember($inputs);
+        $this->computedCosts ??= $this->schedule($inputs, 0);
+
+        return $this->computedCosts;
+    }
+
+    /** @return CostResult */
+    private function schedule(ForecastModelInputs $inputs, int $sequence): array
     {
         $schedule = new ExpenseSchedule;
         $lines = $movements = $missing = [];
