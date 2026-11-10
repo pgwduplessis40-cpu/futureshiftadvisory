@@ -51,7 +51,7 @@ use Brick\Math\BigDecimal;
  * @phpstan-type ProjectionPayload array{engine_version:string,status:string,months_projected:int,base_revenue_months:int,missing:list<GapPayload>,errors:list<GapPayload>,refusal:string|null}
  * @phpstan-type CashPayload array{status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,missing:list<GapPayload>,refusal:string|null}
  * @phpstan-type SectionPayload array{key:string,label:string,captured:bool,editable:bool,detail:string}
- * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,tax_cash_plan:TaxCashPayload|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
+ * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,tax_cash_plan:TaxCashPayload|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,owner_pay_deductible:bool|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
  */
 final readonly class AdvisorForecastModelPayload
 {
@@ -128,6 +128,7 @@ final readonly class AdvisorForecastModelPayload
             'cash' => $inputs === null ? null : $this->cash($inputs),
             'owner_pay_source' => $inputs?->ownerPaySource,
             'owner_pay_first_payment_on' => $inputs?->ownerPayFirstPaymentOn,
+            'owner_pay_deductible' => $inputs?->ownerPayDeductible,
             'opening_eligible_losses' => $inputs?->openingEligibleLosses,
             'sections' => $this->sections($inputs),
         ];

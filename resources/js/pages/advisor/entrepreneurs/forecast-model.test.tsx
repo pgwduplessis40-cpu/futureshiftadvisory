@@ -226,6 +226,9 @@ const model: ForecastModel = {
     },
     owner_pay_source: 'Signed owner drawings policy',
     owner_pay_first_payment_on: '2026-07-03',
+    // Nobody has said whether the owner's pay is an expense or a drawing,
+    // which is the state the form has to show as unanswered.
+    owner_pay_deductible: null,
     opening_eligible_losses: '4500.00',
     sections: [
         {
@@ -368,6 +371,16 @@ test('tax cash is asked for as a position before it is asked for as rows', async
     // The stored schedule loads back into the form.
     assert.match(html, /provisional-1/);
     assert.match(html, /Refund received/);
+});
+
+test('owner pay asks whether it is an expense, and says why that decides a profit', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Is this pay an expense of the business\?/);
+    assert.match(html, /a drawing against the business/);
+    // The question cannot be inferred from the entity basis, and the page
+    // says what staying silent costs rather than assuming an answer.
+    assert.match(html, /different profits off the same cash/);
+    assert.match(html, /states no profit at all/);
 });
 
 test('uncaptured sections are reported rather than left blank', async () => {

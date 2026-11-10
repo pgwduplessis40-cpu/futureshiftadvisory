@@ -35,7 +35,7 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type FundingRow array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:string|null}
  * @phpstan-type FixedCostRow array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,first_invoice_on:string|null,last_invoice_on:string|null,creditor_days:int|string|null,reviewed:string|null}
  * @phpstan-type TaxPaymentRow array{id:string,source:string,date:string|null,amount:string|null,category:string,direction:string,verified:string|null}
- * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null,tax_cash_state:string|null,gst_cash_state:string|null,tax_cash_source:string|null,gst_cash_source:string|null,tax_payments:list<TaxPaymentRow>}
+ * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null,tax_cash_state:string|null,gst_cash_state:string|null,tax_cash_source:string|null,gst_cash_source:string|null,tax_payments:list<TaxPaymentRow>,owner_pay_deductible:string|null}
  */
 final readonly class AdvisorForecastTerms
 {
@@ -185,6 +185,10 @@ final readonly class AdvisorForecastTerms
             'tax_payments.*.category' => ['required', 'in:tax,gst'],
             'tax_payments.*.direction' => ['required', 'in:in,out'],
             'tax_payments.*.verified' => $stated,
+            // Whether the owner's pay is an expense of the business or a
+            // drawing against it. The two give different profits off the same
+            // cash, and which applies depends on the entity.
+            'owner_pay_deductible' => $stated,
         ];
     }
 
@@ -219,6 +223,7 @@ final readonly class AdvisorForecastTerms
             fixedCosts: array_map($this->fixedCost(...), $data['fixed_costs']),
             fixedCostScheduleComplete: $this->stated($data['fixed_cost_schedule_complete']),
             taxCashPlan: $this->taxCashPlan($data),
+            ownerPayDeductible: $this->stated($data['owner_pay_deductible']),
         );
     }
 

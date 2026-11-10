@@ -22,6 +22,7 @@ use App\Services\Entrepreneurs\ReleaseGate\ReleaseGate;
 use App\Services\Entrepreneurs\ReleaseGate\RuleResult;
 use App\Services\Entrepreneurs\ReleaseGate\Subcheck;
 use App\Support\RequestContext;
+use Brick\Math\BigDecimal;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -779,6 +780,41 @@ final class ForecastModelInputsTest extends TestCase
     }
 
     /**
+     * Drivers filled across a whole twelve-month calendar.
+     *
+     * A month states no revenue unless its founder capacity is known and
+     * every stream has a schedule row in it, and that is deliberate: a stream
+     * with no row in a month is equally a month with no sales and a month
+     * nobody filled in. A profit decomposition therefore needs the grid
+     * filled before it can state a profit in every month, and the shared
+     * driver fixture carries one month, which is the right shape for the
+     * projection tests and the wrong one here.
+     */
+    private function twelveMonthsOfDrivers(): void
+    {
+        $drivers = $this->drivers();
+        $drivers['expected_revision'] = null;
+        $drivers['founder_months'] = [];
+        $schedule = [];
+        foreach (range(1, 12) as $month) {
+            $period = sprintf('2026-%02d', $month);
+            $drivers['founder_months'][] = ['period' => $period, 'available_hours' => '120',
+                'administration_hours' => '20', 'business_development_hours' => '15'];
+            // An explicit nothing, which is a different statement from an
+            // absent row and is what makes the month's revenue knowable.
+            // Additional capacity has to be stated even when it is none: the
+            // projection cannot total a month's capacity without it.
+            $trading = $period === '2026-03';
+            $schedule[] = ['period' => $period, 'booked_units' => $trading ? '2' : '0',
+                'delivery_units' => $trading ? '2' : '0', 'invoiced_units' => $trading ? '2' : '0',
+                'founder_hours' => $trading ? '20' : '0', 'additional_capacity_units' => '0',
+                'provider' => null, 'provider_unit_cost' => null, 'no_cost_basis' => null];
+        }
+        $drivers['streams'][0]['schedule'] = $schedule;
+        $this->post($this->url().'/drivers', $drivers)->assertSessionHasNoErrors();
+    }
+
+    /**
      * The tax terms, with a schedule paying March's tax in March.
      *
      * @return array<string,mixed>
@@ -963,6 +999,7 @@ final class ForecastModelInputsTest extends TestCase
             'tax_cash_source' => '',
             'gst_cash_source' => '',
             'tax_payments' => [],
+            'owner_pay_deductible' => '',
         ];
     }
 
@@ -1443,6 +1480,141 @@ final class ForecastModelInputsTest extends TestCase
         // advisor's; only the timing is the convention.
         self::assertSame('0.00', $facts->one('tax.adjustment', period: 'month:1')?->value);
         self::assertSame('0.00', $facts->one('tax.adjustment', period: 'month:3')?->value);
+    }
+
+    public function test_a_forecast_month_states_the_profit_its_own_sections_imply(): void
+    {
+        $this->budget();
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        // January's accounts are reviewed and state a loss of their own.
+        $calendar['actuals'] = [$this->actual('2026-01', '-500')];
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $this->twelveMonthsOfDrivers();
+        $terms = $this->taxTerms();
+        $terms['expected_revision'] = null;
+        $terms['fixed_costs'] = $this->fixedCosts();
+        $terms['fixed_cost_schedule_complete'] = 'yes';
+        // Owner pay is an expense of this entity, and the question is asked
+        // rather than inferred from the free-text entity basis.
+        $terms['owner_pay_deductible'] = 'yes';
+        $terms['owner_pay_steps'] = [['effective_on' => '2026-07-01', 'weekly_amount' => '800',
+            'trigger' => 'base', 'threshold' => null]];
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // February has no stream revenue and no one-offs, so its profit is
+        // the overheads it recognises plus the laptop's depreciation: 1,050
+        // of lease and software, and 61.11 a month on a 2,400 asset with a
+        // 200 residual over 36 months.
+        self::assertSame('-1111.11', $facts->one('tax.profit', period: 'month:2')?->value);
+        self::assertSame('recognised_profit_before_tax', $facts->one('tax.profit', period: 'month:2')?->basis);
+
+        // Where a month's accounts have been reviewed, they outrank the
+        // decomposition: the decomposition is what the model implies, the
+        // accounts are what happened.
+        self::assertSame('-500.00', $facts->one('tax.profit', period: 'month:1')?->value);
+        self::assertSame('reviewed_actual_profit_before_tax',
+            $facts->one('tax.profit', period: 'month:1')?->basis);
+
+        // March carries the one-off receivable raised in it. Trade items are
+        // opening debtors and one-offs, separate from the streams, so the 900
+        // invoice is added to the stream revenue rather than reconciled
+        // against it: 900 of workshops plus the 900 invoice, less 1,050 of
+        // overheads and 61.11 of depreciation.
+        self::assertSame('688.89', $facts->one('tax.profit', period: 'month:3')?->value);
+    }
+
+    public function test_the_tax_rule_covers_the_horizon_once_every_month_states_a_profit(): void
+    {
+        $this->budget();
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $this->twelveMonthsOfDrivers();
+        $terms = $this->taxCashTerms();
+        $terms['expected_revision'] = null;
+        $terms['fixed_costs'] = $this->fixedCosts();
+        $terms['fixed_cost_schedule_complete'] = 'yes';
+        $terms['owner_pay_deductible'] = 'yes';
+        $terms['owner_pay_steps'] = [['effective_on' => '2026-07-01', 'weekly_amount' => '800',
+            'trigger' => 'base', 'threshold' => null]];
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        $result = $this->ruleResult(app(ReleaseGate::class)->evaluate($this->plan->refresh(), 'plan'), 'MI-04');
+        $ids = array_column($result->subchecks, 'id');
+        $unresolved = array_column(array_values(array_filter($result->subchecks,
+            fn (Subcheck $c): bool => $c->status->unresolved())), 'id');
+
+        // The rule gets past its policy gate and reconciles a chain in every
+        // month of the horizon, so the schedule it wanted is complete and
+        // `coverage` resolves. That was the last thing MI-04 reported, and it
+        // was the open decision about what a trade item is.
+        self::assertNotContains('tax-policy', $unresolved);
+        foreach (range(0, 11) as $month) {
+            self::assertContains('expense:'.$month, $ids, 'Month '.($month + 1).' has a chain to reconcile.');
+        }
+        self::assertNotContains('coverage', $unresolved);
+    }
+
+    public function test_owner_pay_of_an_unstated_entity_withholds_the_profit_it_would_change(): void
+    {
+        $this->budget();
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $this->twelveMonthsOfDrivers();
+        $terms = $this->taxTerms();
+        $terms['expected_revision'] = null;
+        $terms['fixed_costs'] = $this->fixedCosts();
+        $terms['fixed_cost_schedule_complete'] = 'yes';
+        $terms['owner_pay_steps'] = [['effective_on' => '2026-07-01', 'weekly_amount' => '800',
+            'trigger' => 'base', 'threshold' => null]];
+        // Nobody has said whether the owner's pay is an expense or a drawing.
+        $terms['owner_pay_deductible'] = '';
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // Months before the pay starts are unaffected; months with pay in them
+        // state no profit, because the two answers give different figures off
+        // the same cash and neither may be assumed.
+        self::assertNotNull($facts->one('tax.profit', period: 'month:2'));
+        self::assertNull($facts->one('tax.profit', period: 'month:8'));
+    }
+
+    public function test_an_opening_debtor_changes_no_month_inside_the_horizon(): void
+    {
+        $this->budget();
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $this->twelveMonthsOfDrivers();
+        $terms = $this->taxTerms();
+        $terms['expected_revision'] = null;
+        $terms['fixed_costs'] = $this->fixedCosts();
+        $terms['fixed_cost_schedule_complete'] = 'yes';
+        $terms['owner_pay_deductible'] = 'no';
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+        $before = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')
+            ->facts->one('tax.profit', period: 'month:3')?->value;
+
+        // The same invoice, raised before the forecast opens. Its cash still
+        // arrives inside the horizon, but the revenue was earned before it,
+        // so no month's profit changes.
+        $opening = $terms;
+        $opening['expected_revision'] = null;
+        $opening['trade_items'][0]['raised_on'] = '2025-11-02';
+        $this->post($this->url().'/terms', $opening)->assertSessionHasNoErrors();
+        $after = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')
+            ->facts->one('tax.profit', period: 'month:3')?->value;
+
+        self::assertNotNull($before);
+        self::assertSame((string) BigDecimal::of((string) $before)->minus('900'), $after,
+            'An opening debtor is cash earned before the horizon, not revenue inside it.');
     }
 
     public function test_a_recorded_tax_cash_schedule_is_what_the_cash_tax_checks_were_missing(): void

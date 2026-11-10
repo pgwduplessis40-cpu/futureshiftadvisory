@@ -180,6 +180,7 @@ function initial(model: ForecastModel | null): TermsForm {
         owner_pay_first_payment_on: text(
             model?.owner_pay_first_payment_on ?? null,
         ),
+        owner_pay_deductible: stated(model?.owner_pay_deductible ?? null),
         opening_eligible_losses: text(model?.opening_eligible_losses ?? null),
         tax_entity_basis: text(model?.tax.entity_basis ?? null),
         tax_rate_percent: text(model?.tax.rate_percent ?? null),
@@ -550,6 +551,33 @@ export function TermsFormSection({
                                 )
                             }
                         />
+                    </label>
+                    <label>
+                        Is this pay an expense of the business?
+                        <select
+                            className={field}
+                            value={form.data.owner_pay_deductible}
+                            onChange={(e) =>
+                                form.setData(
+                                    'owner_pay_deductible',
+                                    e.target.value,
+                                )
+                            }
+                        >
+                            <option value="">Nobody has said</option>
+                            <option value="yes">
+                                Yes, a deductible expense
+                            </option>
+                            <option value="no">
+                                No, a drawing against the business
+                            </option>
+                        </select>
+                        <span className="mt-1 block text-sm">
+                            The two give different profits off the same cash,
+                            and which applies depends on the entity rather than
+                            on the payment. Until it is answered, a month that
+                            carries owner pay states no profit at all.
+                        </span>
                     </label>
                     <label>
                         Where the arrangement is recorded

@@ -151,7 +151,7 @@ final class ForecastModelFacts implements ProvidesMethodology
         return [...$this->model($source, $inputs), ...$this->streams($source, $inputs),
             ...$this->actuals($source, $inputs), ...$this->cash($source, $inputs, $cash),
             ...$this->ledger($source, $inputs, $cash), ...$this->funding($source, $inputs),
-            ...$this->costs($source, $inputs), ...$this->tax($source, $inputs)];
+            ...$this->costs($source, $inputs), ...$this->tax($source, $inputs, $cash)];
     }
 
     /**
@@ -172,9 +172,10 @@ final class ForecastModelFacts implements ProvidesMethodology
      * counted. That decision is open, and a tax figure is a poor place to
      * take it quietly.
      *
+     * @param  CashResult  $cash
      * @return list<Fact>
      */
-    private function tax(SourceRecords $source, ForecastModelInputs $inputs): array
+    private function tax(SourceRecords $source, ForecastModelInputs $inputs, array $cash): array
     {
         $policy = $inputs->taxPolicy;
         if ($policy === null) {
@@ -202,10 +203,22 @@ final class ForecastModelFacts implements ProvidesMethodology
                 $reviewed[$month->period] = [$month->profit->profitBeforeTax, $index];
             }
         }
+        // A reviewed month's accounts outrank the decomposition for the same
+        // month. The decomposition is what the model implies; the accounts are
+        // what happened, and where both exist the second is the better figure.
+        $profits = [];
+        foreach ($this->run->profit($inputs, $cash)['months'] as $month) {
+            if ($month['profit'] !== null) {
+                $profits[$month['period']] = $month['profit'];
+            }
+        }
+        foreach ($reviewed as $period => $row) {
+            $profits[$period] = $row[0];
+        }
         $adjustments = $this->adjustments($inputs);
         $chain = (new MonthlyTaxChain)->calculate(
             $inputs->calendar->periods,
-            array_map(fn (array $row): string => $row[0], $reviewed),
+            $profits,
             $adjustments,
             $policy->ratePercent,
             $inputs->openingEligibleLosses,
@@ -213,13 +226,19 @@ final class ForecastModelFacts implements ProvidesMethodology
         );
         foreach ($chain['months'] as $offset => $month) {
             $period = $month['period'];
-            if (! isset($reviewed[$period])) {
+            if ($month['profit'] === null) {
                 continue;
             }
             $label = 'month:'.($offset + 1);
-            $where = [$source->reference('forecast_model.actuals.months.'.$reviewed[$period][1])];
+            // The basis says which of the two a month's profit is, because a
+            // figure read from reviewed accounts and one implied by the model
+            // carry different weight and a reader has to be able to tell.
+            $where = isset($reviewed[$period])
+                ? [$source->reference('forecast_model.actuals.months.'.$reviewed[$period][1])]
+                : [$source->reference('forecast_model.drivers')];
             $facts[] = new Fact('tax.profit', $month['profit'], period: $label, unit: 'NZD',
-                basis: 'reviewed_actual_profit_before_tax', confirmed: true, sources: $where);
+                basis: isset($reviewed[$period]) ? 'reviewed_actual_profit_before_tax' : 'recognised_profit_before_tax',
+                confirmed: isset($reviewed[$period]), sources: $where);
             $facts[] = new Fact('tax.adjustment', $month['adjustment'], period: $label, unit: 'NZD',
                 confirmed: true, sources: [$source->reference('forecast_model.drivers.tax_periods')]);
             // Withheld together. Expense without the closing balance behind it
