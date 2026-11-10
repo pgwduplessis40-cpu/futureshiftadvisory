@@ -1,8 +1,10 @@
 import { useForm } from '@inertiajs/react';
 import { AssetFields, TaxFields } from './forecast-model-assets';
+import { FixedCostFields } from './forecast-model-fixed-costs';
 import { FundingFields } from './forecast-model-funding';
 import type {
     AssetInputRow,
+    FixedCostInput,
     ForecastModel,
     FundingInput,
     OwnerPayInput,
@@ -94,6 +96,25 @@ function initial(model: ForecastModel | null): TermsForm {
         ),
         funding_inventory_complete: stated(
             model?.funding_inventory_complete ?? null,
+        ),
+        fixed_costs: (model?.fixed_costs ?? []).map(
+            (cost): FixedCostInput => ({
+                id: cost.id,
+                source: cost.source,
+                rate: text(cost.rate),
+                quantity: text(cost.quantity),
+                frequency: text(cost.frequency),
+                first_invoice_on: text(cost.first_invoice_on),
+                last_invoice_on: text(cost.last_invoice_on),
+                creditor_days:
+                    cost.creditor_days === null
+                        ? ''
+                        : String(cost.creditor_days),
+                reviewed: stated(cost.reviewed),
+            }),
+        ),
+        fixed_cost_schedule_complete: stated(
+            model?.fixed_cost_schedule_complete ?? null,
         ),
         trade_items: (model?.trade_items ?? []).map(
             (item): TradeItemInput => ({
@@ -224,6 +245,14 @@ export function TermsFormSection({
                 onChange={(sources) => form.setData('funding_sources', sources)}
                 onComplete={(value) =>
                     form.setData('funding_inventory_complete', value)
+                }
+            />
+            <FixedCostFields
+                costs={form.data.fixed_costs}
+                complete={form.data.fixed_cost_schedule_complete}
+                onChange={(costs) => form.setData('fixed_costs', costs)}
+                onComplete={(value) =>
+                    form.setData('fixed_cost_schedule_complete', value)
                 }
             />
             <fieldset className="rounded border p-4">

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Advisor;
 
 use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
+use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastDates;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
@@ -31,7 +32,8 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type AssetRow array{id:string,source:string,cost:string|null,classification:string|null,policy_source:string|null,reviewed:string|null,paid_on:string|null,recognition_start_on:string|null,life_months:int|string|null,residual:string|null,method:string|null,opening_depreciation:string|null}
  * @phpstan-type TaxPeriodRow array{start_on:string,end_on:string,accounting_profit:string|null,tax_adjustments:string|null}
  * @phpstan-type FundingRow array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:string|null}
- * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null}
+ * @phpstan-type FixedCostRow array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,first_invoice_on:string|null,last_invoice_on:string|null,creditor_days:int|string|null,reviewed:string|null}
+ * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null}
  */
 final readonly class AdvisorForecastTerms
 {
@@ -141,6 +143,20 @@ final readonly class AdvisorForecastTerms
             // empty list is equally a business with no funding and a section
             // nobody has filled in.
             'funding_inventory_complete' => $stated,
+            'fixed_costs' => ['present', 'array', 'max:50'],
+            'fixed_costs.*.id' => ['required', 'string', 'max:60'],
+            'fixed_costs.*.source' => ['required', 'string', 'max:255'],
+            'fixed_costs.*.rate' => $number,
+            'fixed_costs.*.quantity' => $number,
+            'fixed_costs.*.frequency' => ['present', 'nullable', 'in:'.implode(',', FixedCost::FREQUENCIES)],
+            'fixed_costs.*.first_invoice_on' => $date,
+            'fixed_costs.*.last_invoice_on' => $date,
+            'fixed_costs.*.creditor_days' => ['present', 'nullable', 'integer', 'min:0', 'max:36500'],
+            'fixed_costs.*.reviewed' => $stated,
+            // The same question the funding inventory asks, for the same
+            // reason: no row count can tell a business with no overheads from
+            // a section nobody has filled in.
+            'fixed_cost_schedule_complete' => $stated,
         ];
     }
 
@@ -172,6 +188,20 @@ final readonly class AdvisorForecastTerms
             openingEligibleLosses: $this->blank($data['opening_eligible_losses']),
             fundingSources: array_map($this->fundingSource(...), $data['funding_sources']),
             fundingInventoryComplete: $this->stated($data['funding_inventory_complete']),
+            fixedCosts: array_map($this->fixedCost(...), $data['fixed_costs']),
+            fixedCostScheduleComplete: $this->stated($data['fixed_cost_schedule_complete']),
+        );
+    }
+
+    /** @param  FixedCostRow  $row */
+    private function fixedCost(array $row): FixedCost
+    {
+        return new FixedCost(
+            trim($row['id']), trim($row['source']), $this->blank($row['rate']), $this->blank($row['quantity']),
+            $this->blank($row['frequency']), $this->blank($row['first_invoice_on']), $this->blank($row['last_invoice_on']),
+            // Validation has already confined it to a whole number in range,
+            // so the cast off a text box is the last step.
+            $row['creditor_days'] === null ? null : (int) $row['creditor_days'], $this->stated($row['reviewed']),
         );
     }
 
@@ -293,6 +323,9 @@ final readonly class AdvisorForecastTerms
             fn (array $row): string => (string) $this->blank($row['identity']), $data['funding_sources']))),
             'funding_sources', 'Two funding sources are named the same. A reconciliation cannot tell one from the other.');
         $this->rejectDrawsOutsideCalendar($data['funding_sources'], $existing);
+        $this->rejectRepeats(array_column($data['fixed_costs'], 'id'), 'fixed_costs',
+            'Each fixed cost needs its own reference. Two share one, and the ledger refuses to count a payment twice.');
+        $this->rejectInvoicesOutsideCalendar($data['fixed_costs'], $existing);
         $this->rejectRepeats(array_column($data['trade_items'], 'id'), 'trade_items',
             'Each trade item needs its own reference. Two share one, and the engine refuses to count a trade twice.');
         $this->rejectRepeats(array_column($data['assets'], 'id'), 'assets',
@@ -357,6 +390,42 @@ final readonly class AdvisorForecastTerms
                     .'. Money already received belongs in the opening balance, or it is counted twice.'
                 : $named.' is drawn on '.$drawn.', after the forecast ends on '.$closes
                     .'. Funding that arrives later is not available to this forecast.']);
+        }
+    }
+
+    /**
+     * A fixed cost invoiced outside the calendar is refused at entry.
+     *
+     * The expense schedule throws on a window that does not fit, which would
+     * leave a stored reconstruction that refuses the moment it is projected,
+     * and the exception can only say the window did not fit. Naming the cost
+     * and the two dates here is the difference between a finding an advisor
+     * can act on and one they cannot.
+     *
+     * A cost whose invoicing started before the forecast is still a cost this
+     * forecast carries, so the window is moved rather than the cost dropped:
+     * the advisor records the part of the arrangement that falls inside the
+     * horizon, and the charges before it are already in the opening position.
+     *
+     * @param  list<FixedCostRow>  $rows
+     */
+    private function rejectInvoicesOutsideCalendar(array $rows, ForecastModelInputs $existing): void
+    {
+        $opens = $existing->calendar->startMonth.'-01';
+        $closes = ForecastDates::end($existing->calendar);
+        foreach ($rows as $row) {
+            $named = trim($row['id']) === '' ? 'this fixed cost' : trim($row['id']);
+            $first = $this->blank($row['first_invoice_on']);
+            $last = $this->blank($row['last_invoice_on']);
+            if ($first !== null && $first < $opens) {
+                throw ValidationException::withMessages(['fixed_costs' => $named.' is first invoiced on '.$first
+                    .', before the forecast opens on '.$opens.'. Record the part of the arrangement that falls inside the forecast;'
+                    .' charges raised earlier are already in the opening position.']);
+            }
+            if ($last !== null && $last > $closes) {
+                throw ValidationException::withMessages(['fixed_costs' => $named.' is last invoiced on '.$last
+                    .', after the forecast ends on '.$closes.'. A charge raised later is not an expense this forecast carries.']);
+            }
         }
     }
 

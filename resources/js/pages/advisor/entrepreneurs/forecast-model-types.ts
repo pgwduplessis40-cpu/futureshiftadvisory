@@ -167,6 +167,8 @@ export type ForecastModel = {
     founder_months: FounderMonthRow[];
     funding_sources: FundingRow[];
     funding_inventory_complete: boolean | null;
+    fixed_costs: FixedCostRow[];
+    fixed_cost_schedule_complete: boolean | null;
     trade_items: TradeItemRow[];
     owner_pay_steps: OwnerPayRow[];
     assets: AssetRow[];
@@ -314,10 +316,39 @@ export type FundingInput = {
     verified: string;
 };
 
+/** One recurring overhead as the page shows it back. */
+export type FixedCostRow = {
+    id: string;
+    source: string;
+    rate: string | null;
+    quantity: string | null;
+    frequency: string | null;
+    first_invoice_on: string | null;
+    last_invoice_on: string | null;
+    creditor_days: number | null;
+    reviewed: boolean | null;
+};
+
+/** The same cost as the form posts it: every field a string, so a box left
+ * empty stays an unanswered question rather than becoming an answer. */
+export type FixedCostInput = {
+    id: string;
+    source: string;
+    rate: string;
+    quantity: string;
+    frequency: string;
+    first_invoice_on: string;
+    last_invoice_on: string;
+    creditor_days: string;
+    reviewed: string;
+};
+
 export type TermsForm = {
     expected_revision: number | null;
     funding_sources: FundingInput[];
     funding_inventory_complete: string;
+    fixed_costs: FixedCostInput[];
+    fixed_cost_schedule_complete: string;
     trade_items: TradeItemInput[];
     owner_pay_steps: OwnerPayInput[];
     owner_pay_source: string;

@@ -63,9 +63,19 @@ final class ForecastModelFacts implements ProvidesMethodology
      * end. Publishing either figure under that key would misstate one of the
      * two measures.
      *
+     * The two display keys are withheld for a different reason again: the
+     * budget already states both of them, from two genuinely separate places
+     * — a trace summed over its own cost rows, and the monthly fixed cost its
+     * computation reports — which is what makes the rule's whole-dollar
+     * comparison of them worth anything. A third record under either key
+     * would resolve both to nothing and take a working check with it, and a
+     * reconstruction publishing one figure under both would manufacture a
+     * check that passes because it was handed the same number twice.
+     *
      * @var list<string>
      */
-    public const WITHHELD = ['stream.revenue', 'scope.required_horizon', 'scenario.lowest_cash', 'model.external_request'];
+    public const WITHHELD = ['stream.revenue', 'scope.required_horizon', 'scenario.lowest_cash', 'model.external_request',
+        'cost.trace_display', 'model.fixed_cost_display'];
 
     /**
      * Keys a selected reconstruction takes over from the budget.
@@ -139,7 +149,91 @@ final class ForecastModelFacts implements ProvidesMethodology
 
         return [...$this->model($source, $inputs), ...$this->streams($source, $inputs),
             ...$this->actuals($source, $inputs), ...$this->cash($source, $inputs, $cash),
-            ...$this->ledger($source, $inputs, $cash), ...$this->funding($source, $inputs)];
+            ...$this->ledger($source, $inputs, $cash), ...$this->funding($source, $inputs),
+            ...$this->costs($source, $inputs)];
+    }
+
+    /**
+     * The recurring overheads, what each recognises monthly, and the cash
+     * behind them.
+     *
+     * This is evidence MI-03 has never had. Trade items are individual dated
+     * payables rather than rate-times-cadence arrangements, so nothing
+     * produced a fixed-cost rate, quantity, frequency or expense and the rule
+     * reported its whole schedule missing however many payables were recorded.
+     *
+     * The figures here are unrounded, which is what the rule asks for in so
+     * many words: its missing-schedule message names "unrounded" rates,
+     * quantities, frequencies and monthly schedules. An exact allocation of
+     * cents cannot be straight-line, and the rounded totals a reader sees are
+     * published separately as the display facts the rule compares at
+     * whole-dollar precision.
+     *
+     * @return list<Fact>
+     */
+    private function costs(SourceRecords $source, ForecastModelInputs $inputs): array
+    {
+        if ($inputs->fixedCosts === [] && $inputs->fixedCostScheduleComplete === null) {
+            return [];
+        }
+        $run = $this->run->fixedCosts($inputs);
+        $facts = [];
+        $complete = $inputs->fixedCostScheduleComplete;
+        if ($complete !== null) {
+            $facts[] = new Fact('cost.schedule_complete', $complete, confirmed: true,
+                sources: [$source->reference('forecast_model.drivers.fixed_cost_schedule_complete')]);
+        }
+        $offsets = array_flip($inputs->calendar->periods);
+        foreach ($run['lines'] as $index => $line) {
+            $at = [$source->reference('forecast_model.drivers.fixed_costs.'.$index)];
+            foreach ($line['months'] as $month) {
+                if (! isset($offsets[$month['period']])) {
+                    continue;
+                }
+                $label = 'month:'.($offsets[$month['period']] + 1);
+                // Rate, quantity and cadence are restated against every month
+                // rather than once against the cost, because the rule reads
+                // them parallel to the month's expense. A cost stated once and
+                // an expense stated monthly would leave the rule unable to say
+                // which month's expense a rate belongs to.
+                $facts[] = new Fact('cost.rate', $line['rate'], $line['id'], $label, unit: 'NZD', confirmed: true, sources: $at);
+                $facts[] = new Fact('cost.quantity', $line['quantity'], $line['id'], $label, unit: 'units', confirmed: true, sources: $at);
+                $facts[] = new Fact('cost.frequency', $line['frequency'], $line['id'], $label, confirmed: true, sources: $at);
+                $facts[] = new Fact('cost.expense', $month['expense'], $line['id'], $label, unit: 'NZD',
+                    basis: 'straight_line_annualised', confirmed: $line['reviewed'] === true, sources: $at);
+                $facts[] = new Fact('cost.accrual_movement', $month['accrual_movement'], $line['id'], $label, unit: 'NZD',
+                    confirmed: true, sources: $at);
+                foreach ($month['payments'] as $payment) {
+                    $facts[] = new Fact('cost.payment', $payment->amount, $line['id'], $label, unit: 'NZD',
+                        asOf: $payment->date, confirmed: true, sources: $at);
+                }
+            }
+        }
+        $at = [$source->reference('forecast_model.drivers.fixed_costs')];
+        $years = [];
+        foreach ($run['totals'] as $period => $total) {
+            if (! isset($offsets[$period])) {
+                continue;
+            }
+            $number = $offsets[$period] + 1;
+            $facts[] = new Fact('model.fixed_cost', $total, period: 'month:'.$number, unit: 'NZD', confirmed: true, sources: $at);
+            $years[(int) ceil($number / 12)][$number] = $total;
+        }
+        foreach ($years as $year => $rows) {
+            // A year the calendar does not finish has no annual total, and a
+            // sum of the months it does hold would be an annual figure for
+            // part of a year. One unpriced cost withholds the whole year.
+            if (count($rows) !== 12 || in_array(null, $rows, true)) {
+                continue;
+            }
+            $sum = BigDecimal::zero();
+            foreach ($rows as $row) {
+                $sum = $sum->plus((string) $row);
+            }
+            $facts[] = new Fact('cost.annual_total', (string) $sum, period: 'year:'.$year, unit: 'NZD', confirmed: true, sources: $at);
+        }
+
+        return $facts;
     }
 
     /**

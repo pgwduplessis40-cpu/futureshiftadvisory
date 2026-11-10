@@ -17,6 +17,44 @@ final class ExpenseSchedule implements ProvidesMethodology
     }
 
     /**
+     * Times a year each cadence raises a charge.
+     *
+     * @var array<string,string>
+     */
+    public const OCCURRENCES_PER_YEAR = ['weekly' => '52', 'fortnightly' => '26', 'monthly' => '12', 'quarterly' => '4', 'annual' => '1'];
+
+    /**
+     * The monthly expense a recurring charge recognises, unrounded.
+     *
+     * A fixed cost relates to the period it covers rather than to the month
+     * its invoice happens to fall in, so it is recognised straight-line at its
+     * annualised rate: the charge, times the number of times a year it is
+     * raised, divided by twelve. An annual premium invoiced once in March is
+     * an expense of one twelfth every month, not a spike in March.
+     *
+     * It is returned unrounded, at eight decimal places, because the cents of
+     * an exact allocation have to land somewhere and a schedule that puts the
+     * residual in one month is not a straight line. Rounding belongs to what
+     * is displayed and to what is posted, which is a separate question from
+     * what the rate recognises.
+     *
+     * The difference between this and the cash actually paid in a month is the
+     * accrual or prepayment the cost carries, which is a real position rather
+     * than a discrepancy.
+     */
+    public function monthlyRecognition(?string $rate, ?string $quantity, ?string $frequency): ?string
+    {
+        $price = DriverNumbers::read($rate);
+        $units = DriverNumbers::read($quantity);
+        $occurrences = $frequency === null ? null : self::OCCURRENCES_PER_YEAR[$frequency] ?? null;
+        if ($price === null || $units === null || $occurrences === null) {
+            return null;
+        }
+
+        return (string) $price->multipliedBy($units)->multipliedBy($occurrences)->dividedBy(12, 8, RoundingMode::HalfUp);
+    }
+
+    /**
      * Recognition weights are an explicit allocation of the total contracted
      * charges, independent of invoice/payment dates. Equal annual weights spread
      * an annual expense; the final non-zero period receives the cent residual.

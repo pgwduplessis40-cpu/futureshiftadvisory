@@ -8,6 +8,7 @@ use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\BankOpening;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
+use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
@@ -181,6 +182,27 @@ final class DriverCodec
         }
 
         return $sources;
+    }
+
+    /** @return list<FixedCost> */
+    public static function fixedCosts(mixed $node, string $key): array
+    {
+        $costs = [];
+        foreach (StoredValues::items($node, $key) as $item) {
+            $costs[] = new FixedCost(
+                StoredValues::requiredText($item, 'id'),
+                StoredValues::requiredText($item, 'source'),
+                StoredValues::text($item, 'rate'),
+                StoredValues::text($item, 'quantity'),
+                StoredValues::text($item, 'frequency'),
+                StoredValues::text($item, 'first_invoice_on'),
+                StoredValues::text($item, 'last_invoice_on'),
+                StoredValues::count($item, 'creditor_days'),
+                StoredValues::flag($item, 'reviewed'),
+            );
+        }
+
+        return $costs;
     }
 
     /** @return list<OwnerPayStep> */
