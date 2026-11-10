@@ -40,6 +40,15 @@ const model: ForecastModel = {
             reviewed_by: 'A. Advisor',
             reviewed_on: '2026-02-05',
             pre_trading_evidence: null,
+            revenue: '4200.00',
+            operating_expenses: '6200.00',
+            depreciation: '55.56',
+            interest: null,
+            other_income: null,
+            // A reviewed loss is the ordinary early state, and the form has
+            // to show it back as one rather than as an empty box.
+            profit_before_tax: '-2000.00',
+            income_tax_expense: '0.00',
         },
     ],
     streams: [
@@ -315,6 +324,18 @@ test('fixed costs are asked for as a rate on a cadence, not as invoices', async 
     assert.match(html, /already in the opening\s+position/);
     assert.match(html, /not expenses this forecast\s+carries/);
     assert.match(html, /Is every fixed cost recorded\?/);
+});
+
+test('a reviewed month carries the profit and loss the tax chain reads', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Profit before tax/);
+    assert.match(html, /Income tax expense/);
+    // A reviewed loss has to come back as the signed figure it is.
+    assert.match(html, /-2000\.00/);
+    // And the page says why the figure is asked for here rather than derived,
+    // and what reconciling the month has to do with it.
+    assert.match(html, /recorded figure rather than a derived one/);
+    assert.match(html, /only once\s+the month is reconciled/);
 });
 
 test('uncaptured sections are reported rather than left blank', async () => {

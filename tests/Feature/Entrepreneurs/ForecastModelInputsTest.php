@@ -759,6 +759,39 @@ final class ForecastModelInputsTest extends TestCase
         ];
     }
 
+    /**
+     * The terms, with a tax period covering the months being reviewed.
+     *
+     * The shared fixture's period opens in April, which leaves the first
+     * quarter inside no declared period and therefore carrying no stated
+     * adjustment at all. That is correct behaviour and is worth its own
+     * coverage, but it is not the case these tax assertions are about.
+     *
+     * @return array<string,mixed>
+     */
+    private function taxTerms(): array
+    {
+        $terms = $this->terms();
+        $terms['tax_periods'] = [['start_on' => '2026-01-01', 'end_on' => '2026-12-31',
+            'accounting_profit' => '7000', 'tax_adjustments' => '500']];
+
+        return $terms;
+    }
+
+    /** A selected reconstruction whose first three months are reviewed and carry profit. */
+    private function threeReviewedMonths(): void
+    {
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        // A loss, a month absorbed entirely by the carried balance, and a
+        // month large enough to exhaust it and pay tax.
+        $calendar['actuals'] = [$this->actual('2026-01', '-2000'), $this->actual('2026-02', '1000'),
+            $this->actual('2026-03', '8000')];
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $this->post($this->url().'/terms', $this->taxTerms())->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+    }
+
     /** A selected twelve-month reconstruction carrying a recorded fixed-cost schedule. */
     private function twelveMonthsOfCostedCash(): void
     {
@@ -802,10 +835,27 @@ final class ForecastModelInputsTest extends TestCase
             'reserve_one_off_cash_costs' => '500',
             'reserve_contingency_rate' => '0.10',
             'reserve_basis' => 'Monthly fixed costs including owner pay',
-            'actuals' => [[
-                'period' => '2026-01', 'state' => 'trading', 'reconciled' => true, 'closing_bank_cash' => '5000',
-                'reviewed_by' => 'A. Advisor', 'reviewed_on' => '2026-02-05', 'pre_trading_evidence' => null,
-            ]],
+            'actuals' => [$this->actual('2026-01')],
+        ];
+    }
+
+    /**
+     * One reviewed month as the form sends it.
+     *
+     * The profit and loss is left unstated unless a test states it. A
+     * reviewed month carrying profit is what the tax chain reads, so putting
+     * one in the shared fixture would move the tax rule in every test on this
+     * form rather than in the ones that are about it.
+     *
+     * @return array<string,string|bool|null>
+     */
+    private function actual(string $period, ?string $profitBeforeTax = null): array
+    {
+        return [
+            'period' => $period, 'state' => 'trading', 'reconciled' => true, 'closing_bank_cash' => '5000',
+            'reviewed_by' => 'A. Advisor', 'reviewed_on' => '2026-02-05', 'pre_trading_evidence' => null,
+            'revenue' => null, 'operating_expenses' => null, 'depreciation' => null, 'interest' => null,
+            'other_income' => null, 'profit_before_tax' => $profitBeforeTax, 'income_tax_expense' => null,
         ];
     }
 
@@ -1262,6 +1312,109 @@ final class ForecastModelInputsTest extends TestCase
         self::assertSame('-1050.00', $facts->one('cash.movement', period: 'month:1')?->value);
         self::assertSame('150.00', $facts->one('cash.closing', period: 'month:1')?->value);
         self::assertSame('operating_payments', $facts->one('ledger.category', 'lease.0.payment', 'month:1')?->value);
+    }
+
+    public function test_the_tax_rule_reads_a_monthly_chain_off_the_reviewed_months(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $before = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-04');
+        // Nothing stated a tax policy or a monthly profit, so the rule could
+        // report one lump gap and nothing more precise.
+        self::assertContains('tax-policy', array_column($before->subchecks, 'id'));
+
+        $this->threeReviewedMonths();
+        $after = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-04');
+        $ids = array_column($after->subchecks, 'id');
+
+        // The policy precondition is satisfied, so the rule gets past it and
+        // reconciles each reviewed month's chain instead.
+        self::assertNotContains('tax-policy', $ids);
+        foreach (['expense:0', 'expense:1', 'expense:2'] as $check) {
+            self::assertContains($check, $ids, $check.' is a month the chain can now reconcile.');
+        }
+        $reconciled = array_values(array_filter($after->subchecks,
+            fn (Subcheck $check): bool => str_starts_with($check->id, 'expense:')));
+        self::assertSame(['pass', 'pass', 'pass'], array_map(fn (Subcheck $c): ?string => $c->status->value, $reconciled));
+    }
+
+    public function test_a_loss_raises_the_carried_balance_and_never_refunds_tax(): void
+    {
+        $this->budget();
+        $this->threeReviewedMonths();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // Opening eligible losses are 4,500 and the rate is 28 per cent.
+        // January loses 2,000, which is carried rather than refunded; February
+        // earns 1,000, absorbed entirely by the balance; March earns 8,000,
+        // of which 5,500 is absorbed and 2,500 is taxed.
+        self::assertSame('0.00', $facts->one('tax.expense', period: 'month:1')?->value);
+        self::assertSame('6500.00', $facts->one('tax.closing_losses', period: 'month:1')?->value);
+        self::assertSame('0.00', $facts->one('tax.expense', period: 'month:2')?->value);
+        self::assertSame('5500.00', $facts->one('tax.closing_losses', period: 'month:2')?->value);
+        self::assertSame('700.00', $facts->one('tax.expense', period: 'month:3')?->value);
+        self::assertSame('0.00', $facts->one('tax.closing_losses', period: 'month:3')?->value);
+
+        self::assertSame('loss_carry_forward', $facts->one('tax.policy')?->value);
+        self::assertSame('4500', $facts->one('tax.opening_losses')?->value);
+    }
+
+    public function test_the_chain_stops_where_the_reviewed_months_stop(): void
+    {
+        $this->budget();
+        $this->threeReviewedMonths();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // A forecast month's profit is recorded nowhere, and deriving one
+        // would mean deciding whether a receivable is the same revenue a
+        // stream already counted. The chain states nothing for month four
+        // rather than carrying a balance off a figure nobody stated.
+        self::assertNull($facts->one('tax.profit', period: 'month:4'));
+        self::assertNull($facts->one('tax.expense', period: 'month:4'));
+
+        // So the rule reports the horizon as uncovered, which is the point:
+        // three reviewed months are not a twelve-month tax schedule.
+        $result = $this->ruleResult(app(ReleaseGate::class)->evaluate($this->plan->refresh(), 'plan'), 'MI-04');
+        self::assertContains('coverage', array_column(array_values(array_filter($result->subchecks,
+            fn (Subcheck $check): bool => $check->status->unresolved())), 'id'));
+    }
+
+    public function test_an_unreviewed_month_states_no_profit_however_its_accounts_read(): void
+    {
+        $this->budget();
+        $calendar = $this->payload();
+        $calendar['months'] = 12;
+        // Reconciled is the review. A month carrying a profit figure nobody
+        // reconciled must not head a chain every later month depends on.
+        $calendar['actuals'] = [[...$this->actual('2026-01', '9000'), 'reconciled' => false]];
+        $this->actingAsMfa($this->advisor)->post($this->url(), $calendar)->assertSessionHasNoErrors();
+        $this->post($this->url().'/terms', $this->taxTerms())->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+        self::assertNull($facts->one('tax.profit', period: 'month:1'));
+        self::assertSame('loss_carry_forward', $facts->one('tax.policy')?->value,
+            'The policy is still recorded; it is the month that is unreviewed.');
+
+        // And the screen says so, rather than leaving an advisor to discover
+        // from a release verdict that the tax schedule starts nowhere.
+        $sections = data_get($this->get($this->url())->viewData('page'), 'props.model.sections');
+        $actuals = collect($sections)->firstWhere('key', 'actuals');
+        self::assertStringContainsString('0 of them are reconciled and state a profit before tax',
+            (string) data_get($actuals, 'detail'));
+    }
+
+    public function test_a_period_adjustment_lands_in_the_month_that_period_ends(): void
+    {
+        $this->budget();
+        $this->threeReviewedMonths();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // The adjustment is determined when the return is prepared, so the
+        // months before the period ends carry none. The amount is the
+        // advisor's; only the timing is the convention.
+        self::assertSame('0.00', $facts->one('tax.adjustment', period: 'month:1')?->value);
+        self::assertSame('0.00', $facts->one('tax.adjustment', period: 'month:3')?->value);
     }
 
     public function test_a_recorded_fixed_cost_schedule_moves_only_the_rules_that_read_it(): void

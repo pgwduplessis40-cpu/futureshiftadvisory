@@ -33,7 +33,7 @@ use Brick\Math\BigDecimal;
  * @phpstan-type CalendarPayload array{start_month:string,months:int}
  * @phpstan-type CashOpeningPayload array{amount:string|null,source:string|null,verified:bool|null}
  * @phpstan-type ReservePayload array{monthly_fixed_costs:string|null,months_covered:int,includes_owner_pay:bool|null,one_off_cash_costs:string|null,contingency_rate:string,basis:string|null,base_reserve:string|null,contingency:string|null,target:string|null,missing:list<string>}
- * @phpstan-type ActualPayload array{period:string,state:string|null,reconciled:bool|null,closing_bank_cash:string|null,reviewed_by:string|null,reviewed_on:string|null,pre_trading_evidence:string|null}
+ * @phpstan-type ActualPayload array{period:string,state:string|null,reconciled:bool|null,closing_bank_cash:string|null,reviewed_by:string|null,reviewed_on:string|null,pre_trading_evidence:string|null,revenue:string|null,operating_expenses:string|null,depreciation:string|null,interest:string|null,other_income:string|null,profit_before_tax:string|null,income_tax_expense:string|null}
  * @phpstan-type StreamMonthPayload array{period:string,booked_units:string|null,delivery_units:string|null,invoiced_units:string|null,founder_hours:string|null,additional_capacity_units:string|null,provider:string|null,provider_unit_cost:string|null,no_cost_basis:string|null}
  * @phpstan-type StreamPayload array{id:string,name:string,unit:string|null,price:string|null,preparation_hours_per_unit:string|null,delivery_hours_per_unit:string|null,in_base_case:bool|null,evidence_status:string|null,schedule:list<StreamMonthPayload>}
  * @phpstan-type FounderMonthPayload array{period:string,available_hours:string|null,administration_hours:string|null,business_development_hours:string|null}
@@ -137,7 +137,11 @@ final readonly class AdvisorForecastModelPayload
     {
         return ['period' => $month->period, 'state' => $month->state, 'reconciled' => $month->source->reconciled,
             'closing_bank_cash' => $month->closing->bankCash, 'reviewed_by' => $month->source->reviewedBy,
-            'reviewed_on' => $month->source->reviewedOn, 'pre_trading_evidence' => $month->preTradingEvidence];
+            'reviewed_on' => $month->source->reviewedOn, 'pre_trading_evidence' => $month->preTradingEvidence,
+            'revenue' => $month->profit->revenue, 'operating_expenses' => $month->profit->operatingExpenses,
+            'depreciation' => $month->profit->depreciation, 'interest' => $month->profit->interest,
+            'other_income' => $month->profit->otherIncome, 'profit_before_tax' => $month->profit->profitBeforeTax,
+            'income_tax_expense' => $month->profit->incomeTaxExpense];
     }
 
     /**
@@ -224,6 +228,32 @@ final readonly class AdvisorForecastModelPayload
             'type' => $funding->type, 'amount' => $funding->amount, 'commitment' => $funding->commitment,
             'available_from' => $funding->availableFrom, 'drawn_on' => $funding->drawnOn,
             'restriction' => $funding->restriction, 'verified' => $funding->verified];
+    }
+
+    /**
+     * How many reviewed months carry the profit a tax chain can read.
+     *
+     * A reconciled month without a profit figure and a month with one nobody
+     * reconciled are both months the chain cannot use, and neither is visible
+     * from a count of reviewed months. Saying how many are usable is the
+     * difference between an advisor knowing the tax schedule stops early and
+     * finding out from a release verdict.
+     *
+     * @param  list<ActualMonth>  $months
+     * @param  callable(int,string):string  $counted
+     */
+    private function actualsDetail(array $months, callable $counted): string
+    {
+        $detail = $counted(count($months), 'month');
+        if ($months === []) {
+            return $detail;
+        }
+        $usable = count(array_filter($months, fn (ActualMonth $month): bool => $month->source->reconciled === true
+            && $month->profit->profitBeforeTax !== null));
+
+        return $detail.' '.($usable === count($months)
+            ? 'Each one is reconciled and states its profit before tax.'
+            : $usable.' of them are reconciled and state a profit before tax, which is where the monthly tax chain stops.');
     }
 
     /**
@@ -485,7 +515,7 @@ final readonly class AdvisorForecastModelPayload
                 'detail' => $inputs?->reservePolicy === null ? 'Not captured.' : ($inputs->reservePolicy->missing() === []
                     ? 'Complete, with a stated cost basis.' : 'Incomplete: '.implode(', ', $inputs->reservePolicy->missing()).'.')],
             ['key' => 'actuals', 'label' => 'Reviewed actuals', 'captured' => ($inputs->actualMonths ?? []) !== [], 'editable' => true,
-                'detail' => $counted(count($inputs->actualMonths ?? []), 'month')],
+                'detail' => $this->actualsDetail($inputs->actualMonths ?? [], $counted)],
             ['key' => 'streams', 'label' => 'Revenue streams', 'captured' => ($inputs->streams ?? []) !== [], 'editable' => true,
                 'detail' => $this->streamDetail($inputs->streams ?? [], $counted)],
             ['key' => 'founder_months', 'label' => 'Founder capacity', 'captured' => ($inputs->founderMonths ?? []) !== [], 'editable' => true,

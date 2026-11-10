@@ -23,7 +23,7 @@ use Brick\Math\BigDecimal;
  * reason, rather than allowed to surface as an engine crash on a screen an
  * advisor is reading.
  *
- * @phpstan-type RunMonth array{period:string,status:string,base_revenue:string|null,founder_hours_allocated:string|null,founder_hours_available:string|null}
+ * @phpstan-type RunMonth array{period:string,status:string,base_revenue:string|null,base_contractor_cost:string|null,founder_hours_allocated:string|null,founder_hours_available:string|null}
  * @phpstan-type RunGap array{reason:string,months:int,first_period:string}
  * @phpstan-type RunResult array{engine_version:string,status:string,months:list<RunMonth>,missing:list<RunGap>,errors:list<RunGap>,refusal:string|null}
  * @phpstan-type CashMonth array{period:string,opening_cash:string|null,receipts:string|null,payments:string|null,closing_cash:string|null}
@@ -64,6 +64,11 @@ final class ForecastRun implements ProvidesMethodology
         $missing = $errors = [];
         foreach ($projection['months'] as $month) {
             $months[] = ['period' => $month['period'], 'status' => $month['status'], 'base_revenue' => $month['base_revenue'],
+                // The direct cost of delivering that revenue, carried through
+                // beside it because a profit decomposition needs both halves
+                // and deriving one from the other would state a margin nobody
+                // recorded.
+                'base_contractor_cost' => $month['base_contractor_cost'],
                 'founder_hours_allocated' => $month['founder_hours_allocated'], 'founder_hours_available' => $month['founder_hours_available']];
             $status = $month['status'] === 'fail' || $status === 'fail' ? 'fail' : ($month['status'] === 'cannot_verify' ? 'cannot_verify' : $status);
             $this->gather($missing, $month['missing'], $month['period']);
