@@ -267,6 +267,7 @@ final class EntrepreneurForecastModelController extends Controller
             fundingInventoryComplete: $existing?->fundingInventoryComplete,
             fixedCosts: $existing->fixedCosts ?? [],
             fixedCostScheduleComplete: $existing?->fixedCostScheduleComplete,
+            taxCashPlan: $existing?->taxCashPlan,
         );
     }
 
@@ -376,6 +377,7 @@ final class EntrepreneurForecastModelController extends Controller
             fundingInventoryComplete: $existing->fundingInventoryComplete,
             fixedCosts: $existing->fixedCosts,
             fixedCostScheduleComplete: $existing->fixedCostScheduleComplete,
+            taxCashPlan: $existing->taxCashPlan,
         );
     }
 

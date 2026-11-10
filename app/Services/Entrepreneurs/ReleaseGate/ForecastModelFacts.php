@@ -228,10 +228,71 @@ final class ForecastModelFacts implements ProvidesMethodology
             if ($month['expense'] !== null && $month['loss_closing'] !== null) {
                 $facts[] = new Fact('tax.expense', $month['expense'], period: $label, unit: 'NZD', confirmed: true, sources: [...$at, ...$where]);
                 $facts[] = new Fact('tax.closing_losses', $month['loss_closing'], period: $label, unit: 'NZD', confirmed: true, sources: [...$at, ...$where]);
+                $facts = [...$facts, ...$this->taxCash($source, $inputs, $period, $label, $month['expense'])];
             }
         }
 
         return $facts;
+    }
+
+    /**
+     * The tax cash scheduled for a month, and the payable it moves.
+     *
+     * The schedule is a separate statement from the expense: a month's tax
+     * can be recognised long before it is paid, and the gap between the two
+     * is the tax payable the business carries. Deriving the payment from the
+     * expense would state a payment date nobody scheduled, so the payment is
+     * read from the schedule and only the payable movement is derived.
+     *
+     * The payment is the cash the schedule sends out. A month that also
+     * carries a refund states no payment at all rather than a net figure: the
+     * ledger gives a refund no category, because the rule's inflow categories
+     * do not describe one, so a net figure here could never agree with the
+     * ledger it is checked against. Reporting the month unestablished names
+     * that honestly instead.
+     *
+     * @return list<Fact>
+     */
+    private function taxCash(SourceRecords $source, ForecastModelInputs $inputs, string $period, string $label, string $expense): array
+    {
+        $plan = $inputs->taxCashPlan;
+        // A plan whose scope nobody has stated says nothing about any month.
+        // An empty schedule is equally a business with no tax due and one
+        // nobody has worked out, and only the scope state tells them apart.
+        if ($plan?->taxState === null) {
+            return [];
+        }
+        $at = [$source->reference('forecast_model.drivers.tax_cash_plan')];
+        $paid = BigDecimal::zero();
+        $on = null;
+        foreach ($plan->movements as $movement) {
+            if ($movement->category !== 'tax' || $movement->date === null || substr($movement->date, 0, 7) !== $period) {
+                continue;
+            }
+            if ($movement->direction === 'in' || $movement->amount === null) {
+                return [];
+            }
+            $paid = $paid->plus($movement->amount);
+            // The month's own payment date, taken as the last one in it. The
+            // rule requires a real date on the payment, and a month settled in
+            // instalments is settled when the last of them lands.
+            $on = $on === null || $movement->date > $on ? $movement->date : $on;
+        }
+        // A month with nothing scheduled paid nothing, which is a position
+        // rather than a gap: the expense it recognised is carried as tax
+        // payable until a later month settles it. A nil payment has no date
+        // of its own, so it is dated to the month it belongs to.
+        $on ??= $period.'-01';
+
+        // Both at cents, because they are currency and are read beside the
+        // expense they reconcile to. A sum of amounts typed without decimals
+        // would otherwise state a payment of "700" against an expense of
+        // "700.00", which is the same figure written two ways.
+        return [
+            new Fact('tax.payment', Checks::money($paid), period: $label, unit: 'NZD', asOf: $on, confirmed: true, sources: $at),
+            new Fact('tax.payable_movement', Checks::money(BigDecimal::of($expense)->minus($paid)), period: $label,
+                unit: 'NZD', confirmed: true, sources: $at),
+        ];
     }
 
     /**

@@ -15,6 +15,7 @@ use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
+use App\Services\Entrepreneurs\Forecast\TaxCashPlan;
 use App\Services\Entrepreneurs\Forecast\TaxPeriod;
 use App\Services\Entrepreneurs\Forecast\TaxPolicy;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
@@ -243,6 +244,17 @@ final class DriverCodec
         }
 
         return $assets;
+    }
+
+    public static function taxCashPlan(mixed $node): TaxCashPlan
+    {
+        return new TaxCashPlan(
+            StoredValues::text($node, 'tax_state'),
+            StoredValues::text($node, 'gst_state'),
+            StoredValues::text($node, 'tax_source'),
+            StoredValues::text($node, 'gst_source'),
+            StoredValues::has($node, 'movements') ? self::movements($node, 'movements') : [],
+        );
     }
 
     public static function taxPolicy(mixed $node): TaxPolicy

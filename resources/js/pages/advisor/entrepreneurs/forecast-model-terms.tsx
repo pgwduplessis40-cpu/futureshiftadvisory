@@ -2,11 +2,13 @@ import { useForm } from '@inertiajs/react';
 import { AssetFields, TaxFields } from './forecast-model-assets';
 import { FixedCostFields } from './forecast-model-fixed-costs';
 import { FundingFields } from './forecast-model-funding';
+import { TaxCashFields } from './forecast-model-tax-cash';
 import type {
     AssetInputRow,
     FixedCostInput,
     ForecastModel,
     FundingInput,
+    TaxPaymentInput,
     OwnerPayInput,
     SettlementInput,
     TaxPeriodInput,
@@ -115,6 +117,21 @@ function initial(model: ForecastModel | null): TermsForm {
         ),
         fixed_cost_schedule_complete: stated(
             model?.fixed_cost_schedule_complete ?? null,
+        ),
+        tax_cash_state: text(model?.tax_cash_plan?.tax_state ?? null),
+        gst_cash_state: text(model?.tax_cash_plan?.gst_state ?? null),
+        tax_cash_source: text(model?.tax_cash_plan?.tax_source ?? null),
+        gst_cash_source: text(model?.tax_cash_plan?.gst_source ?? null),
+        tax_payments: (model?.tax_cash_plan?.movements ?? []).map(
+            (payment): TaxPaymentInput => ({
+                id: payment.id,
+                source: payment.source,
+                date: text(payment.date),
+                amount: text(payment.amount),
+                category: payment.category,
+                direction: payment.direction,
+                verified: stated(payment.verified),
+            }),
         ),
         trade_items: (model?.trade_items ?? []).map(
             (item): TradeItemInput => ({
@@ -254,6 +271,30 @@ export function TermsFormSection({
                 onComplete={(value) =>
                     form.setData('fixed_cost_schedule_complete', value)
                 }
+            />
+            <TaxCashFields
+                taxState={form.data.tax_cash_state}
+                gstState={form.data.gst_cash_state}
+                taxSource={form.data.tax_cash_source}
+                gstSource={form.data.gst_cash_source}
+                payments={form.data.tax_payments}
+                onState={(category, value) =>
+                    form.setData(
+                        category === 'tax'
+                            ? 'tax_cash_state'
+                            : 'gst_cash_state',
+                        value,
+                    )
+                }
+                onSource={(category, value) =>
+                    form.setData(
+                        category === 'tax'
+                            ? 'tax_cash_source'
+                            : 'gst_cash_source',
+                        value,
+                    )
+                }
+                onChange={(payments) => form.setData('tax_payments', payments)}
             />
             <fieldset className="rounded border p-4">
                 <legend className="font-semibold">Trade terms</legend>

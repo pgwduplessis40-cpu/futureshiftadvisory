@@ -115,6 +115,23 @@ const model: ForecastModel = {
         },
     ],
     fixed_cost_schedule_complete: null,
+    tax_cash_plan: {
+        tax_state: 'scheduled',
+        gst_state: 'not_applicable',
+        tax_source: 'IRD income tax instalment notice',
+        gst_source: 'Not GST registered',
+        movements: [
+            {
+                id: 'provisional-1',
+                source: 'IRD statement of account',
+                date: '2026-03-28',
+                amount: '700',
+                category: 'tax',
+                direction: 'out',
+                verified: true,
+            },
+        ],
+    },
     trade_items: [
         {
             id: 'invoice-104',
@@ -336,6 +353,21 @@ test('a reviewed month carries the profit and loss the tax chain reads', async (
     // and what reconciling the month has to do with it.
     assert.match(html, /recorded figure rather than a derived one/);
     assert.match(html, /only once\s+the month is reconciled/);
+});
+
+test('tax cash is asked for as a position before it is asked for as rows', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Tax and GST cash/);
+    // The scope question has to come with its three distinct answers, because
+    // an empty schedule means all three and only two of them are finished.
+    assert.match(html, /Nothing due in this horizon/);
+    assert.match(html, /Outside this regime/);
+    // And the page says why the expense and the cash are asked for apart.
+    assert.match(html, /separate question\s+from what the tax expense is/);
+    assert.match(html, /tax payable the business carries/);
+    // The stored schedule loads back into the form.
+    assert.match(html, /provisional-1/);
+    assert.match(html, /Refund received/);
 });
 
 test('uncaptured sections are reported rather than left blank', async () => {

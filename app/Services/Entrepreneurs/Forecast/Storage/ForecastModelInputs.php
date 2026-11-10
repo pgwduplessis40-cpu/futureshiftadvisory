@@ -15,6 +15,7 @@ use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\ReservePolicy;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
+use App\Services\Entrepreneurs\Forecast\TaxCashPlan;
 use App\Services\Entrepreneurs\Forecast\TaxPeriod;
 use App\Services\Entrepreneurs\Forecast\TaxPolicy;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
@@ -76,10 +77,15 @@ final readonly class ForecastModelInputs
         // no row count can tell a business with no overheads from a section
         // nobody has filled in.
         public ?bool $fixedCostScheduleComplete = null,
+        // When tax and GST cash actually leaves the bank, which is a separate
+        // question from what the tax expense is. The plan carries its own
+        // scope states, because a business with nothing due and a business
+        // nobody has asked about both have no payments recorded.
+        public ?TaxCashPlan $taxCashPlan = null,
     ) {}
 
     /**
-     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool}
+     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool,tax_cash_plan:?TaxCashPlan}
      */
     public function driversPayload(): array
     {
@@ -101,6 +107,7 @@ final readonly class ForecastModelInputs
             'funding_inventory_complete' => $this->fundingInventoryComplete,
             'fixed_costs' => $this->fixedCosts,
             'fixed_cost_schedule_complete' => $this->fixedCostScheduleComplete,
+            'tax_cash_plan' => $this->taxCashPlan,
         ];
     }
 

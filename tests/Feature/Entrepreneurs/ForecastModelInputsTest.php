@@ -778,6 +778,26 @@ final class ForecastModelInputsTest extends TestCase
         return $terms;
     }
 
+    /**
+     * The tax terms, with a schedule paying March's tax in March.
+     *
+     * @return array<string,mixed>
+     */
+    private function taxCashTerms(): array
+    {
+        $terms = $this->taxTerms();
+        $terms['tax_cash_state'] = 'scheduled';
+        $terms['gst_cash_state'] = 'not_applicable';
+        $terms['tax_cash_source'] = 'IRD income tax instalment notice';
+        $terms['gst_cash_source'] = 'Not GST registered';
+        $terms['tax_payments'] = [[
+            'id' => 'provisional-1', 'source' => 'IRD statement of account', 'date' => '2026-03-28',
+            'amount' => '700', 'category' => 'tax', 'direction' => 'out', 'verified' => 'yes',
+        ]];
+
+        return $terms;
+    }
+
     /** A selected reconstruction whose first three months are reviewed and carry profit. */
     private function threeReviewedMonths(): void
     {
@@ -935,6 +955,14 @@ final class ForecastModelInputsTest extends TestCase
             // fixture change is a poor way to discover that.
             'fixed_costs' => [],
             'fixed_cost_schedule_complete' => '',
+            // Left unstated in the shared fixture for the same reason the
+            // fixed costs are: a tax cash schedule puts payments in the
+            // ledger and would move every cash balance in every other test.
+            'tax_cash_state' => '',
+            'gst_cash_state' => '',
+            'tax_cash_source' => '',
+            'gst_cash_source' => '',
+            'tax_payments' => [],
         ];
     }
 
@@ -1415,6 +1443,94 @@ final class ForecastModelInputsTest extends TestCase
         // advisor's; only the timing is the convention.
         self::assertSame('0.00', $facts->one('tax.adjustment', period: 'month:1')?->value);
         self::assertSame('0.00', $facts->one('tax.adjustment', period: 'month:3')?->value);
+    }
+
+    public function test_a_recorded_tax_cash_schedule_is_what_the_cash_tax_checks_were_missing(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $this->threeReviewedMonths();
+        $before = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-04');
+        // The chain reconciles, but nothing says when the tax is paid.
+        foreach (['cash-tax:0', 'cash-tax:1', 'cash-tax:2'] as $check) {
+            self::assertContains($check, array_column(array_values(array_filter($before->subchecks,
+                fn (Subcheck $c): bool => $c->status->unresolved())), 'id'));
+        }
+
+        $this->post($this->url().'/terms', [...$this->taxCashTerms(), 'expected_revision' => null])
+            ->assertSessionHasNoErrors();
+        $after = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'MI-04');
+        $unresolved = array_column(array_values(array_filter($after->subchecks,
+            fn (Subcheck $c): bool => $c->status->unresolved())), 'id');
+
+        // Every reviewed month now reconciles its cash as well as its chain:
+        // the payment, the tax payable it moves, and the cash-tax lines in
+        // the ledger behind it. What is left is the horizon, which three
+        // reviewed months cannot cover.
+        self::assertSame(['coverage'], $unresolved);
+    }
+
+    public function test_tax_recognised_and_not_yet_paid_is_carried_as_payable(): void
+    {
+        $this->budget();
+        $this->threeReviewedMonths();
+        $this->post($this->url().'/terms', [...$this->taxCashTerms(), 'expected_revision' => null])
+            ->assertSessionHasNoErrors();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // January and February recognise no tax and pay none. March
+        // recognises 700 and pays it in the same month, so nothing is left
+        // outstanding at the end of it.
+        self::assertSame('0.00', $facts->one('tax.payment', period: 'month:1')?->value);
+        self::assertSame('0.00', $facts->one('tax.payable_movement', period: 'month:1')?->value);
+        self::assertSame('700.00', $facts->one('tax.payment', period: 'month:3')?->value);
+        self::assertSame('2026-03-28', $facts->one('tax.payment', period: 'month:3')?->asOf);
+        self::assertSame('0.00', $facts->one('tax.payable_movement', period: 'month:3')?->value);
+
+        // And the payment reached the cash ledger as a classified tax line.
+        self::assertSame('cash_tax', $facts->one('ledger.category', 'provisional-1', 'month:3')?->value);
+        self::assertSame('700', $facts->one('ledger.amount', 'provisional-1', 'month:3')?->value);
+    }
+
+    public function test_a_schedule_that_contradicts_its_own_scope_is_refused(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $contradictory = $this->taxCashTerms();
+        $contradictory['tax_cash_state'] = 'none_due';
+
+        $this->post($this->url().'/terms', $contradictory)->assertSessionHasErrors('tax_payments');
+        self::assertStringContainsString('cannot hold both',
+            (string) session('errors')?->first('tax_payments'));
+    }
+
+    public function test_tax_paid_before_the_forecast_opens_is_refused_rather_than_counted_twice(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $early = $this->taxCashTerms();
+        $early['tax_payments'][0]['date'] = '2025-11-20';
+
+        $this->post($this->url().'/terms', $early)->assertSessionHasErrors('tax_payments');
+        self::assertStringContainsString('in the opening balance, not in the schedule',
+            (string) session('errors')?->first('tax_payments'));
+    }
+
+    public function test_a_month_carrying_a_refund_states_no_payment_rather_than_a_net_figure(): void
+    {
+        $this->budget();
+        $this->threeReviewedMonths();
+        $refunded = $this->taxCashTerms();
+        $refunded['expected_revision'] = null;
+        $refunded['tax_payments'][] = ['id' => 'refund-1', 'source' => 'IRD refund advice', 'date' => '2026-03-10',
+            'amount' => '200', 'category' => 'tax', 'direction' => 'in', 'verified' => 'yes'];
+        $this->post($this->url().'/terms', $refunded)->assertSessionHasNoErrors();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // The ledger gives a tax refund no category, because the rule's
+        // inflow categories do not describe one. A net payment figure could
+        // therefore never agree with the ledger it is checked against, so the
+        // month states none and the rule reports it.
+        self::assertNull($facts->one('tax.payment', period: 'month:3'));
+        self::assertNull($facts->one('ledger.category', 'refund-1', 'month:3'));
     }
 
     public function test_a_recorded_fixed_cost_schedule_moves_only_the_rules_that_read_it(): void
