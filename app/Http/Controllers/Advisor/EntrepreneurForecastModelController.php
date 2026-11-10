@@ -64,6 +64,7 @@ final class EntrepreneurForecastModelController extends Controller
     public function save(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, ForecastModelStore $store): RedirectResponse
     {
         $actor = $this->editor($request, $entrepreneurProfile, $businessPlan);
+        $signed = ['present', 'nullable', 'string', 'max:31'];
         $data = $request->validate([
             'expected_revision' => ['present', 'nullable', 'integer', 'min:0'],
             'start_month' => ['required', 'string', 'regex:/^[1-9]\d{3}-(0[1-9]|1[0-2])$/'],
@@ -85,6 +86,16 @@ final class EntrepreneurForecastModelController extends Controller
             'actuals.*.reviewed_by' => ['present', 'nullable', 'string', 'max:120'],
             'actuals.*.reviewed_on' => ['present', 'nullable', 'date_format:Y-m-d'],
             'actuals.*.pre_trading_evidence' => ['present', 'nullable', 'string', 'max:500'],
+            // The reviewed month's profit and loss. Signed, unlike the driver
+            // figures: a month that made a loss is written with a leading
+            // minus, and a reviewed loss is the ordinary early state.
+            'actuals.*.revenue' => $signed,
+            'actuals.*.operating_expenses' => $signed,
+            'actuals.*.depreciation' => $signed,
+            'actuals.*.interest' => $signed,
+            'actuals.*.other_income' => $signed,
+            'actuals.*.profit_before_tax' => $signed,
+            'actuals.*.income_tax_expense' => $signed,
         ]);
         $periods = array_column($data['actuals'], 'period');
         if (count($periods) !== count(array_unique($periods))) {
@@ -222,7 +233,7 @@ final class EntrepreneurForecastModelController extends Controller
     }
 
     /**
-     * @param  array{expected_revision:int|null,start_month:string,months:int,opening_amount:string|null,opening_source:string|null,opening_verified:bool|null,reserve_monthly_fixed_costs:string|null,reserve_months_covered:int,reserve_includes_owner_pay:bool|null,reserve_one_off_cash_costs:string|null,reserve_contingency_rate:string,reserve_basis:string|null,actuals:list<array{period:string,state:string,reconciled:bool|null,closing_bank_cash:string|null,reviewed_by:string|null,reviewed_on:string|null,pre_trading_evidence:string|null}>}  $data
+     * @param  array{expected_revision:int|null,start_month:string,months:int,opening_amount:string|null,opening_source:string|null,opening_verified:bool|null,reserve_monthly_fixed_costs:string|null,reserve_months_covered:int,reserve_includes_owner_pay:bool|null,reserve_one_off_cash_costs:string|null,reserve_contingency_rate:string,reserve_basis:string|null,actuals:list<array{period:string,state:string,reconciled:bool|null,closing_bank_cash:string|null,reviewed_by:string|null,reviewed_on:string|null,pre_trading_evidence:string|null,revenue:string|null,operating_expenses:string|null,depreciation:string|null,interest:string|null,other_income:string|null,profit_before_tax:string|null,income_tax_expense:string|null}>}  $data
      */
     private function inputs(ForecastModelStore $store, BusinessPlan $plan, array $data): ForecastModelInputs
     {
@@ -403,7 +414,7 @@ final class EntrepreneurForecastModelController extends Controller
     }
 
     /**
-     * @param  array{period:string,state:string,reconciled:bool|null,closing_bank_cash:string|null,reviewed_by:string|null,reviewed_on:string|null,pre_trading_evidence:string|null}  $row
+     * @param  array{period:string,state:string,reconciled:bool|null,closing_bank_cash:string|null,reviewed_by:string|null,reviewed_on:string|null,pre_trading_evidence:string|null,revenue:string|null,operating_expenses:string|null,depreciation:string|null,interest:string|null,other_income:string|null,profit_before_tax:string|null,income_tax_expense:string|null}  $row
      * @param  callable(?string):?string  $blank
      */
     private function actual(array $row, callable $blank): ActualMonth
@@ -415,7 +426,15 @@ final class EntrepreneurForecastModelController extends Controller
             state: $row['state'],
             source: new ActualSource(null, 'manual', null, null, null, null, null, 'NZD', null,
                 $blank($row['reviewed_by']), $blank($row['reviewed_on']), null, $row['reconciled']),
-            profit: new ActualProfit(null, null, null, null, null, null, null),
+            // The reviewed month's profit and loss, as the accounts state it.
+            // This is the only place on the platform where monthly profit is
+            // a recorded figure rather than a derived one, which is what lets
+            // a tax chain run across it without inventing a month.
+            profit: new ActualProfit(
+                $blank($row['revenue']), $blank($row['operating_expenses']), $blank($row['depreciation']),
+                $blank($row['interest']), $blank($row['other_income']), $blank($row['profit_before_tax']),
+                $blank($row['income_tax_expense']),
+            ),
             // An opening balance this screen has not captured stays absent; it
             // is not implied from the previous month's closing figure.
             opening: $balances(null),

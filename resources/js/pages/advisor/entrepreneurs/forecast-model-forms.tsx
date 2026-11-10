@@ -7,6 +7,28 @@ import type {
 
 const field = 'mt-1 block w-full rounded border p-2';
 
+/** The reviewed month's profit and loss, in the order a statement reads.
+ * Named rather than taken as `keyof ActualInput`, which would admit the
+ * reconciliation flag and leave these inputs typed as string-or-boolean. */
+type ProfitField =
+    | 'revenue'
+    | 'operating_expenses'
+    | 'depreciation'
+    | 'interest'
+    | 'other_income'
+    | 'profit_before_tax'
+    | 'income_tax_expense';
+
+const PROFIT_FIELDS: { key: ProfitField; label: string }[] = [
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'operating_expenses', label: 'Operating expenses' },
+    { key: 'depreciation', label: 'Depreciation' },
+    { key: 'interest', label: 'Interest' },
+    { key: 'other_income', label: 'Other income' },
+    { key: 'profit_before_tax', label: 'Profit before tax' },
+    { key: 'income_tax_expense', label: 'Income tax expense' },
+];
+
 function blank(value: string | null): string {
     return value ?? '';
 }
@@ -38,6 +60,13 @@ function initial(model: ForecastModel | null): SaveForm {
                 reviewed_by: blank(row.reviewed_by),
                 reviewed_on: blank(row.reviewed_on),
                 pre_trading_evidence: blank(row.pre_trading_evidence),
+                revenue: blank(row.revenue),
+                operating_expenses: blank(row.operating_expenses),
+                depreciation: blank(row.depreciation),
+                interest: blank(row.interest),
+                other_income: blank(row.other_income),
+                profit_before_tax: blank(row.profit_before_tax),
+                income_tax_expense: blank(row.income_tax_expense),
             }),
         ),
     };
@@ -390,6 +419,33 @@ export function ForecastModelForm({
                                 placeholder="Required when the month is pre-trading"
                             />
                         </label>
+                        {PROFIT_FIELDS.map((entry) => (
+                            <label key={entry.key}>
+                                {entry.label}
+                                <input
+                                    className={field}
+                                    value={row[entry.key]}
+                                    onChange={(e) =>
+                                        setRow(index, {
+                                            [entry.key]: e.target.value,
+                                        })
+                                    }
+                                    placeholder={
+                                        entry.key === 'profit_before_tax'
+                                            ? '-2000'
+                                            : ''
+                                    }
+                                />
+                            </label>
+                        ))}
+                        <p className="text-sm sm:col-span-2">
+                            The month&rsquo;s profit and loss, as the accounts
+                            state it. Write a loss with a leading minus. This is
+                            the only monthly profit on the platform that is a
+                            recorded figure rather than a derived one, so it is
+                            what the tax chain reads — and it is read only once
+                            the month is reconciled.
+                        </p>
                         <div className="sm:col-span-2">
                             <input
                                 id={`actual-reconciled-${index}`}
@@ -435,6 +491,13 @@ export function ForecastModelForm({
                                 reviewed_by: '',
                                 reviewed_on: '',
                                 pre_trading_evidence: '',
+                                revenue: '',
+                                operating_expenses: '',
+                                depreciation: '',
+                                interest: '',
+                                other_income: '',
+                                profit_before_tax: '',
+                                income_tax_expense: '',
                             },
                         ])
                     }

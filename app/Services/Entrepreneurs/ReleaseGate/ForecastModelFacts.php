@@ -6,6 +6,7 @@ namespace App\Services\Entrepreneurs\ReleaseGate;
 
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\ForecastRun;
+use App\Services\Entrepreneurs\Forecast\MonthlyTaxChain;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelCodec;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
@@ -150,7 +151,117 @@ final class ForecastModelFacts implements ProvidesMethodology
         return [...$this->model($source, $inputs), ...$this->streams($source, $inputs),
             ...$this->actuals($source, $inputs), ...$this->cash($source, $inputs, $cash),
             ...$this->ledger($source, $inputs, $cash), ...$this->funding($source, $inputs),
-            ...$this->costs($source, $inputs)];
+            ...$this->costs($source, $inputs), ...$this->tax($source, $inputs)];
+    }
+
+    /**
+     * The tax policy, and the monthly chain of profit and carried losses.
+     *
+     * The rule wants a monthly chain, and until now nothing stated one. The
+     * stored tax periods hold a period's profit, which is the form a return
+     * is filed in; splitting one into twelve months would invent eleven of
+     * them, so the monthly profit comes from the only place on the platform
+     * where it is a recorded figure rather than a derived one — the profit and
+     * loss of a reviewed actual month, read from the accounts.
+     *
+     * That bounds what this can state. Months nobody has reviewed carry no
+     * profit here, so the chain stops where the reviewed months stop and the
+     * rule reports the horizon as uncovered, which is the truthful reading: a
+     * forecast month's profit is not recorded anywhere, and deriving one would
+     * mean deciding whether a receivable is the same revenue a stream already
+     * counted. That decision is open, and a tax figure is a poor place to
+     * take it quietly.
+     *
+     * @return list<Fact>
+     */
+    private function tax(SourceRecords $source, ForecastModelInputs $inputs): array
+    {
+        $policy = $inputs->taxPolicy;
+        if ($policy === null) {
+            return [];
+        }
+        $at = [$source->reference('forecast_model.drivers.tax_policy')];
+        // Both source records, because the rule requires a confirmed policy
+        // and a policy nobody can point at is an assertion rather than a
+        // record. Either one absent leaves it stated but unconfirmed.
+        $confirmed = trim($policy->policySource ?? '') !== '' && trim($policy->eligibilitySource ?? '') !== '';
+        $facts = [
+            new Fact('tax.policy', $policy->lossesEligible === null ? null
+                : ($policy->lossesEligible ? 'loss_carry_forward' : 'losses_not_eligible'),
+                basis: $policy->entityBasis, confirmed: $confirmed, sources: $at),
+            new Fact('tax.rate', $policy->ratePercent, unit: 'percent', confirmed: $confirmed, sources: $at),
+            new Fact('tax.opening_losses', $inputs->openingEligibleLosses, unit: 'NZD', confirmed: $confirmed,
+                sources: [$source->reference('forecast_model.drivers.opening_eligible_losses')]),
+        ];
+        $reviewed = [];
+        foreach ($inputs->actualMonths as $index => $month) {
+            // A month nobody reconciled is not a recorded profit. Reading one
+            // off an unreviewed month would put an unchecked figure at the
+            // head of a chain every later month depends on.
+            if ($month->source->reconciled === true && $month->profit->profitBeforeTax !== null) {
+                $reviewed[$month->period] = [$month->profit->profitBeforeTax, $index];
+            }
+        }
+        $adjustments = $this->adjustments($inputs);
+        $chain = (new MonthlyTaxChain)->calculate(
+            $inputs->calendar->periods,
+            array_map(fn (array $row): string => $row[0], $reviewed),
+            $adjustments,
+            $policy->ratePercent,
+            $inputs->openingEligibleLosses,
+            $policy->lossesEligible,
+        );
+        foreach ($chain['months'] as $offset => $month) {
+            $period = $month['period'];
+            if (! isset($reviewed[$period])) {
+                continue;
+            }
+            $label = 'month:'.($offset + 1);
+            $where = [$source->reference('forecast_model.actuals.months.'.$reviewed[$period][1])];
+            $facts[] = new Fact('tax.profit', $month['profit'], period: $label, unit: 'NZD',
+                basis: 'reviewed_actual_profit_before_tax', confirmed: true, sources: $where);
+            $facts[] = new Fact('tax.adjustment', $month['adjustment'], period: $label, unit: 'NZD',
+                confirmed: true, sources: [$source->reference('forecast_model.drivers.tax_periods')]);
+            // Withheld together. Expense without the closing balance behind it
+            // would let a month reconcile while the losses it consumed went
+            // unstated, which is the half of the chain that carries forward.
+            if ($month['expense'] !== null && $month['loss_closing'] !== null) {
+                $facts[] = new Fact('tax.expense', $month['expense'], period: $label, unit: 'NZD', confirmed: true, sources: [...$at, ...$where]);
+                $facts[] = new Fact('tax.closing_losses', $month['loss_closing'], period: $label, unit: 'NZD', confirmed: true, sources: [...$at, ...$where]);
+            }
+        }
+
+        return $facts;
+    }
+
+    /**
+     * Each calendar month's tax adjustments, from the planning periods.
+     *
+     * An adjustment is determined when the return is prepared, so a period's
+     * adjustments are recognised in the month that period ends and the months
+     * before it carry none. That places the timing, not the amounts: the
+     * figure is the advisor's and the period total is exact either way. A
+     * month inside no declared period carries no adjustment at all, because
+     * nobody has stated one for it.
+     *
+     * @return array<string,string|null>
+     */
+    private function adjustments(ForecastModelInputs $inputs): array
+    {
+        $adjustments = [];
+        foreach ($inputs->calendar->periods as $period) {
+            foreach ($inputs->taxPeriods as $tax) {
+                $opens = substr($tax->startOn, 0, 7);
+                $closes = substr($tax->endOn, 0, 7);
+                if ($period < $opens || $period > $closes) {
+                    continue;
+                }
+                $adjustments[$period] = $period === $closes ? ($tax->taxAdjustments ?? '0.00') : '0.00';
+                break;
+            }
+        }
+
+        return $adjustments;
     }
 
     /**

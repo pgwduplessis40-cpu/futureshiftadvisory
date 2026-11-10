@@ -27,6 +27,15 @@ export type ActualRow = {
     reviewed_by: string | null;
     reviewed_on: string | null;
     pre_trading_evidence: string | null;
+    /** The reviewed month's profit and loss, as the accounts state it. Signed:
+     * a month that made a loss is written with a leading minus. */
+    revenue: string | null;
+    operating_expenses: string | null;
+    depreciation: string | null;
+    interest: string | null;
+    other_income: string | null;
+    profit_before_tax: string | null;
+    income_tax_expense: string | null;
 };
 export type StreamMonthRow = {
     period: string;
@@ -190,6 +199,13 @@ export type ActualInput = {
     reviewed_by: string;
     reviewed_on: string;
     pre_trading_evidence: string;
+    revenue: string;
+    operating_expenses: string;
+    depreciation: string;
+    interest: string;
+    other_income: string;
+    profit_before_tax: string;
+    income_tax_expense: string;
 };
 export type SaveForm = {
     expected_revision: number | null;
