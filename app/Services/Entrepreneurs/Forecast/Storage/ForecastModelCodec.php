@@ -43,6 +43,8 @@ final class ForecastModelCodec
             StoredValues::flag($drivers, 'funding_inventory_complete'),
             DriverCodec::fixedCosts($drivers, 'fixed_costs'),
             StoredValues::flag($drivers, 'fixed_cost_schedule_complete'),
+            StoredValues::has($drivers, 'tax_cash_plan')
+                ? DriverCodec::taxCashPlan(StoredValues::child($drivers, 'tax_cash_plan')) : null,
         );
     }
 

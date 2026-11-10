@@ -11,6 +11,7 @@ use App\Services\Entrepreneurs\Forecast\ForecastDates;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
+use App\Services\Entrepreneurs\Forecast\TaxCashPlan;
 use App\Services\Entrepreneurs\Forecast\TaxPeriod;
 use App\Services\Entrepreneurs\Forecast\TaxPolicy;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
@@ -33,7 +34,8 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type TaxPeriodRow array{start_on:string,end_on:string,accounting_profit:string|null,tax_adjustments:string|null}
  * @phpstan-type FundingRow array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:string|null}
  * @phpstan-type FixedCostRow array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,first_invoice_on:string|null,last_invoice_on:string|null,creditor_days:int|string|null,reviewed:string|null}
- * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null}
+ * @phpstan-type TaxPaymentRow array{id:string,source:string,date:string|null,amount:string|null,category:string,direction:string,verified:string|null}
+ * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null,tax_cash_state:string|null,gst_cash_state:string|null,tax_cash_source:string|null,gst_cash_source:string|null,tax_payments:list<TaxPaymentRow>}
  */
 final readonly class AdvisorForecastTerms
 {
@@ -59,6 +61,16 @@ final readonly class AdvisorForecastTerms
      * method would invite an advisor to name one the engine then refuses.
      */
     public const METHOD = 'straight_line_full_start_month';
+
+    /**
+     * Scope states a tax or GST cash schedule can be in.
+     *
+     * An empty schedule is three different answers, and the engine refuses to
+     * read it as one: nothing is due, the business is outside the regime, or
+     * nobody has worked it out yet. Only the first two are finished positions,
+     * and a schedule with rows contradicts both of them.
+     */
+    public const CASH_STATES = ['scheduled', 'none_due', 'not_applicable'];
 
     /** @return array<string,list<string>> */
     public function rules(): array
@@ -157,6 +169,22 @@ final readonly class AdvisorForecastTerms
             // reason: no row count can tell a business with no overheads from
             // a section nobody has filled in.
             'fixed_cost_schedule_complete' => $stated,
+            // When tax and GST cash leaves the bank. The scope states are
+            // asked separately from the payments because a business with
+            // nothing due and a business nobody has asked about both have an
+            // empty schedule, and only one of them is finished.
+            'tax_cash_state' => ['present', 'nullable', 'in:'.implode(',', self::CASH_STATES)],
+            'gst_cash_state' => ['present', 'nullable', 'in:'.implode(',', self::CASH_STATES)],
+            'tax_cash_source' => ['present', 'nullable', 'string', 'max:255'],
+            'gst_cash_source' => ['present', 'nullable', 'string', 'max:255'],
+            'tax_payments' => ['present', 'array', 'max:60'],
+            'tax_payments.*.id' => ['required', 'string', 'max:60'],
+            'tax_payments.*.source' => ['required', 'string', 'max:255'],
+            'tax_payments.*.date' => $date,
+            'tax_payments.*.amount' => $number,
+            'tax_payments.*.category' => ['required', 'in:tax,gst'],
+            'tax_payments.*.direction' => ['required', 'in:in,out'],
+            'tax_payments.*.verified' => $stated,
         ];
     }
 
@@ -190,7 +218,38 @@ final readonly class AdvisorForecastTerms
             fundingInventoryComplete: $this->stated($data['funding_inventory_complete']),
             fixedCosts: array_map($this->fixedCost(...), $data['fixed_costs']),
             fixedCostScheduleComplete: $this->stated($data['fixed_cost_schedule_complete']),
+            taxCashPlan: $this->taxCashPlan($data),
         );
+    }
+
+    /**
+     * A plan nobody has said anything about stays absent rather than becoming
+     * an empty one, for the same reason the tax policy does: saving the other
+     * sections beside it would otherwise report the tax cash schedule as
+     * captured when nothing about it has been stated.
+     *
+     * @param  TermsData  $data
+     */
+    private function taxCashPlan(array $data): ?TaxCashPlan
+    {
+        $movements = [];
+        // One counter across the schedule, so two payments landing on one day
+        // hold different positions in the ledger rather than colliding.
+        $sequence = 0;
+        foreach ($data['tax_payments'] as $row) {
+            $movements[] = new CashMovement(
+                trim($row['id']), trim($row['source']), $this->blank($row['date']), $this->blank($row['amount']),
+                $row['direction'], $row['category'], $sequence, $this->stated($row['verified']),
+            );
+            $sequence++;
+        }
+        $states = [$this->blank($data['tax_cash_state']), $this->blank($data['gst_cash_state'])];
+        $sources = [$this->blank($data['tax_cash_source']), $this->blank($data['gst_cash_source'])];
+        if ($movements === [] && $states === [null, null] && $sources === [null, null]) {
+            return null;
+        }
+
+        return new TaxCashPlan($states[0], $states[1], $sources[0], $sources[1], $movements);
     }
 
     /** @param  FixedCostRow  $row */
@@ -326,6 +385,10 @@ final readonly class AdvisorForecastTerms
         $this->rejectRepeats(array_column($data['fixed_costs'], 'id'), 'fixed_costs',
             'Each fixed cost needs its own reference. Two share one, and the ledger refuses to count a payment twice.');
         $this->rejectInvoicesOutsideCalendar($data['fixed_costs'], $existing);
+        $this->rejectRepeats(array_column($data['tax_payments'], 'id'), 'tax_payments',
+            'Each tax or GST payment needs its own reference. Two share one, and the ledger refuses to count a payment twice.');
+        $this->rejectTaxCashContradictions($data);
+        $this->rejectPaymentsBeforeCalendar($data['tax_payments'], $existing);
         $this->rejectRepeats(array_column($data['trade_items'], 'id'), 'trade_items',
             'Each trade item needs its own reference. Two share one, and the engine refuses to count a trade twice.');
         $this->rejectRepeats(array_column($data['assets'], 'id'), 'assets',
@@ -426,6 +489,51 @@ final readonly class AdvisorForecastTerms
                 throw ValidationException::withMessages(['fixed_costs' => $named.' is last invoiced on '.$last
                     .', after the forecast ends on '.$closes.'. A charge raised later is not an expense this forecast carries.']);
             }
+        }
+    }
+
+    /**
+     * A schedule that contradicts the scope it was recorded under.
+     *
+     * Saying nothing is due and then listing payments states two different
+     * things about the same tax, and the engine reports the pair as an error
+     * rather than choosing one. Naming which of the two is at odds here is
+     * what lets an advisor fix the right one.
+     *
+     * @param  TermsData  $data
+     */
+    private function rejectTaxCashContradictions(array $data): void
+    {
+        foreach (['tax' => 'tax_cash_state', 'gst' => 'gst_cash_state'] as $category => $field) {
+            $state = $this->blank($data[$field]);
+            $rows = array_filter($data['tax_payments'], fn (array $row): bool => $row['category'] === $category);
+            if ($rows !== [] && in_array($state, ['none_due', 'not_applicable'], true)) {
+                throw ValidationException::withMessages(['tax_payments' => strtoupper($category)
+                    .' is recorded as '.str_replace('_', ' ', $state).', and '.count($rows)
+                    .' '.(count($rows) === 1 ? 'payment is' : 'payments are').' scheduled against it.'
+                    .' Either the scope or the schedule is wrong; the model cannot hold both.']);
+            }
+        }
+    }
+
+    /**
+     * Cash dated before the forecast opens is already in the opening balance,
+     * and the ledger refuses to position it rather than counting it twice.
+     * The refusal is raised here, where the payment can be named.
+     *
+     * @param  list<TaxPaymentRow>  $rows
+     */
+    private function rejectPaymentsBeforeCalendar(array $rows, ForecastModelInputs $existing): void
+    {
+        $opens = $existing->calendar->startMonth.'-01';
+        foreach ($rows as $row) {
+            $date = $this->blank($row['date']);
+            if ($date === null || $date >= $opens) {
+                continue;
+            }
+            $named = trim($row['id']) === '' ? 'this payment' : trim($row['id']);
+            throw ValidationException::withMessages(['tax_payments' => $named.' is dated '.$date
+                .', before the forecast opens on '.$opens.'. Tax already paid is in the opening balance, not in the schedule.']);
         }
     }
 

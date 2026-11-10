@@ -426,6 +426,22 @@ MI-04 wants a monthly chain of profit, adjustments, tax expense and carried loss
 
 As with MI-03's `expense:N`, the rule's `expense:N` arithmetic is a self-check for a derived producer: the chain computes expense and carried losses, and the rule recomputes them. The load-bearing parts are the policy preconditions, `coverage`, and the cash-tax checks, which remain unresolved until a tax cash plan is recorded. `TaxCashPlan` is a further orphan — defined, unit-tested, and held by no input — so `cash-tax:N` and `cash-ledger:N` stay missing and are the next slice in this line.
 
+### Slice 2E-4i implementation record
+
+This completes MI-04's cash side. The 2E-4h record named `TaxCashPlan` as a further orphan — defined, unit-tested, and held by no input — so `cash-tax:N` and `cash-ledger:N` stayed missing however well the chain reconciled. The reconstruction now holds one, and MI-04's unresolved set for a reviewed-months model is exactly `['coverage']`.
+
+**The schedule is asked for as a position before it is asked for as rows.** An empty tax schedule is three different answers: nothing is due, the business is outside the regime, or nobody has worked it out yet. Only the first two are finished, and no row count distinguishes them, so the scope state is captured for income tax and GST separately and a schedule with rows against a `none_due` or `not_applicable` scope is refused at entry naming which of the two is at odds. Where the scope is unstated the producer emits nothing at all: a month cannot state when its tax is paid on the strength of a schedule nobody has scoped.
+
+**Only the payable movement is derived.** A month's tax can be recognised long before it is paid, so the payment is read from the schedule and the payable is the difference. Deriving the payment from the expense would state a payment date nobody scheduled. A month with nothing scheduled paid nothing, which is a position rather than a gap — the expense it recognised is carried as tax payable until a later month settles it — so it states a nil payment dated to the month it belongs to, rather than reporting the month unestablished.
+
+**`cash-ledger:N` is the check worth having here.** It compares the scheduled payment against the `cash_tax` lines in the ledger, and those lines come from two places: this schedule, and any trade settlement an advisor categorised as tax. Recording a tax payment in both — which is the easy mistake, since the trade form offers a tax category — makes the ledger exceed the schedule and the check reports it. That is a genuine reconciliation rather than a restatement of one producer's arithmetic.
+
+**A month carrying a refund states no payment at all.** The ledger gives a tax refund no gate category, for the reason recorded in 2E-4e: the rule's three inflow categories are customer receipts, other operating receipts and financing inflows, and none describes a refund of tax without asserting something about its nature. A net payment figure could therefore never agree with the ledger it is checked against, so the month is reported unestablished instead. That is the honest outcome, and it names the entry to the advisor rather than reconciling on a classification the taxonomy cannot support.
+
+Tax paid before the forecast opens is refused at the form, as funding draws and fixed-cost invoices already are: the ledger refuses to position it, and it belongs in the opening balance.
+
+What is left on MI-04 is `coverage`, and that is the open decision from 2E-4h — forecast months have no profit, so a three-month reviewed chain is not a twelve-month tax schedule. Nothing in this slice changes that, and nothing in it should.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.

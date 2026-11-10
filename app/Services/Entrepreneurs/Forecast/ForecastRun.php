@@ -355,6 +355,29 @@ final class ForecastRun implements ProvidesMethodology
         foreach ($costs['missing'] as $gap) {
             $flat[] = $gap['reason'];
         }
+        // Tax and GST cash leaves the bank like any other payment, so the
+        // schedule belongs in the ledger. Its own sequence block sits above
+        // everything numbered so far, because the schedule numbers its rows
+        // from zero and would otherwise collide with the trade settlements.
+        $plan = $inputs->taxCashPlan;
+        if ($plan !== null) {
+            foreach ($plan->movements as $movement) {
+                if ($movement->date !== null && $movement->date < $opens) {
+                    $early++;
+
+                    continue;
+                }
+                $movements[] = new CashMovement($movement->id, $movement->source, $movement->date, $movement->amount,
+                    $movement->direction, $movement->category, $next + $movement->sequence, $movement->verified);
+            }
+            $next += count($plan->movements);
+            foreach ($plan->issues()['missing'] as $reason) {
+                $flat[] = 'tax_cash.'.$reason;
+            }
+            foreach ($plan->issues()['errors'] as $reason) {
+                $flat[] = 'tax_cash.'.$reason;
+            }
+        }
         foreach ($inputs->fundingSources as $fundingSource) {
             // One sequence per source, so two drawn on one day hold different
             // positions in the ledger rather than colliding.

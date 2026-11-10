@@ -178,6 +178,7 @@ export type ForecastModel = {
     funding_inventory_complete: boolean | null;
     fixed_costs: FixedCostRow[];
     fixed_cost_schedule_complete: boolean | null;
+    tax_cash_plan: TaxCashPlanRow | null;
     trade_items: TradeItemRow[];
     owner_pay_steps: OwnerPayRow[];
     assets: AssetRow[];
@@ -359,8 +360,46 @@ export type FixedCostInput = {
     reviewed: string;
 };
 
+/** One dated tax or GST payment as the page shows it back. */
+export type TaxPaymentRow = {
+    id: string;
+    source: string;
+    date: string | null;
+    amount: string | null;
+    category: string;
+    direction: string;
+    verified: boolean | null;
+};
+
+/** The same payment as the form posts it: every field a string. */
+export type TaxPaymentInput = {
+    id: string;
+    source: string;
+    date: string;
+    amount: string;
+    category: string;
+    direction: string;
+    verified: string;
+};
+
+/** When tax and GST cash actually leaves the bank, with the scope each
+ * schedule was recorded under. An empty schedule is three different answers,
+ * and only the state tells them apart. */
+export type TaxCashPlanRow = {
+    tax_state: string | null;
+    gst_state: string | null;
+    tax_source: string | null;
+    gst_source: string | null;
+    movements: TaxPaymentRow[];
+};
+
 export type TermsForm = {
     expected_revision: number | null;
+    tax_cash_state: string;
+    gst_cash_state: string;
+    tax_cash_source: string;
+    gst_cash_source: string;
+    tax_payments: TaxPaymentInput[];
     funding_sources: FundingInput[];
     funding_inventory_complete: string;
     fixed_costs: FixedCostInput[];

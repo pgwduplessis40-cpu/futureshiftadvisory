@@ -39,6 +39,8 @@ use Brick\Math\BigDecimal;
  * @phpstan-type FounderMonthPayload array{period:string,available_hours:string|null,administration_hours:string|null,business_development_hours:string|null}
  * @phpstan-type FundingPayload array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:bool|null}
  * @phpstan-type FixedCostPayload array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,first_invoice_on:string|null,last_invoice_on:string|null,creditor_days:int|null,reviewed:bool|null}
+ * @phpstan-type TaxPaymentPayload array{id:string,source:string,date:string|null,amount:string|null,category:string,direction:string,verified:bool|null}
+ * @phpstan-type TaxCashPayload array{tax_state:string|null,gst_state:string|null,tax_source:string|null,gst_source:string|null,movements:list<TaxPaymentPayload>}
  * @phpstan-type SettlementPayload array{id:string,source:string,date:string|null,amount:string|null,category:string,verified:bool|null}
  * @phpstan-type TradeItemPayload array{id:string,source:string,kind:string,raised_on:string|null,amount:string|null,settlements:list<SettlementPayload>|null}
  * @phpstan-type OwnerPayPayload array{effective_on:string,weekly_amount:string|null,trigger:string,threshold:string|null}
@@ -49,7 +51,7 @@ use Brick\Math\BigDecimal;
  * @phpstan-type ProjectionPayload array{engine_version:string,status:string,months_projected:int,base_revenue_months:int,missing:list<GapPayload>,errors:list<GapPayload>,refusal:string|null}
  * @phpstan-type CashPayload array{status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,missing:list<GapPayload>,refusal:string|null}
  * @phpstan-type SectionPayload array{key:string,label:string,captured:bool,editable:bool,detail:string}
- * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
+ * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,tax_cash_plan:TaxCashPayload|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
  */
 final readonly class AdvisorForecastModelPayload
 {
@@ -113,6 +115,11 @@ final readonly class AdvisorForecastModelPayload
             'funding_inventory_complete' => $inputs?->fundingInventoryComplete,
             'fixed_costs' => array_map($this->fixedCost(...), $inputs->fixedCosts ?? []),
             'fixed_cost_schedule_complete' => $inputs?->fixedCostScheduleComplete,
+            'tax_cash_plan' => $inputs?->taxCashPlan === null ? null : [
+                'tax_state' => $inputs->taxCashPlan->taxState, 'gst_state' => $inputs->taxCashPlan->gstState,
+                'tax_source' => $inputs->taxCashPlan->taxSource, 'gst_source' => $inputs->taxCashPlan->gstSource,
+                'movements' => array_map($this->taxPayment(...), $inputs->taxCashPlan->movements),
+            ],
             'trade_items' => array_map($this->tradeItem(...), $inputs->tradeItems ?? []),
             'owner_pay_steps' => array_map($this->ownerPayStep(...), $inputs->ownerPaySteps ?? []),
             'assets' => array_map($this->asset(...), $inputs->assets ?? []),
@@ -228,6 +235,46 @@ final readonly class AdvisorForecastModelPayload
             'type' => $funding->type, 'amount' => $funding->amount, 'commitment' => $funding->commitment,
             'available_from' => $funding->availableFrom, 'drawn_on' => $funding->drawnOn,
             'restriction' => $funding->restriction, 'verified' => $funding->verified];
+    }
+
+    /**
+     * A payment's position within a day follows the order it is listed in,
+     * so it is not presented back as a field.
+     *
+     * @return TaxPaymentPayload
+     */
+    private function taxPayment(CashMovement $movement): array
+    {
+        return ['id' => $movement->id, 'source' => $movement->source, 'date' => $movement->date,
+            'amount' => $movement->amount, 'category' => $movement->category,
+            'direction' => $movement->direction, 'verified' => $movement->verified];
+    }
+
+    /**
+     * What the tax cash schedule states, and what it leaves open.
+     *
+     * The scope states are reported rather than the row count, because an
+     * empty schedule is equally a business with nothing due, one outside the
+     * regime, and one nobody has worked out. Only the first two are finished.
+     */
+    private function taxCashDetail(?ForecastModelInputs $inputs): string
+    {
+        $plan = $inputs?->taxCashPlan;
+        if ($plan === null) {
+            return 'Not captured, so no month states when its tax is paid.';
+        }
+        $said = fn (?string $state): string => match ($state) {
+            'scheduled' => 'scheduled',
+            'none_due' => 'recorded as nothing due',
+            'not_applicable' => 'recorded as outside the regime',
+            default => 'not stated',
+        };
+        $issues = $plan->issues();
+
+        return 'Income tax '.$said($plan->taxState).', GST '.$said($plan->gstState).'. '
+            .count($plan->movements).' dated '.(count($plan->movements) === 1 ? 'payment' : 'payments').' recorded.'
+            .($issues['missing'] === [] && $issues['errors'] === [] ? '' : ' Still to resolve: '
+                .implode(', ', [...$issues['missing'], ...$issues['errors']]).'.');
     }
 
     /**
@@ -532,6 +579,8 @@ final readonly class AdvisorForecastModelPayload
                 'detail' => $this->assetDetail($inputs->assets ?? [], $counted)],
             ['key' => 'tax', 'label' => 'Tax policy and timing', 'captured' => $inputs?->taxPolicy !== null, 'editable' => true,
                 'detail' => $this->taxDetail($inputs, $counted)],
+            ['key' => 'tax_cash_plan', 'label' => 'Tax and GST cash', 'captured' => $inputs?->taxCashPlan?->taxState !== null, 'editable' => true,
+                'detail' => $this->taxCashDetail($inputs)],
             // Held by the reconstruction and captured nowhere on this screen.
             // A table that claims to say what the model holds has to say so,
             // rather than leave an advisor to assume the list is complete.
