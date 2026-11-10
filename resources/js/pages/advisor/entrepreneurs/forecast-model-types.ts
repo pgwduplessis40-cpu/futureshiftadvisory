@@ -179,6 +179,10 @@ export type ForecastModel = {
     fixed_costs: FixedCostRow[];
     fixed_cost_schedule_complete: boolean | null;
     tax_cash_plan: TaxCashPlanRow | null;
+    /** Three states: true an expense of the business, false a drawing against
+     * it, null nobody has said. The two give different profits off the same
+     * cash, so an unanswered month states no profit at all. */
+    owner_pay_deductible: boolean | null;
     trade_items: TradeItemRow[];
     owner_pay_steps: OwnerPayRow[];
     assets: AssetRow[];
@@ -400,6 +404,7 @@ export type TermsForm = {
     tax_cash_source: string;
     gst_cash_source: string;
     tax_payments: TaxPaymentInput[];
+    owner_pay_deductible: string;
     funding_sources: FundingInput[];
     funding_inventory_complete: string;
     fixed_costs: FixedCostInput[];

@@ -31,6 +31,8 @@ use Brick\Math\BigDecimal;
  * @phpstan-type CostMonth array{period:string,expense:string|null,paid:string|null,accrual_movement:string|null,payments:list<CashMovement>}
  * @phpstan-type CostLine array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,reviewed:bool|null,recognition:string|null,invoices:int,months:list<CostMonth>,missing:list<string>}
  * @phpstan-type CostResult array{engine_version:string,status:string,lines:list<CostLine>,totals:array<string,string|null>,movements:list<CashMovement>,missing:list<RunGap>,refusal:string|null}
+ *
+ * @phpstan-import-type ProfitResult from MonthlyProfit
  */
 final class ForecastRun implements ProvidesMethodology
 {
@@ -152,6 +154,56 @@ final class ForecastRun implements ProvidesMethodology
             'movements' => $ledger['movements'],
             'missing' => $missing, 'refusal' => null,
         ];
+    }
+
+    /**
+     * Monthly profit before tax, from the sections the reconstruction holds.
+     *
+     * This is the decomposition the tax chain needs for a forecast month and
+     * the scenario rules need per scenario. It assembles rather than
+     * calculates: the revenue projection, the fixed-cost recognition, the
+     * asset schedules and the owner-pay schedule each already state their own
+     * month, and the trade items are added to them because they are opening
+     * debtors and creditors plus one-offs rather than a restatement of either.
+     *
+     * The cash run is taken as an argument rather than re-run, because the
+     * owner-pay schedule it contains is expensive and running it twice would
+     * be a second answer to the same question.
+     *
+     * @param  CashResult  $cash
+     * @return ProfitResult
+     */
+    public function profit(ForecastModelInputs $inputs, array $cash): array
+    {
+        $revenue = [];
+        foreach ($this->revenue($inputs)['months'] as $month) {
+            $revenue[$month['period']] = ['base_revenue' => $month['base_revenue'],
+                'base_contractor_cost' => $month['base_contractor_cost']];
+        }
+        $assets = array_fill_keys($inputs->calendar->periods, ['depreciation' => '0.00', 'expense' => '0.00']);
+        foreach ($inputs->assets as $asset) {
+            foreach ((new AssetSchedule)->calculate($inputs->calendar, $asset, 0)['months'] as $month) {
+                $period = $month['period'];
+                // One asset that cannot be scheduled withholds the month for
+                // all of them: a depreciation total summed over the assets
+                // that happen to be readable is not the month's depreciation.
+                foreach (['depreciation', 'expense'] as $part) {
+                    $assets[$period][$part] = $assets[$period][$part] === null || $month[$part] === null
+                        ? null : (string) BigDecimal::of($assets[$period][$part])->plus($month[$part]);
+                }
+            }
+        }
+        $ownerPay = [];
+        foreach ($cash['movements'] as $movement) {
+            if ($movement->category !== 'owner_pay' || $movement->date === null || $movement->amount === null) {
+                continue;
+            }
+            $period = substr($movement->date, 0, 7);
+            $ownerPay[$period] = (string) BigDecimal::of($ownerPay[$period] ?? '0')->plus($movement->amount);
+        }
+
+        return (new MonthlyProfit)->calculate($inputs->calendar, $revenue, $this->fixedCosts($inputs)['totals'],
+            $inputs->tradeItems, $assets, $ownerPay, $inputs->ownerPayDeductible);
     }
 
     /**

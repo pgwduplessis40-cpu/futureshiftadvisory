@@ -442,6 +442,26 @@ Tax paid before the forecast opens is refused at the form, as funding draws and 
 
 What is left on MI-04 is `coverage`, and that is the open decision from 2E-4h — forecast months have no profit, so a three-month reviewed chain is not a twelve-month tax schedule. Nothing in this slice changes that, and nothing in it should.
 
+### Slice 2E-4j implementation record
+
+This resolves the decision the 2E-4h record raised and builds on it. The model records revenue in two places and costs in two places, and nothing in the schema tied them together, so a derived monthly profit could have double counted in either direction. The owner settled it: **revenue streams and fixed costs are the recurring business, and trade items are opening debtors and creditors plus one-offs.** They are separate, so a decomposition adds them rather than reconciling one against the other.
+
+`MonthlyProfit` is that decomposition. Stream revenue and its direct delivery cost, less fixed-cost recognition, less depreciation and asset expense, plus the one-offs raised in the month, less owner pay where it is an expense. Everything is recognised rather than paid; the cash side of each already lives in the ledger and answers a different question.
+
+**A trade item's `raised_on` date decides whether it belongs to the horizon at all.** One raised before the forecast opens is an opening debtor or creditor: its cash arrives inside the horizon but the revenue or cost was earned before it, so it changes no month's profit here. One raised during the forecast is a one-off belonging to the month it was raised in. A test holds both readings of the same invoice against each other.
+
+**Only some categories reach profit.** A capital purchase is carried as an asset and reaches profit as depreciation, so charging the invoice as well would charge the same spend twice. Tax has its own chain, GST is a balance-sheet flow, and loan principal and distributions never touch profit. On the receivable side only a trading receipt is revenue — a drawn-down facility, a tax refund and the proceeds of selling an asset all arrive as receivables and none of them is revenue of the month. An item whose settlement terms nobody has recorded has no knowable category, and it withholds its month rather than being guessed at: it is known to be money owed and not known to be an operating cost rather than a capital purchase, and the two reach profit in entirely different ways.
+
+**Owner-pay deductibility is asked, not inferred.** Whether the owner's pay is an expense of the business or a drawing against it depends on the entity, and the two give different profits off the same cash. `TaxPolicy::$entityBasis` is free text and cannot be branched on, so it is a three-state question of its own. Until it is answered, only the months that actually carry pay are withheld — a month with none charges nothing under either answer, and withholding it would report a gap that does not exist.
+
+**Reviewed accounts outrank the decomposition for the same month.** The decomposition is what the model implies; a reviewed month's accounts are what happened. The `basis` on each `tax.profit` says which of the two it is, because a reader has to be able to tell.
+
+**MI-04's `coverage` now resolves.** With every month stating a profit, the monthly tax schedule the rule wanted is complete across the horizon. A feature test asserts the rule gets past its policy gate, reconciles a chain in all twelve months, and no longer reports coverage.
+
+One consequence worth recording for whoever fills these screens: a month states no revenue unless its founder capacity is known **and every stream has a schedule row in it**, including an explicit zero. A stream with no row in a month is equally a month with no sales and a month nobody filled in, and the projection has always treated that as unknown. Nothing changed there — but a profit decomposition makes the consequence visible, because an unfilled grid now withholds a profit rather than only a revenue figure.
+
+Still ahead: the scenario run. SS-01, SS-02 and SS-03 need `ScenarioRunner` and `ScenarioCatalogue` driven from the reconstruction, and a per-scenario version of this decomposition. The decomposition itself is now in place for them.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.

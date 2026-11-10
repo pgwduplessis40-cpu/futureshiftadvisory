@@ -45,6 +45,7 @@ final class ForecastModelCodec
             StoredValues::flag($drivers, 'fixed_cost_schedule_complete'),
             StoredValues::has($drivers, 'tax_cash_plan')
                 ? DriverCodec::taxCashPlan(StoredValues::child($drivers, 'tax_cash_plan')) : null,
+            StoredValues::flag($drivers, 'owner_pay_deductible'),
         );
     }
 

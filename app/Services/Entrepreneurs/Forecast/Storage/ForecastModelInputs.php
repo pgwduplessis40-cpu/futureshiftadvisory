@@ -82,10 +82,16 @@ final readonly class ForecastModelInputs
         // scope states, because a business with nothing due and a business
         // nobody has asked about both have no payments recorded.
         public ?TaxCashPlan $taxCashPlan = null,
+        // Whether the owner's pay is a deductible expense of the business or
+        // a drawing against it. The two give different profits off the same
+        // cash, and which applies depends on the entity rather than on the
+        // payment, so it is asked rather than inferred from the entity basis,
+        // which is free text.
+        public ?bool $ownerPayDeductible = null,
     ) {}
 
     /**
-     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool,tax_cash_plan:?TaxCashPlan}
+     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool,tax_cash_plan:?TaxCashPlan,owner_pay_deductible:?bool}
      */
     public function driversPayload(): array
     {
@@ -108,6 +114,7 @@ final readonly class ForecastModelInputs
             'fixed_costs' => $this->fixedCosts,
             'fixed_cost_schedule_complete' => $this->fixedCostScheduleComplete,
             'tax_cash_plan' => $this->taxCashPlan,
+            'owner_pay_deductible' => $this->ownerPayDeductible,
         ];
     }
 
