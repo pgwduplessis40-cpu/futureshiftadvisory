@@ -83,6 +83,28 @@ final class ScenarioFacts implements ProvidesMethodology
         return ['entrepreneur.scenarios_metrics_funding'];
     }
 
+    /**
+     * The identity of the model every scenario is a shock away from.
+     *
+     * SS-01 holds each scenario's baseline against the shared one, so what is
+     * hashed has to be the reconstruction before any shock reaches it. Hashing
+     * the shocked inputs would give every scenario a different identity and
+     * fail the check by construction; hashing something weaker than the whole
+     * model would let a scenario be built from different drivers and still
+     * claim the same baseline.
+     *
+     * Exposed so the reconstruction and the scenario run state the same
+     * identity rather than two that have to be kept in step.
+     */
+    public static function baseline(ForecastModelInputs $inputs): string
+    {
+        return CanonicalJson::hash([
+            $inputs->driversPayload(),
+            $inputs->actualsPayload(),
+            $inputs->reservePolicyPayload(),
+        ]);
+    }
+
     /** @return list<Fact> */
     public function capture(SourceRecords $source, ForecastModelInputs $inputs): array
     {
@@ -166,6 +188,15 @@ final class ScenarioFacts implements ProvidesMethodology
                     basis: 'lowest_month_end_closing_balance', confirmed: true, sources: $at);
             }
             $facts = [...$facts, ...$this->profit($source, $inputs, $scenario, $outcome->profit, $at)];
+            // The baseline each scenario was built from, and what it changed
+            // about it. The identity is the unshocked reconstruction's, which
+            // is what makes the rule's comparison meaningful: every scenario
+            // claiming the same baseline is the evidence that none of them was
+            // built from a different model.
+            $facts[] = new Fact('scenario.baseline', self::baseline($inputs), scenario: $scenario,
+                basis: 'unshocked_reconstruction', confirmed: true, sources: $at);
+            $facts[] = new Fact('scenario.shocks', CanonicalJson::encode($outcome->definition->shocks),
+                scenario: $scenario, basis: $outcome->definition->defaultsSource, confirmed: true, sources: $at);
         }
 
         return $facts;
