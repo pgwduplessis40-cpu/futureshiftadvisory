@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs\Forecast;
 
+use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Support\Methodology\ProvidesMethodology;
 
 /**
@@ -16,15 +17,21 @@ use App\Support\Methodology\ProvidesMethodology;
  * measures rather than smoothed away.
  *
  * @phpstan-type Maximum array{value:?string,scenario_id:?string,date:?string}
- * @phpstan-type RunResult array{engine_version:string,scope:string,status:string,outcomes:list<ScenarioOutcome>,worst:array{scenario_id:?string,ranking_metric:?string,value:?string},maxima:array<string,Maximum>,unranked:list<string>}
+ * @phpstan-type FundingResult array{status:string,lowest_cash:?string,lowest_cash_date:?string,cash_deficit:?string,reserve_target:?string,reserve_shortfall:?string,reserve_shortfall_date:?string,missing:list<string>}
+ * @phpstan-type RunResult array{engine_version:string,scope:string,status:string,outcomes:list<ScenarioOutcome>,worst:array{scenario_id:?string,ranking_metric:?string,value:?string},maxima:array<string,Maximum>,unranked:list<string>,refusal:?string}
  */
 final class ScenarioRunner implements ProvidesMethodology
 {
-    public const VERSION = 'phase-2d.1';
+    public const VERSION = 'phase-2e.1';
 
     public function __construct(
         private readonly ScenarioApplication $application = new ScenarioApplication,
         private readonly FundingMeasures $funding = new FundingMeasures,
+        // One run instance across every scenario on purpose. The base scenario
+        // shocks nothing, so it is handed the reconstruction itself and reads
+        // the projection this instance already computed for the main model
+        // rather than repeating it.
+        private readonly ForecastRun $forecast = new ForecastRun,
     ) {}
 
     public static function methodologyIds(): array
@@ -33,25 +40,37 @@ final class ScenarioRunner implements ProvidesMethodology
     }
 
     /**
+     * Runs every supplied scenario against the reconstruction.
+     *
+     * The reconstruction is taken whole rather than as the handful of parts a
+     * ledger needs, because a scenario is not a re-dating of one movement
+     * list. A cost-rate shock changes the overhead invoices and the capital
+     * payments the ledger carries, and a volume shock changes revenue-linked
+     * owner pay. Those only reach cash by being applied to the inputs and run
+     * back through the engines, which needs every section the movements are
+     * built from, not the movements alone.
+     *
+     * The scope stays before the proposed facility. Funding already recorded
+     * against the business is in the ledger because it is money the business
+     * has arranged; the facility this sizing exists to recommend is not an
+     * input and so cannot fund its own case.
+     *
      * @param  list<ScenarioDefinition>  $definitions
-     * @param  list<RevenueStream>  $streams
-     * @param  array<string,FounderMonth>  $founderMonths
-     * @param  list<CashMovement>  $movements
      * @return RunResult
      */
-    public function run(
-        ForecastCalendar $calendar,
-        ActualsWindow $actuals,
-        array $definitions,
-        array $streams,
-        array $founderMonths,
-        CashOpening $opening,
-        array $movements,
-        ReservePolicy $policy,
-    ): array {
+    public function run(ForecastModelInputs $inputs, ActualsWindow $actuals, array $definitions): array
+    {
         $outcomes = [];
-        foreach ($definitions as $definition) {
-            $outcomes[] = $this->outcome($calendar, $actuals, $definition, $streams, $founderMonths, $opening, $movements, $policy);
+        try {
+            foreach ($definitions as $definition) {
+                $outcomes[] = $this->outcome($inputs, $actuals, $definition);
+            }
+        } catch (\InvalidArgumentException $e) {
+            // The schedules refuse inputs they cannot read, the ledger refuses
+            // movements it cannot position, and a shock refuses a scope it
+            // cannot express. None of those leaves a worst case to report, so
+            // the run states the reason instead of ranking whatever survived.
+            return $this->refused($e->getMessage());
         }
 
         [$worst, $unranked] = $this->worst($outcomes);
@@ -64,32 +83,84 @@ final class ScenarioRunner implements ProvidesMethodology
             'worst' => $worst,
             'maxima' => $this->maxima($outcomes),
             'unranked' => $unranked,
+            'refusal' => null,
         ];
     }
 
-    /**
-     * @param  list<RevenueStream>  $streams
-     * @param  array<string,FounderMonth>  $founderMonths
-     * @param  list<CashMovement>  $movements
-     */
-    private function outcome(
-        ForecastCalendar $calendar,
-        ActualsWindow $actuals,
-        ScenarioDefinition $definition,
-        array $streams,
-        array $founderMonths,
-        CashOpening $opening,
-        array $movements,
-        ReservePolicy $policy,
-    ): ScenarioOutcome {
-        $shockedMovements = $this->application->shockCollections($actuals, $movements, $definition);
-        $ledger = (new CashLedger)->calculate($calendar, $opening, $shockedMovements);
+    private function outcome(ForecastModelInputs $inputs, ActualsWindow $actuals, ScenarioDefinition $definition): ScenarioOutcome
+    {
+        // Reported from the unshocked streams on purpose: the report's whole
+        // job is to compare what the shock asked for against what the model
+        // did with it, which needs the base case beside the shocked one.
+        $report = $this->application->revenueShockReport(
+            $inputs->calendar, $actuals, $inputs->streams, $inputs->founderMonths, $definition);
 
-        return new ScenarioOutcome(
-            $definition,
-            $this->funding->calculate($ledger, $policy),
-            $this->application->revenueShockReport($calendar, $actuals, $streams, $founderMonths, $definition),
-        );
+        $opening = $inputs->cashOpening;
+        $policy = $inputs->reservePolicy;
+        if ($opening === null || $policy === null) {
+            return new ScenarioOutcome($definition, $this->unverifiable([
+                ...($opening === null ? ['cash_opening'] : []),
+                ...($policy === null ? ['reserve_policy'] : []),
+            ]), $report);
+        }
+
+        $shocked = $this->application->shockInputs($actuals, $inputs, $definition);
+        [$movements, , $dated, $flat] = $this->forecast->movements($shocked);
+        $ledger = (new CashLedger)->calculate($inputs->calendar, $opening,
+            $this->application->shockCollections($actuals, $movements, $definition));
+
+        $gaps = $this->gaps($dated, [...$flat, ...$ledger['missing']]);
+        if ($gaps !== []) {
+            // A ledger standing on an incomplete movement set does not get to
+            // publish a cash deficit. The measures stay absent so the scenario
+            // is listed as unranked rather than compared on a figure that is
+            // missing part of what it was built from.
+            return new ScenarioOutcome($definition, $this->unverifiable($gaps), $report);
+        }
+
+        return new ScenarioOutcome($definition, $this->funding->calculate($ledger, $policy), $report);
+    }
+
+    /**
+     * One reason per gap, however many dates it reached.
+     *
+     * @param  list<array{0:string,1:string}>  $dated
+     * @param  list<string>  $flat
+     * @return list<string>
+     */
+    private function gaps(array $dated, array $flat): array
+    {
+        $reasons = $flat;
+        foreach ($dated as [$reason]) {
+            $reasons[] = $reason;
+        }
+
+        return array_values(array_unique($reasons));
+    }
+
+    /**
+     * A scenario that cannot be measured, carrying why.
+     *
+     * Every measure is absent rather than zero. A zero deficit is a positive
+     * statement that the business needs nothing, and that is not what an
+     * unreadable input says.
+     *
+     * @param  list<string>  $missing
+     * @return FundingResult
+     */
+    private function unverifiable(array $missing): array
+    {
+        return ['status' => 'cannot_verify', 'lowest_cash' => null, 'lowest_cash_date' => null,
+            'cash_deficit' => null, 'reserve_target' => null, 'reserve_shortfall' => null,
+            'reserve_shortfall_date' => null, 'missing' => $missing];
+    }
+
+    /** @return RunResult */
+    private function refused(string $refusal): array
+    {
+        return ['engine_version' => self::VERSION, 'scope' => 'before_proposed_facility', 'status' => 'fail',
+            'outcomes' => [], 'worst' => ['scenario_id' => null, 'ranking_metric' => null, 'value' => null],
+            'maxima' => [], 'unranked' => [], 'refusal' => $refusal];
     }
 
     /** @param list<ScenarioOutcome> $outcomes */

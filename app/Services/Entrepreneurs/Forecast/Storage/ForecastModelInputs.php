@@ -91,6 +91,52 @@ final readonly class ForecastModelInputs
     ) {}
 
     /**
+     * The same reconstruction with its three cost-bearing sections replaced.
+     *
+     * A scenario is this reconstruction with shocked inputs run through the
+     * same engines, so it needs a copy that differs in exactly the sections a
+     * shock can reach and in nothing else. Streams carry the delivery volumes
+     * and the provider unit cost, fixed costs the overhead rates, assets the
+     * capital spend; every other section is a scenario-invariant and is
+     * carried across unchanged.
+     *
+     * Each field is passed by hand because the class is readonly and `clone
+     * with` is not available on the PHP version this runs on. That makes a
+     * field added later easy to forget, so `ForecastModelInputsCloneTest`
+     * compares every property by reflection and fails if one is dropped.
+     *
+     * @param  list<RevenueStream>  $streams
+     * @param  list<FixedCost>  $fixedCosts
+     * @param  list<AssetInput>  $assets
+     */
+    public function withCostInputs(array $streams, array $fixedCosts, array $assets): self
+    {
+        return new self(
+            calendar: $this->calendar,
+            streams: $streams,
+            founderMonths: $this->founderMonths,
+            cashOpening: $this->cashOpening,
+            bankOpening: $this->bankOpening,
+            tradeItems: $this->tradeItems,
+            ownerPaySteps: $this->ownerPaySteps,
+            assets: $assets,
+            taxPolicy: $this->taxPolicy,
+            taxPeriods: $this->taxPeriods,
+            actualMonths: $this->actualMonths,
+            reservePolicy: $this->reservePolicy,
+            ownerPaySource: $this->ownerPaySource,
+            ownerPayFirstPaymentOn: $this->ownerPayFirstPaymentOn,
+            openingEligibleLosses: $this->openingEligibleLosses,
+            fundingSources: $this->fundingSources,
+            fundingInventoryComplete: $this->fundingInventoryComplete,
+            fixedCosts: $fixedCosts,
+            fixedCostScheduleComplete: $this->fixedCostScheduleComplete,
+            taxCashPlan: $this->taxCashPlan,
+            ownerPayDeductible: $this->ownerPayDeductible,
+        );
+    }
+
+    /**
      * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool,tax_cash_plan:?TaxCashPlan,owner_pay_deductible:?bool}
      */
     public function driversPayload(): array
