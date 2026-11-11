@@ -36,3 +36,6 @@ auth.json
 # Image-optimiser backups (scripts/optimize-image.ps1)
 *.original.jpg
 /public/images/_originals
+
+# Generated per-shard PHPUnit configuration (scripts/phpunit-shard.php)
+/phpunit.shard.xml
