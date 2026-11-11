@@ -25,6 +25,7 @@ use App\Services\Entrepreneurs\ReleaseGate\ForecastModelFacts;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\ScenarioRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\StressDimensionRule;
+use App\Services\Entrepreneurs\ReleaseGate\ScenarioFacts;
 use App\Services\Entrepreneurs\ReleaseGate\SourceRecords;
 use App\Services\Entrepreneurs\ReleaseGate\SourceVersion;
 use PHPUnit\Framework\TestCase;
@@ -292,6 +293,50 @@ final class ScenarioFactsTest extends TestCase
         self::assertGreaterThan(0, $checked, 'No scenario stated a profit decomposition at all.');
     }
 
+    /**
+     * Every scenario claims the same baseline, which is the evidence that none
+     * of them was built from a different model.
+     *
+     * The identity is the unshocked reconstruction's. Hashing the shocked
+     * inputs would give each scenario its own and fail the rule's comparison
+     * by construction.
+     */
+    public function test_every_scenario_claims_the_same_unshocked_baseline(): void
+    {
+        $baselines = [];
+        $shocks = [];
+        foreach ($this->capture() as $fact) {
+            if ($fact->key === 'scenario.baseline') {
+                $baselines[$fact->scenario] = $fact->value;
+            }
+            if ($fact->key === 'scenario.shocks') {
+                $shocks[$fact->scenario] = $fact->value;
+            }
+        }
+
+        self::assertArrayHasKey('base', $baselines);
+        self::assertArrayHasKey('cost_upside', $baselines);
+        self::assertCount(1, array_unique(array_values($baselines)),
+            'A scenario claiming a different baseline was built from a different model.');
+        self::assertSame('[]', $shocks['base'], 'The base case declares no shock, and says so.');
+        self::assertStringContainsString('cost_rate_factor', (string) $shocks['cost_upside'],
+            'A scenario has to declare what it changed.');
+    }
+
+    /** A baseline that does not move when the model does would pass the rule's
+     * comparison while proving nothing about which model was used.
+     */
+    public function test_the_baseline_identity_follows_the_reconstruction(): void
+    {
+        $first = ScenarioFacts::baseline($this->inputs());
+        $changed = ScenarioFacts::baseline($this->inputs(fixedCosts: [
+            new FixedCost('rent', 'lease', '2000', '1', 'monthly', '2026-02-10', '2026-06-10', 7, true),
+        ]));
+
+        self::assertNotSame($first, $changed);
+        self::assertSame($first, ScenarioFacts::baseline($this->inputs()), 'The same model has to hash the same.');
+    }
+
     /** SS-01 could only ever report its scenarios as not established, because
      * nothing stated any. It now reaches the reconciliation itself.
      */
@@ -303,6 +348,10 @@ final class ScenarioFactsTest extends TestCase
         self::assertNotContains('scenarios', $ids, 'SS-01 still sees no scenarios at all.');
         self::assertNotSame([], array_filter($ids, fn (string $id): bool => str_starts_with($id, 'extremum:')),
             'SS-01 did not reach the check that reconciles a trough to its curve.');
+        self::assertNotSame([], array_filter($ids, fn (string $id): bool => str_starts_with($id, 'baseline:')),
+            'SS-01 did not reach the check that holds each scenario to the shared baseline.');
+        self::assertSame([], array_values(array_filter($ids, fn (string $id): bool => str_starts_with($id, 'inputs:'))),
+            'A scenario stating its baseline and shocks has its inputs established.');
     }
 
     /** @return list<Fact> */

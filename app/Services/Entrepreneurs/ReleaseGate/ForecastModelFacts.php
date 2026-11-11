@@ -701,6 +701,17 @@ final class ForecastModelFacts implements ProvidesMethodology
             $facts[] = new Fact('scenario.lowest_cash', $trough, unit: 'NZD',
                 basis: 'lowest_month_end_closing_balance', confirmed: true, sources: $at);
         }
+        // The base case's own baseline and shocks, stated here for the reason
+        // its trough is: SS-01 reads the base case whenever the reconstruction
+        // closes its months, which happens whether or not a scenario set can
+        // be built. Left to the scenario run, the base case would report its
+        // inputs unestablished on every plan without one.
+        $facts[] = new Fact('scenario.baseline', ScenarioFacts::baseline($inputs),
+            basis: 'unshocked_reconstruction', confirmed: true, sources: $at);
+        // Not absent, and not a placeholder: the base case declares no shock,
+        // and an empty declaration is what says so.
+        $facts[] = new Fact('scenario.shocks', '[]', basis: 'the_base_case_declares_no_shock',
+            confirmed: true, sources: $at);
         foreach ($run['movements'] as $movement) {
             $period = $movement->date === null ? null : substr($movement->date, 0, 7);
             if ($period === null || ! isset($offsets[$period])) {
