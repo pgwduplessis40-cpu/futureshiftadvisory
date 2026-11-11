@@ -23,12 +23,28 @@ on:
 # the release gate could not tell apart from a verdict, so a timeout blocked a
 # release until somebody re-ran it by hand.
 #
-# The work is now three stages. `static` builds the assets and runs every
-# analysis that does not need a database. `test` runs the suite in shards, each
-# on its own runner. `ci` is the aggregate, and it keeps the job names
-# `ci (8.4)` and `ci (8.5)` deliberately: those exact strings are required
-# checks in `release-version.yml` and may be branch-protection rules too, so
-# the split happens underneath them rather than renaming the contract.
+# The work is now four stages. `static` builds the assets and runs every
+# analysis that does not need a database. `test` runs the suite in shards on
+# 8.5, which is where the fast failure signal comes from. `coverage` runs the
+# whole suite once on 8.4 under pcov. `ci` is the aggregate, and it keeps the
+# job names `ci (8.4)` and `ci (8.5)` deliberately: those exact strings are
+# required checks in `release-version.yml` and may be branch-protection rules
+# too, so the split happens underneath them rather than renaming the contract.
+#
+# The coverage run is deliberately not sharded, and that is a measured decision
+# rather than a missing feature. Coverage from a split suite has to be unioned,
+# and a union is not quite the same measurement: the executable lines PHPUnit
+# can see in a file depend on what the run loaded, so shards legitimately
+# report 785 and 786 statements for one source, and a handful of lines covered
+# during autoload in a whole run are not covered in any single shard. Merging
+# was measured against an unsharded reference at eighteen covered lines in
+# eight thousand adrift - conservative, never inflating, but adrift. The
+# committed baseline in `quality/coverage-baseline.json` was produced by
+# unsharded runs and `assert-coverage-regression.php` ratchets it, so a pull
+# request may raise a figure but never lower one. A measurement that reads
+# fractionally low against a baseline that cannot be lowered is a gate that
+# fails on work that did not break anything, so coverage is measured the way
+# its baseline was.
 #
 # Raising the shard count buys wall clock and costs runner minutes, since every
 # shard repeats the install and the asset build. Three is the balance chosen
@@ -181,6 +197,8 @@ jobs:
           fi
           php scripts/assert-mass-assignment.php "${comparison_ref}"
 
+  # The fast signal. Sharded, no coverage, so a broken test surfaces in minutes
+  # rather than after the whole suite has been walked once.
   test:
     name: test (${{ matrix.php-version }}, shard ${{ matrix.shard }})
     runs-on: ubuntu-latest
@@ -202,15 +220,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php-version: ['8.4', '8.5']
+        php-version: ['8.5']
         shard: [1, 2, 3]
-        include:
-          - php-version: '8.4'
-            coverage: pcov
-            coverage-gates: 'true'
-          - php-version: '8.5'
-            coverage: none
-            coverage-gates: 'false'
 
     steps:
       - name: Checkout code
@@ -221,7 +232,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
-          coverage: ${{ matrix.coverage }}
+          coverage: none
           extensions: pdo_pgsql, pgsql, zip
           ini-values: max_execution_time=0, memory_limit=1024M
 
@@ -270,71 +281,47 @@ jobs:
       - name: Tests
         shell: bash
         env:
-          RUN_COVERAGE_GATES: ${{ matrix.coverage-gates }}
           SHARD_INDEX: ${{ matrix.shard }}
           SHARD_COUNT: '3'
         run: |
           set -euo pipefail
           php scripts/phpunit-shard.php "$((SHARD_INDEX - 1))" "${SHARD_COUNT}"
-          if [ "${RUN_COVERAGE_GATES}" = "true" ]; then
-            php scripts/ensure-coverage-driver.php
-            php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit -c phpunit.shard.xml \
-              --log-junit "storage/logs/phpunit-${SHARD_INDEX}.xml" \
-              --coverage-clover "storage/logs/clover-${SHARD_INDEX}.xml" 2>&1 | tee storage/logs/phpunit-console.log
-          else
-            php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit -c phpunit.shard.xml \
-              --log-junit "storage/logs/phpunit-${SHARD_INDEX}.xml" --no-coverage 2>&1 | tee storage/logs/phpunit-console.log
-          fi
-
-      - name: Verify shard coverage artifact
-        if: ${{ always() && matrix.coverage-gates == 'true' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s "storage/logs/clover-${{ matrix.shard }}.xml"
-          php -r 'simplexml_load_file("storage/logs/clover-${{ matrix.shard }}.xml") ?: exit(1);'
-
-      - name: Upload shard coverage
-        if: ${{ always() && matrix.coverage-gates == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: clover-${{ matrix.php-version }}-${{ matrix.shard }}
-          path: |
-            storage/logs/clover-${{ matrix.shard }}.xml
-            storage/logs/phpunit-${{ matrix.shard }}.xml
-          if-no-files-found: error
-
-      - name: Upload shard manifest
-        if: ${{ always() && matrix.coverage-gates == 'true' }}
-        shell: bash
-        run: cp storage/logs/shard.json "storage/logs/shard-${{ matrix.shard }}.json"
+          php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit -c phpunit.shard.xml \
+            --log-junit "storage/logs/phpunit-${SHARD_INDEX}.xml" --no-coverage 2>&1 | tee storage/logs/phpunit-console.log
 
       - name: Store shard manifest
-        if: ${{ always() && matrix.coverage-gates == 'true' }}
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: shard-manifest-${{ matrix.php-version }}-${{ matrix.shard }}
-          path: storage/logs/shard-${{ matrix.shard }}.json
+          name: shard-manifest-${{ matrix.shard }}
+          path: storage/logs/shard.json
           if-no-files-found: error
 
       - name: Report PHPUnit failures
         if: failure()
         run: php scripts/report-phpunit-failures.php "storage/logs/phpunit-${{ matrix.shard }}.xml"
 
-  ci:
-    # The aggregate the rest of the repository depends on. `release-version.yml`
-    # requires the names `ci (8.4)` and `ci (8.5)` exactly, so they outlive the
-    # split beneath them. Both wait on every stage, which makes each one mean
-    # "the whole of this commit's analysis and suite passed" rather than only
-    # one interpreter's share of it.
-    name: ci (${{ matrix.php-version }})
-    needs: [static, test]
+  # The whole suite, once, under pcov, measured exactly as the committed
+  # baseline was. See the note at the top of this file for why this one is not
+  # sharded.
+  coverage:
+    name: coverage (8.4)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        php-version: ['8.4', '8.5']
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: futureshift_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: test!@#456
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d futureshift_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -343,42 +330,156 @@ jobs:
           fetch-depth: 0
 
       - name: Setup PHP
-        if: ${{ matrix.php-version == '8.4' }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+          coverage: pcov
+          extensions: pdo_pgsql, pgsql, zip
+          ini-values: max_execution_time=0, memory_limit=1024M
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-8.4-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-8.4-
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Copy Testing Environment File
+        run: cp .env.testing .env
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+
+      - name: Discover Laravel packages
+        run: php artisan package:discover --ansi
+
+      - name: Prepare test database
+        run: php artisan migrate:fresh --env=testing --force
+
+      - name: Build Assets
+        env:
+          WAYFINDER_GENERATE: 'false'
+        run: npm run build
+
+      - name: Verify PHP test runtime
+        shell: bash
+        run: |
+          max_execution_time="$(php -r 'echo ini_get("max_execution_time");')"
+          echo "PHP max_execution_time=${max_execution_time}"
+          test "${max_execution_time}" = "0"
+
+      - name: Tests with coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          php scripts/ensure-coverage-driver.php
+          php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit \
+            --log-junit storage/logs/phpunit.xml \
+            --coverage-clover storage/logs/clover.xml 2>&1 | tee storage/logs/phpunit-console.log
+
+      - name: Enforce coverage thresholds
+        shell: bash
+        run: |
+          set -euo pipefail
+          php scripts/assert-coverage-thresholds.php storage/logs/clover.xml storage/logs/coverage-summary.json
+          comparison_ref="$(git rev-parse --verify HEAD^)"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            comparison_ref="origin/${{ github.base_ref }}"
+          fi
+          php scripts/assert-coverage-regression.php storage/logs/coverage-summary.json quality/coverage-baseline.json "${comparison_ref}"
+
+      - name: Verify coverage artifacts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s storage/logs/phpunit.xml
+          test -s storage/logs/clover.xml
+          test -s storage/logs/coverage-summary.json
+          php -r 'simplexml_load_file("storage/logs/clover.xml") ?: exit(1);'
+
+      - name: Upload Clover coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clover-php-8.4
+          path: |
+            storage/logs/clover.xml
+            storage/logs/coverage-summary.json
+            storage/logs/phpunit.xml
+            storage/logs/phpunit-console.log
+          if-no-files-found: error
+
+      - name: Publish coverage summary
+        if: always()
+        shell: bash
+        run: |
+          if [ ! -f storage/logs/coverage-summary.json ]; then
+            echo "Coverage summary was not produced."
+            exit 1
+          fi
+
+          {
+            echo "### PHP coverage contract"
+            echo '```json'
+            cat storage/logs/coverage-summary.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report PHPUnit failures
+        if: failure()
+        run: php scripts/report-phpunit-failures.php storage/logs/phpunit.xml
+
+  ci:
+    # The aggregate the rest of the repository depends on. `release-version.yml`
+    # requires the names `ci (8.4)` and `ci (8.5)` exactly, so they outlive the
+    # split beneath them. Both wait on every stage, which makes each one mean
+    # "the whole of this commit's analysis and suite passed" rather than only
+    # one interpreter's share of it.
+    name: ci (${{ matrix.php-version }})
+    needs: [static, test, coverage]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.4', '8.5']
+
+    steps:
+      - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          tools: composer:v2
           coverage: none
-          ini-values: memory_limit=1024M
-
-      - name: Download shard coverage
-        if: ${{ matrix.php-version == '8.4' }}
-        uses: actions/download-artifact@v4
-        with:
-          pattern: clover-8.4-*
-          path: storage/logs/shards
-          merge-multiple: true
 
       - name: Download shard manifests
-        if: ${{ matrix.php-version == '8.4' }}
         uses: actions/download-artifact@v4
         with:
-          pattern: shard-manifest-8.4-*
+          pattern: shard-manifest-*
           path: storage/logs/manifests
-          merge-multiple: true
 
-      - name: Verify the shards together are the whole suite
-        if: ${{ matrix.php-version == '8.4' }}
+      - name: Verify the shards together were the whole suite
         shell: bash
         run: |
           set -euo pipefail
           # The slices are exhaustive by construction, but the shard count is
           # stated twice in this file — the matrix list and SHARD_COUNT — and a
-          # disagreement would leave a slice unrun while every job reported
-          # success. Checked from the shards' own numbers so it cannot happen
-          # quietly.
+          # disagreement would leave a slice unrun while every job still
+          # reported success. Checked from the shards' own numbers, because a
+          # suite that quietly ran less than it claimed is the one failure a
+          # test split must never have.
           php -r '
-            $manifests = glob("storage/logs/manifests/shard-*.json");
+            $manifests = glob("storage/logs/manifests/*/shard.json");
             $seen = [];
             $files = 0;
             $total = null;
@@ -394,7 +495,7 @@ jobs:
               $seen[$data["index"]] = true;
               $files += $data["files"];
             }
-            if (count($manifests) !== $count || count($seen) !== $count) {
+            if ($count === null || count($manifests) !== $count || count($seen) !== $count) {
               fwrite(STDERR, sprintf("Expected %s shards, received %d.\n", var_export($count, true), count($manifests)));
               exit(1);
             }
@@ -404,61 +505,3 @@ jobs:
             }
             printf("The %d shards ran all %d test files.\n", $count, $total);
           '
-
-      - name: Merge shard coverage
-        if: ${{ matrix.php-version == '8.4' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Merging what happened to arrive would report a coverage figure for
-          # a suite that did not finish, and the threshold gate cannot tell a
-          # missing shard from an uncovered file.
-          shards=(storage/logs/shards/clover-*.xml)
-          php scripts/merge-clover.php storage/logs/clover.xml "${shards[@]}"
-
-      - name: Enforce coverage thresholds
-        if: ${{ matrix.php-version == '8.4' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          php scripts/assert-coverage-thresholds.php storage/logs/clover.xml storage/logs/coverage-summary.json
-          comparison_ref="$(git rev-parse --verify HEAD^)"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            comparison_ref="origin/${{ github.base_ref }}"
-          fi
-          php scripts/assert-coverage-regression.php storage/logs/coverage-summary.json quality/coverage-baseline.json "${comparison_ref}"
-
-      - name: Verify coverage artifacts
-        if: ${{ always() && matrix.php-version == '8.4' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s storage/logs/clover.xml
-          test -s storage/logs/coverage-summary.json
-          php -r 'simplexml_load_file("storage/logs/clover.xml") ?: exit(1);'
-
-      - name: Upload merged coverage report
-        if: ${{ always() && matrix.php-version == '8.4' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: clover-php-${{ matrix.php-version }}
-          path: |
-            storage/logs/clover.xml
-            storage/logs/coverage-summary.json
-          if-no-files-found: error
-
-      - name: Publish coverage summary
-        if: ${{ always() && matrix.php-version == '8.4' }}
-        shell: bash
-        run: |
-          if [ ! -f storage/logs/coverage-summary.json ]; then
-            echo "Coverage summary was not produced."
-            exit 1
-          fi
-
-          {
-            echo "### PHP coverage contract"
-            echo '```json'
-            cat storage/logs/coverage-summary.json
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
