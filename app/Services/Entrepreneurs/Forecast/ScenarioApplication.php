@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs\Forecast;
 
+use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Support\Methodology\ProvidesMethodology;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
@@ -25,7 +26,7 @@ use Brick\Math\RoundingMode;
  */
 final class ScenarioApplication implements ProvidesMethodology
 {
-    public const VERSION = 'phase-2d.1';
+    public const VERSION = 'phase-2e.1';
 
     /** Volume shocks scale delivery, booking and invoicing units together: a
      * reduced delivery volume that keeps its original invoicing would invent
@@ -41,21 +42,134 @@ final class ScenarioApplication implements ProvidesMethodology
     }
 
     /**
+     * The reconstruction a scenario is actually run on.
+     *
+     * Volume and cost-rate shocks change inputs, so they belong here rather
+     * than as a multiplier laid over a finished figure. Applying them to the
+     * reconstruction and re-running the engines is what makes a shock reach
+     * the cash ledger at all, and the routes are worth naming because they are
+     * narrower than they look. A fixed-cost rate reaches cash directly: the
+     * recurrence raises the invoices the ledger pays. An asset's cost does
+     * too, through the payment its schedule dates. A volume shock reaches cash
+     * only through revenue-linked owner pay, because forecast stream revenue
+     * has no cash leg in this engine - operating receipts come from trade
+     * items, which an advisor types as amounts rather than deriving from
+     * volumes. The direct-cost rate reaches profit and not cash for the same
+     * reason: contractor cost is recognised, never scheduled.
+     *
+     * The collection-delay shock is deliberately not applied here. It moves
+     * dates on movements the engine has already built, so it stays in
+     * `shockCollections()`, which the caller applies to the built set.
+     *
+     * A definition with no input-level shock returns the reconstruction
+     * itself, not an equal copy. The base scenario is then the same object the
+     * main model ran, so its ledger is that ledger rather than a second
+     * computation that has to be checked for agreement with it.
+     */
+    public function shockInputs(ActualsWindow $actuals, ForecastModelInputs $inputs, ScenarioDefinition $definition): ForecastModelInputs
+    {
+        $cost = $definition->shocksOfType(ScenarioShock::TYPE_COST_RATE_FACTOR);
+        if ($definition->shocksOfType(ScenarioShock::TYPE_VOLUME_FACTOR) === [] && $cost === []) {
+            return $inputs;
+        }
+
+        return $inputs->withCostInputs(
+            $this->shockStreams($actuals, $inputs->streams, $definition),
+            $this->shockFixedCostRates($actuals, $inputs->fixedCosts, $definition),
+            $this->shockCapitalCosts($actuals, $inputs->assets, $definition),
+        );
+    }
+
+    /**
+     * Applies every shock that reaches a stream: volume factors to the booked,
+     * delivered and invoiced units, and a direct-cost rate factor to the
+     * provider's unit cost.
+     *
+     * The two are targeted differently on purpose. A volume shock names the
+     * streams it covers, because a downside rarely hits every line of a
+     * business equally; a cost-rate shock names the cost category, because a
+     * rate rise reaches whatever is bought at that rate.
+     *
      * @param  list<RevenueStream>  $streams
      * @return list<RevenueStream>
      */
     public function shockStreams(ActualsWindow $actuals, array $streams, ScenarioDefinition $definition): array
     {
-        $shocks = $definition->shocksOfType(ScenarioShock::TYPE_VOLUME_FACTOR);
-        if ($shocks === []) {
+        $volume = $definition->shocksOfType(ScenarioShock::TYPE_VOLUME_FACTOR);
+        $direct = $this->targeting($definition->shocksOfType(ScenarioShock::TYPE_COST_RATE_FACTOR), 'direct_cost');
+        if ($volume === [] && $direct === []) {
             return $streams;
         }
 
-        $this->assertEligiblePeriods($actuals, $shocks);
+        $this->assertEligiblePeriods($actuals, [...$volume, ...$direct]);
 
         $shocked = [];
         foreach ($streams as $stream) {
-            $shocked[] = $this->shockStream($actuals, $stream, $shocks);
+            $shocked[] = $this->shockStream($actuals, $stream, $volume, $direct);
+        }
+
+        return $shocked;
+    }
+
+    /**
+     * Scales the rate behind each recurring overhead.
+     *
+     * The rate is what the recurrence charges, so scaling it moves the monthly
+     * expense and the invoices it raises together. Scaling the generated
+     * invoices instead would leave the expense at its unshocked figure and put
+     * the two permanently out of step.
+     *
+     * @param  list<FixedCost>  $costs
+     * @return list<FixedCost>
+     */
+    public function shockFixedCostRates(ActualsWindow $actuals, array $costs, ScenarioDefinition $definition): array
+    {
+        $shocks = $this->targeting($definition->shocksOfType(ScenarioShock::TYPE_COST_RATE_FACTOR), 'fixed_cost');
+        if ($shocks === []) {
+            return $costs;
+        }
+
+        $this->assertWholeHorizon($shocks, 'fixed costs');
+        $this->assertEligiblePeriods($actuals, $shocks);
+        $factor = $this->factor($shocks, null);
+
+        $shocked = [];
+        foreach ($costs as $cost) {
+            $shocked[] = new FixedCost($cost->id, $cost->source, $this->scaleAmount($cost->rate, $factor),
+                $cost->quantity, $cost->frequency, $cost->firstInvoiceOn, $cost->lastInvoiceOn,
+                $cost->creditorDays, $cost->reviewed);
+        }
+
+        return $shocked;
+    }
+
+    /**
+     * Scales what each asset costs to buy.
+     *
+     * The depreciation charge and the payment both come off this one figure,
+     * so a capex shock reaches the profit and the cash side from a single
+     * change rather than two that could disagree.
+     *
+     * @param  list<AssetInput>  $assets
+     * @return list<AssetInput>
+     */
+    public function shockCapitalCosts(ActualsWindow $actuals, array $assets, ScenarioDefinition $definition): array
+    {
+        $shocks = $this->targeting($definition->shocksOfType(ScenarioShock::TYPE_COST_RATE_FACTOR), 'capex');
+        if ($shocks === []) {
+            return $assets;
+        }
+
+        $this->assertWholeHorizon($shocks, 'capital costs');
+        $this->assertEligiblePeriods($actuals, $shocks);
+        $factor = $this->factor($shocks, null);
+
+        $shocked = [];
+        foreach ($assets as $asset) {
+            $shocked[] = new AssetInput($asset->id, $asset->source, $this->scaleAmount($asset->cost, $factor),
+                $asset->classification, $asset->policySource, $asset->reviewed, $asset->paidOn,
+                $asset->recognitionStartOn, $asset->lifeMonths, $asset->residual, $asset->method,
+                $asset->openingDepreciation);
         }
 
         return $shocked;
@@ -227,20 +341,23 @@ final class ScenarioApplication implements ProvidesMethodology
         return $reasons;
     }
 
-    /** @param list<ScenarioShock> $shocks */
-    private function shockStream(ActualsWindow $actuals, RevenueStream $stream, array $shocks): RevenueStream
+    /**
+     * @param  list<ScenarioShock>  $volume
+     * @param  list<ScenarioShock>  $direct
+     */
+    private function shockStream(ActualsWindow $actuals, RevenueStream $stream, array $volume, array $direct): RevenueStream
     {
         $applicable = array_values(array_filter(
-            $shocks,
+            $volume,
             static fn (ScenarioShock $shock): bool => $shock->appliesToTarget($stream->id)
         ));
-        if ($applicable === []) {
+        if ($applicable === [] && $direct === []) {
             return $stream;
         }
 
         $schedule = [];
         foreach ($stream->schedule as $period => $month) {
-            $schedule[$period] = $this->shockMonth($actuals, (string) $period, $month, $applicable);
+            $schedule[$period] = $this->shockMonth($actuals, (string) $period, $month, $applicable, $direct);
         }
 
         return new RevenueStream(
@@ -256,26 +373,27 @@ final class ScenarioApplication implements ProvidesMethodology
         );
     }
 
-    /** @param list<ScenarioShock> $shocks */
-    private function shockMonth(ActualsWindow $actuals, string $period, StreamMonth $month, array $shocks): StreamMonth
+    /**
+     * @param  list<ScenarioShock>  $volume
+     * @param  list<ScenarioShock>  $direct
+     */
+    private function shockMonth(ActualsWindow $actuals, string $period, StreamMonth $month, array $volume, array $direct): StreamMonth
     {
         if (! in_array($period, $actuals->forecastPeriods, true)) {
             return $month;
         }
 
-        $factor = null;
-        foreach ($shocks as $shock) {
-            if ($shock->appliesToPeriod($period)) {
-                $factor = $factor === null ? $shock->factorValue() : $factor->multipliedBy($shock->factorValue());
-            }
-        }
-        if ($factor === null) {
+        $volumeFactor = $this->factor($volume, $period);
+        $costFactor = $this->factor($direct, $period);
+        if ($volumeFactor === null && $costFactor === null) {
             return $month;
         }
 
         $values = [];
         foreach (self::VOLUME_FIELDS as $field) {
-            $values[$field] = $this->scaleUnits($month->{$field}, $factor);
+            $values[$field] = $volumeFactor === null
+                ? $month->{$field}
+                : $this->scaleUnits($month->{$field}, $volumeFactor);
         }
 
         return new StreamMonth(
@@ -285,9 +403,87 @@ final class ScenarioApplication implements ProvidesMethodology
             $month->founderHours,
             $month->additionalCapacityUnits,
             $month->provider,
-            $month->providerUnitCost,
+            // A unit cost is a driver like the volumes beside it, not a cash
+            // amount, so it keeps driver precision. Rounding it to the cent
+            // here would compound that cent through every unit and month.
+            $costFactor === null ? $month->providerUnitCost : $this->scaleUnits($month->providerUnitCost, $costFactor),
             $month->noCostBasis,
         );
+    }
+
+    /**
+     * The shocks out of a set that reach one named target.
+     *
+     * @param  list<ScenarioShock>  $shocks
+     * @return list<ScenarioShock>
+     */
+    private function targeting(array $shocks, string $target): array
+    {
+        return array_values(array_filter(
+            $shocks,
+            static fn (ScenarioShock $shock): bool => $shock->appliesToTarget($target)
+        ));
+    }
+
+    /**
+     * The compounded factor a set of shocks applies to one period, or to a
+     * figure that has no period of its own when `$period` is null.
+     *
+     * Two shocks reaching the same figure multiply rather than the last one
+     * winning, so a combined scenario is the composition of its parts.
+     *
+     * @param  list<ScenarioShock>  $shocks
+     */
+    private function factor(array $shocks, ?string $period): ?BigDecimal
+    {
+        $factor = null;
+        foreach ($shocks as $shock) {
+            if ($period !== null && ! $shock->appliesToPeriod($period)) {
+                continue;
+            }
+            $factor = $factor === null ? $shock->factorValue() : $factor->multipliedBy($shock->factorValue());
+        }
+
+        return $factor;
+    }
+
+    /**
+     * Refuses a cost-rate shock scoped to particular months on a figure that
+     * has none.
+     *
+     * A fixed cost's rate and an asset's cost are one arrangement-level
+     * figure each. A shock covering three months of a five-year horizon cannot
+     * be expressed on them: applying it whole would overstate the shock across
+     * every other month, and ignoring the scope would silently drop it. Both
+     * are worse than saying the shock is unusable as declared.
+     *
+     * @param  list<ScenarioShock>  $shocks
+     */
+    private function assertWholeHorizon(array $shocks, string $subject): void
+    {
+        foreach ($shocks as $shock) {
+            if ($shock->periods !== null) {
+                throw new \InvalidArgumentException(sprintf(
+                    'A cost-rate shock on %s cannot be scoped to named months: the rate is one arrangement-level figure with no month of its own.',
+                    $subject,
+                ));
+            }
+        }
+    }
+
+    /**
+     * Scales a cash amount, which is carried in cents.
+     *
+     * An absent amount stays absent: scaling null would invent a cost.
+     */
+    private function scaleAmount(?string $amount, ?BigDecimal $factor): ?string
+    {
+        $value = DriverNumbers::read($amount);
+        if ($value === null || $factor === null) {
+            return $amount;
+        }
+
+        return DriverNumbers::money($value->multipliedBy($factor));
     }
 
     /** A delay moves money in later, never out later: shifting a payment would
@@ -328,7 +524,8 @@ final class ScenarioApplication implements ProvidesMethodology
         );
     }
 
-    /** An unknown unit count stays unknown: scaling null would invent a volume.
+    /** An unknown driver stays unknown: scaling null would invent a volume or a
+     * rate that nobody stated.
      *
      * Units are carried at the eight decimal places the driver contract allows
      * and then trimmed to their shortest exact form, so a shocked whole number

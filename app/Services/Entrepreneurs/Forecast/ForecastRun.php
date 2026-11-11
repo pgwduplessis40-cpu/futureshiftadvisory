@@ -397,9 +397,15 @@ final class ForecastRun implements ProvidesMethodology
      * each asset are numbered above the highest of those rather than from
      * zero, which is where a collision would otherwise come from.
      *
+     * Public because the scenario run needs the built set before it is
+     * ledgered: a collection-delay shock moves dates on these movements, and
+     * `cash()` builds and ledgers in one step with no seam to apply it at.
+     * Returned as the four parts rather than a ledger so the caller keeps the
+     * gaps, which decide whether a scenario may publish a figure at all.
+     *
      * @return array{list<CashMovement>,int,list<array{0:string,1:string}>,list<string>}
      */
-    private function movements(ForecastModelInputs $inputs): array
+    public function movements(ForecastModelInputs $inputs): array
     {
         $opens = $inputs->calendar->startMonth.'-01';
         $movements = [];
