@@ -96,12 +96,10 @@ final class ScenarioRunner implements ProvidesMethodology
             $inputs->calendar, $actuals, $inputs->streams, $inputs->founderMonths, $definition);
 
         $opening = $inputs->cashOpening;
-        $policy = $inputs->reservePolicy;
-        if ($opening === null || $policy === null) {
-            return new ScenarioOutcome($definition, $this->unverifiable([
-                ...($opening === null ? ['cash_opening'] : []),
-                ...($policy === null ? ['reserve_policy'] : []),
-            ]), $report);
+        if ($opening === null) {
+            // Without a starting balance there is no curve to draw at all, so
+            // this one states nothing rather than a shape with no floor.
+            return new ScenarioOutcome($definition, $this->unverifiable(['cash_opening']), $report);
         }
 
         $shocked = $this->application->shockInputs($actuals, $inputs, $definition);
@@ -109,16 +107,34 @@ final class ScenarioRunner implements ProvidesMethodology
         $ledger = (new CashLedger)->calculate($inputs->calendar, $opening,
             $this->application->shockCollections($actuals, $movements, $definition));
 
+        $curve = ['months' => $ledger['months'], 'lowest_cash' => $ledger['lowest_cash'],
+            'lowest_cash_date' => $ledger['lowest_cash_date']];
+        // Recognised from the shocked inputs, with the owner's pay read off
+        // the movements this scenario actually generates. A downside that
+        // lowers revenue lowers revenue-linked pay with it, so taking the pay
+        // from the base case would overstate the scenario's costs.
+        $profit = $this->forecast->profit($shocked, $movements);
+
         $gaps = $this->gaps($dated, [...$flat, ...$ledger['missing']]);
         if ($gaps !== []) {
             // A ledger standing on an incomplete movement set does not get to
             // publish a cash deficit. The measures stay absent so the scenario
             // is listed as unranked rather than compared on a figure that is
-            // missing part of what it was built from.
-            return new ScenarioOutcome($definition, $this->unverifiable($gaps), $report);
+            // missing part of what it was built from. The curve still travels
+            // with it: the months are what show a reader where the gap bit.
+            return new ScenarioOutcome($definition, $this->unverifiable($gaps), $report, $curve, $profit);
         }
 
-        return new ScenarioOutcome($definition, $this->funding->calculate($ledger, $policy), $report);
+        $policy = $inputs->reservePolicy;
+        if ($policy === null) {
+            // A reserve target is what the shortfall measures are measured
+            // against, and nobody has set one. The curve itself needs no
+            // policy, so it still stands: the months are established even
+            // where the reserve position is not.
+            return new ScenarioOutcome($definition, $this->unverifiable(['reserve_policy']), $report, $curve, $profit);
+        }
+
+        return new ScenarioOutcome($definition, $this->funding->calculate($ledger, $policy), $report, $curve, $profit);
     }
 
     /**

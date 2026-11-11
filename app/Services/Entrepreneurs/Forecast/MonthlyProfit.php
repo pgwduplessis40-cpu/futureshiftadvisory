@@ -25,7 +25,12 @@ use Brick\Math\BigDecimal;
  * Everything is recognised, not paid. The cash side of each of these lives in
  * the ledger and answers a different question.
  *
- * @phpstan-type ProfitMonth array{period:string,revenue:string|null,direct_costs:string|null,fixed_costs:string|null,one_off_income:string|null,one_off_costs:string|null,depreciation:string|null,asset_expense:string|null,owner_pay:string|null,profit:string|null}
+ * Interest is reported on its own line rather than inside the one-off costs it
+ * arrives with. It is a financing charge, not a cost of trading, and a
+ * decomposition that reads revenue less costs, depreciation and interest
+ * cannot be stated from a figure that has interest buried in it.
+ *
+ * @phpstan-type ProfitMonth array{period:string,revenue:string|null,direct_costs:string|null,fixed_costs:string|null,one_off_income:string|null,one_off_costs:string|null,interest:string|null,depreciation:string|null,asset_expense:string|null,owner_pay:string|null,profit:string|null}
  * @phpstan-type ProfitResult array{status:string,scope:string,months:list<ProfitMonth>,missing:list<string>}
  */
 final class MonthlyProfit implements ProvidesMethodology
@@ -68,7 +73,7 @@ final class MonthlyProfit implements ProvidesMethodology
             // Nothing here guesses it from the entity basis, which is free text.
             $missing[] = 'owner_pay.deductible';
         }
-        [$income, $costs, $unclassified] = $this->oneOffs($calendar, $tradeItems, $opens);
+        [$income, $costs, $interest, $unclassified] = $this->oneOffs($calendar, $tradeItems, $opens);
         $missing = [...$missing, ...$unclassified];
         $months = [];
         foreach ($calendar->periods as $period) {
@@ -78,6 +83,7 @@ final class MonthlyProfit implements ProvidesMethodology
                 'fixed_costs' => $fixedCosts[$period] ?? null,
                 'one_off_income' => $income[$period] ?? '0.00',
                 'one_off_costs' => $costs[$period] ?? '0.00',
+                'interest' => $interest[$period] ?? '0.00',
                 'depreciation' => $assets[$period]['depreciation'] ?? '0.00',
                 'asset_expense' => $assets[$period]['expense'] ?? '0.00',
                 // A drawing is not an expense, so an entity that treats it as
@@ -111,13 +117,18 @@ final class MonthlyProfit implements ProvidesMethodology
      * forecast opens it is an opening debtor or creditor, which the opening
      * balances already carry; after it closes it is outside the horizon.
      *
+     * Interest comes back apart from the other costs. It arrives the same way
+     * and belongs to the same month, but it is a financing charge rather than
+     * a cost of trading, and the profit decomposition states the two
+     * separately.
+     *
      * @param  list<TradeItem>  $items
-     * @return array{0:array<string,string>,1:array<string,string>,2:list<string>}
+     * @return array{0:array<string,string>,1:array<string,string>,2:array<string,string>,3:list<string>}
      */
     private function oneOffs(ForecastCalendar $calendar, array $items, string $opens): array
     {
         $closes = ForecastDates::end($calendar);
-        $income = $costs = [];
+        $income = $costs = $interest = [];
         $unclassified = [];
         $within = array_flip($calendar->periods);
         foreach ($items as $item) {
@@ -157,6 +168,11 @@ final class MonthlyProfit implements ProvidesMethodology
 
                 continue;
             }
+            if ($category === 'interest') {
+                $interest[$period] = (string) BigDecimal::of($interest[$period] ?? '0')->plus($item->amount);
+
+                continue;
+            }
             if (in_array($category, self::EXPENSE_CATEGORIES, true)) {
                 $costs[$period] = (string) BigDecimal::of($costs[$period] ?? '0')->plus($item->amount);
             }
@@ -168,7 +184,7 @@ final class MonthlyProfit implements ProvidesMethodology
         $money = fn (array $totals): array => array_map(
             fn (string $total): string => (string) AccountingNumbers::money(BigDecimal::of($total)), $totals);
 
-        return [$money($income), $money($costs), $unclassified];
+        return [$money($income), $money($costs), $money($interest), $unclassified];
     }
 
     /**
@@ -198,7 +214,7 @@ final class MonthlyProfit implements ProvidesMethodology
     private function total(array $parts): string
     {
         $profit = BigDecimal::of($parts['revenue'] ?? '0')->plus($parts['one_off_income'] ?? '0');
-        foreach (['direct_costs', 'fixed_costs', 'one_off_costs', 'depreciation', 'asset_expense', 'owner_pay'] as $cost) {
+        foreach (['direct_costs', 'fixed_costs', 'one_off_costs', 'interest', 'depreciation', 'asset_expense', 'owner_pay'] as $cost) {
             $profit = $profit->minus($parts[$cost] ?? '0');
         }
 

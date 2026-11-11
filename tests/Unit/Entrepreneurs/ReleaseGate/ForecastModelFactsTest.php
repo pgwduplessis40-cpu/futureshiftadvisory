@@ -213,9 +213,32 @@ final class ForecastModelFactsTest extends TestCase
 
         self::assertSame([], array_values(array_diff(ForecastModelFacts::SUPERSEDES, $keys, ForecastModelFacts::WITHHELD)),
             'A key taken off the budget has to be replaced here or declared as one this model cannot state.');
-        self::assertSame(['scenario.lowest_cash'],
+        self::assertSame([],
             array_values(array_intersect(ForecastModelFacts::SUPERSEDES, ForecastModelFacts::WITHHELD)),
             'Taking a figure off the budget and leaving it unstated is the exception, so it stays a short and named list.');
+    }
+
+    /** The one key that used to be taken off the budget and left unstated.
+     *
+     * It is stated from the base cash curve rather than from the scenario run,
+     * so it is replaced on every reconstruction that closes its months - not
+     * only on those whose scenarios can be established.
+     */
+    public function test_the_base_trough_is_the_lowest_month_end_closing_balance(): void
+    {
+        $facts = $this->keyed($this->capture($this->cashModel(months: 12)));
+
+        $closings = [];
+        foreach ($this->capture($this->cashModel(months: 12)) as $fact) {
+            if ($fact->key === 'cash.closing' && $fact->scenario === 'base' && $fact->value !== null) {
+                $closings[] = (float) $fact->value;
+            }
+        }
+
+        self::assertNotSame([], $closings);
+        self::assertSame(min($closings), (float) $facts['scenario.lowest_cash:business:current']->value,
+            'The trough has to be the minimum of the curve SS-01 reconciles it against.');
+        self::assertSame('lowest_month_end_closing_balance', $facts['scenario.lowest_cash:business:current']->basis);
     }
 
     public function test_a_funding_source_is_published_with_the_provenance_a_reconciliation_needs(): void
