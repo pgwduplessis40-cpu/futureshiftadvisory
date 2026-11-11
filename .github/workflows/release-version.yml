@@ -57,6 +57,21 @@ jobs:
                 continue
               fi
 
+              # A cancelled check is the absence of a result, not a bad one. A
+              # job killed by its own timeout, an evicted runner or a hand on
+              # the cancel button all conclude this way, and none of them says
+              # the commit is unfit to release. Treating it as a failure meant
+              # any one of them blocked that commit permanently until somebody
+              # re-ran this workflow by hand, so keep waiting for the re-run
+              # instead. The loop still gives up after its own thirty minutes,
+              # so a cancellation nobody attends to fails loudly rather than
+              # releasing on silence.
+              if [ "$conclusion" = "cancelled" ]; then
+                echo "${check_name} was cancelled; waiting for it to be re-run."
+                pending=yes
+                continue
+              fi
+
               if [ "$conclusion" != "success" ]; then
                 echo "ERROR: ${check_name} concluded ${conclusion:-without a result}." >&2
                 exit 1
