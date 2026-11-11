@@ -11,6 +11,7 @@ use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\ScenarioApplication;
 use App\Services\Entrepreneurs\Forecast\ScenarioCatalogue;
 use App\Services\Entrepreneurs\Forecast\ScenarioDefinition;
+use App\Services\Entrepreneurs\Forecast\ScenarioRunner;
 use App\Services\Entrepreneurs\Forecast\ScenarioShock;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Support\Methodology\ProvidesMethodology;
@@ -53,9 +54,28 @@ final class ScenarioFacts implements ProvidesMethodology
     private const UNITS = ['revenue_volume' => 'percent', 'slow_start_volume' => 'percent',
         'cost_rate' => 'percent', 'collection_delay' => 'days'];
 
+    /**
+     * What each line of the published decomposition contains.
+     *
+     * Stated on the fact because three of the five group parts the model keeps
+     * separately, and a reader comparing them against the model's own figures
+     * needs to know which went where.
+     *
+     * @var array<string,string>
+     */
+    private const PROFIT_BASIS = [
+        'revenue' => 'recurring_streams_plus_one_off_trading_income',
+        'variable_costs' => 'direct_costs_one_off_operating_costs_asset_expense_and_deductible_owner_pay',
+        'fixed_costs' => 'recognised_recurring_overheads',
+        'depreciation' => 'asset_schedule_depreciation',
+        'interest' => 'financing_charges_recognised_in_the_month',
+    ];
+
     public function __construct(
         private readonly ScenarioApplication $application = new ScenarioApplication,
         private readonly ForecastRun $run = new ForecastRun,
+        private readonly ScenarioRunner $runner = new ScenarioRunner,
+        private readonly CashCurveFacts $curve = new CashCurveFacts,
     ) {}
 
     public static function methodologyIds(): array
@@ -99,7 +119,133 @@ final class ScenarioFacts implements ProvidesMethodology
             $facts = [...$facts, ...$this->dimension($source, $inputs, $window, $definition, $definition->shocks[0])];
         }
 
+        return [...$facts, ...$this->curves($source, $inputs, $window, $definitions)];
+    }
+
+    /**
+     * Each scenario's cash curve and the trough it reaches.
+     *
+     * SS-01 reconciles a scenario's reported minimum against its own months,
+     * so both have to be stated and both have to mean the same thing. The
+     * minimum published here is the lowest month-end closing balance, not the
+     * ledger's own lowest cash: the ledger tracks the balance after every
+     * individual movement and can dip below every month end, so publishing
+     * that figure against a curve of month ends would report a trough the
+     * curve does not contain and fail a check that is working correctly.
+     *
+     * The base case is skipped entirely. Its months are already stated by the
+     * reconstruction's own ledger facts and its trough beside them, and a
+     * second record under either resolves to nothing - which would take
+     * MI-01's reading of the base curve with it.
+     *
+     * @param  list<ScenarioDefinition>  $definitions
+     * @return list<Fact>
+     */
+    private function curves(SourceRecords $source, ForecastModelInputs $inputs, ActualsWindow $window, array $definitions): array
+    {
+        $run = $this->runner->run($inputs, $window, $definitions);
+        if ($run['refusal'] !== null) {
+            // A refused scenario set states no curves. The refusal itself is
+            // the advisor's to see on the model screen; a gate fact asserting
+            // a trough from a run that stopped would be worse than silence.
+            return [];
+        }
+
+        $at = [$source->reference('forecast_model.drivers')];
+        $facts = [];
+        foreach ($run['outcomes'] as $outcome) {
+            $scenario = $outcome->definition->id;
+            $months = $outcome->ledger['months'] ?? [];
+            if ($months === [] || $scenario === ScenarioCatalogue::BASE) {
+                continue;
+            }
+            $facts = [...$facts, ...$this->curve->capture($source, $inputs->calendar, $months, $at, $scenario)];
+            $trough = $this->curve->trough($months);
+            if ($trough !== null) {
+                $facts[] = new Fact('scenario.lowest_cash', $trough, scenario: $scenario, unit: 'NZD',
+                    basis: 'lowest_month_end_closing_balance', confirmed: true, sources: $at);
+            }
+            $facts = [...$facts, ...$this->profit($source, $inputs, $scenario, $outcome->profit, $at)];
+        }
+
         return $facts;
+    }
+
+    /**
+     * One scenario's profit, decomposed the way SS-01 reconciles it.
+     *
+     * The rule checks profit against revenue less variable costs, fixed costs,
+     * depreciation and interest. The model keeps nine parts rather than five,
+     * so three of them are grouped and the grouping is stated on the fact
+     * rather than left for a reader to infer: direct costs, one-off operating
+     * costs, assets charged to expense and deductible owner pay are the costs
+     * of trading that are neither fixed, depreciation, nor financing. Revenue
+     * is likewise the recurring streams plus the one-off trading income
+     * recognised in the month.
+     *
+     * The grouping is arithmetically closed on purpose. These five sum back to
+     * the same profit the model computed from its own nine, so the rule's
+     * reconciliation tests the decomposition rather than a rounding of it.
+     *
+     * A month the model could not complete publishes none of its parts. A
+     * decomposition missing one line still adds up to something, and that
+     * something would reconcile.
+     *
+     * @param  array{status:string,scope:string,months:list<array<string,string|null>>,missing:list<string>}|null  $profit
+     * @param  list<SourceReference>  $at
+     * @return list<Fact>
+     */
+    private function profit(SourceRecords $source, ForecastModelInputs $inputs, string $scenario, ?array $profit, array $at): array
+    {
+        if ($profit === null) {
+            return [];
+        }
+        $offsets = array_flip($inputs->calendar->periods);
+        $facts = [];
+        foreach ($profit['months'] as $month) {
+            $period = (string) $month['period'];
+            if (! isset($offsets[$period]) || $month['profit'] === null) {
+                continue;
+            }
+            $label = 'month:'.($offsets[$period] + 1);
+            $parts = [
+                'revenue' => $this->sum($month, ['revenue', 'one_off_income']),
+                'variable_costs' => $this->sum($month, ['direct_costs', 'one_off_costs', 'asset_expense', 'owner_pay']),
+                'fixed_costs' => $this->sum($month, ['fixed_costs']),
+                'depreciation' => $this->sum($month, ['depreciation']),
+                'interest' => $this->sum($month, ['interest']),
+            ];
+            if (in_array(null, $parts, true)) {
+                continue;
+            }
+            foreach ($parts as $name => $value) {
+                $facts[] = new Fact('scenario.'.$name, $value, period: $label, scenario: $scenario, unit: 'NZD',
+                    basis: self::PROFIT_BASIS[$name], confirmed: true, sources: $at);
+            }
+            $facts[] = new Fact('scenario.profit', $month['profit'], period: $label, scenario: $scenario,
+                unit: 'NZD', basis: $profit['scope'], confirmed: true, sources: $at);
+        }
+
+        return $facts;
+    }
+
+    /**
+     * The named parts added, or none when one of them is unstated.
+     *
+     * @param  array<string,string|null>  $month
+     * @param  list<string>  $names
+     */
+    private function sum(array $month, array $names): ?string
+    {
+        $total = BigDecimal::zero();
+        foreach ($names as $name) {
+            if (($month[$name] ?? null) === null) {
+                return null;
+            }
+            $total = $total->plus((string) $month[$name]);
+        }
+
+        return (string) $total->toScale(2, RoundingMode::HalfUp);
     }
 
     /**

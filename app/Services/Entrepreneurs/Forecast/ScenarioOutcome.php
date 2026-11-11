@@ -17,11 +17,30 @@ use Brick\Math\BigDecimal;
  */
 final readonly class ScenarioOutcome implements \JsonSerializable
 {
-    /** @param FundingResult $funding */
+    /**
+     * `$ledger` is the scenario's own cash curve, carried so a reader can
+     * reconcile the funding measures beside it against the months they came
+     * from rather than taking the measures on trust. It is absent only when
+     * the scenario could not be ledgered at all, which is a narrower condition
+     * than the measures being unavailable: a reserve shortfall needs a policy
+     * to measure against, and the months do not.
+     *
+     * `$profit` is the same scenario's recognised monthly profit, decomposed.
+     * It is computed here rather than by whoever reads the outcome because
+     * only the run holds both halves it needs: the shocked inputs the costs
+     * are recognised from, and the dated movements the owner's pay is read
+     * off. Absent for the same reason the curve is.
+     *
+     * @param  FundingResult  $funding
+     * @param  array{months:list<array{period:string,opening_cash:?string,receipts:?string,payments:?string,closing_cash:?string}>,lowest_cash:?string,lowest_cash_date:?string}|null  $ledger
+     * @param  array{status:string,scope:string,months:list<array<string,string|null>>,missing:list<string>}|null  $profit
+     */
     public function __construct(
         public ScenarioDefinition $definition,
         public array $funding,
         public ?ShockReport $revenueShock = null,
+        public ?array $ledger = null,
+        public ?array $profit = null,
     ) {}
 
     public function status(): string

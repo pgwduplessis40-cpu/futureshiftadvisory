@@ -23,6 +23,7 @@ use App\Services\Entrepreneurs\ReleaseGate\CanonicalJson;
 use App\Services\Entrepreneurs\ReleaseGate\Fact;
 use App\Services\Entrepreneurs\ReleaseGate\ForecastModelFacts;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
+use App\Services\Entrepreneurs\ReleaseGate\Rules\ScenarioRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\StressDimensionRule;
 use App\Services\Entrepreneurs\ReleaseGate\SourceRecords;
 use App\Services\Entrepreneurs\ReleaseGate\SourceVersion;
@@ -195,6 +196,113 @@ final class ScenarioFactsTest extends TestCase
         foreach (['unit:0', 'unit:1', 'unit:2', 'unit:3'] as $id) {
             self::assertContains($id, $ids, 'SS-02 did not reach a unit check for every dimension.');
         }
+    }
+
+    /** Each shocked scenario states the months SS-01 reconciles its trough
+     * against. Without them the rule can only report the curve missing.
+     */
+    public function test_each_shocked_scenario_states_its_own_cash_curve(): void
+    {
+        $facts = $this->capture();
+        $scenarios = [];
+        foreach ($facts as $fact) {
+            if ($fact->key === 'cash.closing') {
+                $scenarios[$fact->scenario][] = $fact->period;
+            }
+        }
+
+        self::assertArrayHasKey('cost_upside', $scenarios);
+        self::assertArrayHasKey('collections_delay', $scenarios);
+        self::assertSame($scenarios['base'], $scenarios['cost_upside'],
+            'A scenario curve covers the same months as the base curve it is compared with.');
+    }
+
+    /** The base curve is stated once, by the reconstruction. A second record
+     * under the same key resolves to nothing and would take MI-01's reading of
+     * the base curve with it.
+     */
+    public function test_the_base_curve_is_not_restated_by_the_scenario_run(): void
+    {
+        $periods = [];
+        foreach ($this->capture() as $fact) {
+            if ($fact->key === 'cash.closing' && $fact->scenario === 'base') {
+                $periods[] = $fact->period;
+            }
+        }
+
+        self::assertSame(array_values(array_unique($periods)), $periods,
+            'The base curve is stated twice, which resolves every one of its months to nothing.');
+    }
+
+    /** The trough has to be the minimum of the curve it is checked against,
+     * not the ledger's own lowest cash, which tracks the balance after every
+     * movement and can dip below every month end.
+     */
+    public function test_a_scenario_trough_is_the_minimum_of_its_own_month_end_closings(): void
+    {
+        $facts = $this->capture();
+        $closings = [];
+        $troughs = [];
+        foreach ($facts as $fact) {
+            if ($fact->key === 'cash.closing' && $fact->value !== null) {
+                $closings[$fact->scenario][] = (float) $fact->value;
+            }
+            if ($fact->key === 'scenario.lowest_cash') {
+                $troughs[$fact->scenario] = (float) $fact->value;
+            }
+        }
+
+        self::assertArrayHasKey('cost_upside', $troughs);
+        foreach ($troughs as $scenario => $trough) {
+            self::assertArrayHasKey($scenario, $closings, $scenario.' reports a trough with no curve behind it.');
+            self::assertSame(min($closings[$scenario]), $trough, $scenario.' reports a trough its own months do not reach.');
+        }
+    }
+
+    /**
+     * The decomposition has to close, or SS-01's reconciliation is testing a
+     * rounding rather than the figures.
+     */
+    public function test_a_scenario_profit_equals_its_own_five_published_parts(): void
+    {
+        $parts = [];
+        foreach ($this->capture() as $fact) {
+            if (str_starts_with($fact->key, 'scenario.') && $fact->scenario !== 'base') {
+                $parts[$fact->scenario][$fact->period][substr($fact->key, 9)] = $fact->value;
+            }
+        }
+
+        $checked = 0;
+        foreach ($parts as $scenario => $periods) {
+            foreach ($periods as $period => $line) {
+                if (! isset($line['profit'])) {
+                    continue;
+                }
+                foreach (['revenue', 'variable_costs', 'fixed_costs', 'depreciation', 'interest'] as $name) {
+                    self::assertArrayHasKey($name, $line, $scenario.' '.$period.' publishes a profit without its '.$name.'.');
+                }
+                $expected = (float) $line['revenue'] - (float) $line['variable_costs']
+                    - (float) $line['fixed_costs'] - (float) $line['depreciation'] - (float) $line['interest'];
+                self::assertEqualsWithDelta($expected, (float) $line['profit'], 0.005,
+                    $scenario.' '.$period.' profit does not equal the parts it publishes.');
+                $checked++;
+            }
+        }
+
+        self::assertGreaterThan(0, $checked, 'No scenario stated a profit decomposition at all.');
+    }
+
+    /** SS-01 could only ever report its scenarios as not established, because
+     * nothing stated any. It now reaches the reconciliation itself.
+     */
+    public function test_the_rule_reaches_its_scenario_reconciliation(): void
+    {
+        $checks = (new ScenarioRule)->evaluate(SyntheticCase::context($this->capture()), new RuleConfiguration);
+        $ids = array_map(fn (object $check): string => $check->id, $checks);
+
+        self::assertNotContains('scenarios', $ids, 'SS-01 still sees no scenarios at all.');
+        self::assertNotSame([], array_filter($ids, fn (string $id): bool => str_starts_with($id, 'extremum:')),
+            'SS-01 did not reach the check that reconciles a trough to its curve.');
     }
 
     /** @return list<Fact> */

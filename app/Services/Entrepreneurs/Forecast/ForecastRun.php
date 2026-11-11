@@ -210,14 +210,17 @@ final class ForecastRun implements ProvidesMethodology
      * month, and the trade items are added to them because they are opening
      * debtors and creditors plus one-offs rather than a restatement of either.
      *
-     * The cash run is taken as an argument rather than re-run, because the
-     * owner-pay schedule it contains is expensive and running it twice would
-     * be a second answer to the same question.
+     * The dated movements are taken as an argument rather than re-derived,
+     * because the owner-pay schedule inside them is expensive and running it
+     * twice would be a second answer to the same question. They are passed as
+     * the movement list rather than a whole cash result because that is all
+     * this needs, and a scenario has a movement list of its own long before it
+     * has a cash result.
      *
-     * @param  CashResult  $cash
+     * @param  list<CashMovement>  $movements
      * @return ProfitResult
      */
-    public function profit(ForecastModelInputs $inputs, array $cash): array
+    public function profit(ForecastModelInputs $inputs, array $movements): array
     {
         $revenue = [];
         foreach ($this->revenue($inputs)['months'] as $month) {
@@ -238,7 +241,7 @@ final class ForecastRun implements ProvidesMethodology
             }
         }
         $ownerPay = [];
-        foreach ($cash['movements'] as $movement) {
+        foreach ($movements as $movement) {
             if ($movement->category !== 'owner_pay' || $movement->date === null || $movement->amount === null) {
                 continue;
             }

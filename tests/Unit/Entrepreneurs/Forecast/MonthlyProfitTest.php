@@ -49,6 +49,31 @@ final class MonthlyProfitTest extends TestCase
         self::assertSame(['0.00', '300.00', '0.00'], array_column($result['months'], 'one_off_costs'));
     }
 
+    /**
+     * Interest is a financing charge, not a cost of trading.
+     *
+     * It is charged to the month either way, so the profit is the same; what
+     * changes is that a decomposition reading revenue less costs, depreciation
+     * and interest can now state it, which it cannot do from a figure with the
+     * interest buried inside it.
+     */
+    public function test_interest_is_charged_to_profit_but_reported_apart_from_trading_costs(): void
+    {
+        $interest = new TradeItem('loan-interest', 'Statement 12', 'payable', '2026-02-10', '250',
+            [new CashMovement('loan-interest.payment', 'Bank', '2026-02-20', '250', 'out', 'interest', 0)]);
+        $operating = new TradeItem('repair', 'Invoice 9001', 'payable', '2026-02-20', '300',
+            [new CashMovement('repair.payment', 'Invoice 9001', '2026-03-01', '300', 'out', 'operating_payment', 1)]);
+
+        $result = $this->calculate(items: [$interest, $operating]);
+
+        self::assertSame(['0.00', '250.00', '0.00'], array_column($result['months'], 'interest'));
+        self::assertSame(['0.00', '300.00', '0.00'], array_column($result['months'], 'one_off_costs'),
+            'Interest counted among the trading costs as well would charge it twice.');
+        // 1000 revenue less 100 contractor cost, less 300 operating and 250
+        // interest in the middle month.
+        self::assertSame(['900.00', '350.00', '900.00'], array_column($result['months'], 'profit'));
+    }
+
     public function test_an_item_whose_terms_nobody_recorded_withholds_its_month(): void
     {
         // It is known to be money owed and not known to be an operating cost

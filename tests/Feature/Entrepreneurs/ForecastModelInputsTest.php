@@ -1135,11 +1135,34 @@ final class ForecastModelInputsTest extends TestCase
         // month against the model's own opening cash, which is one figure with
         // no scenario of its own. Left in place, every scenario would start
         // from a balance this plan's financial model does not use, and the
-        // rule would demonstrate that as a mismatch. The reconstruction states
-        // no scenarios, so the rule says so.
+        // rule would demonstrate that as a mismatch.
+        //
+        // The reconstruction now states the base case from its own curve, so
+        // the rule reconciles that rather than reporting it has nothing. What
+        // it must never do is reconcile against the model the plan stopped
+        // using, and the opening-basis check is where that would show: it
+        // holds the curve's first month to the model's own opening cash.
         $after = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'SS-01');
-        self::assertSame(['scenarios'], array_column($after->subchecks, 'id'));
-        self::assertSame('cannot_verify', $after->status?->value, 'An honest gap, not a mismatch nobody demonstrated.');
+        $ids = array_column($after->subchecks, 'id');
+        self::assertNotContains('scenarios', $ids, 'The reconstruction states the base case, so the rule has one to reconcile.');
+
+        $byId = [];
+        foreach ($after->subchecks as $check) {
+            $byId[$check->id] = $check;
+        }
+        self::assertArrayHasKey('base:opening-basis', $byId);
+        self::assertFalse($byId['base:opening-basis']->status->unresolved(),
+            'The scenario curve starts from the reconstruction opening cash, not the budget it replaced.');
+        self::assertArrayHasKey('extremum:0', $byId);
+        self::assertFalse($byId['extremum:0']->status->unresolved(),
+            'The reported trough reconciles to the curve the reconstruction states.');
+
+        // Still an honest gap rather than a fabricated pass: the per-scenario
+        // profit decomposition, tax chain and input inventory are not stated
+        // yet, and the rule names each of them.
+        self::assertSame('cannot_verify', $after->status?->value);
+        self::assertContains('input-inventory:base', $ids);
+        self::assertNotSame([], array_filter($ids, fn (string $id): bool => str_starts_with($id, 'profit:')));
     }
 
     public function test_with_a_budget_in_place_only_the_cash_ledger_rule_changes_its_verdict(): void

@@ -56,13 +56,15 @@ final class ForecastModelFacts implements ProvidesMethodology
      * `scope.required_horizon` feeds MI-06 and the snapshot's own horizon; and
      * a second `model.external_request` would make PM-12's lookup ambiguous.
      *
-     * One more is withheld because the reconstruction cannot state it, and it
-     * is also displaced from the budget by `SUPERSEDES` below.
-     * `scenario.lowest_cash` is compared by SS-01 against the minimum of the
-     * month-end closing balances, while the ledger's own lowest cash is the
-     * balance after each individual movement and can dip below every month
-     * end. Publishing either figure under that key would misstate one of the
-     * two measures.
+     * `scenario.lowest_cash` used to be withheld here because nothing could
+     * state it: SS-01 compares it against the minimum of the month-end closing
+     * balances, while the ledger's own lowest cash is the balance after each
+     * individual movement and can dip below every month end, so publishing the
+     * ledger's figure would have misstated the measure. The scenario run now
+     * computes the month-end trough from each scenario's own curve, which is
+     * the measure the rule asks for, so the key is emitted rather than
+     * withheld. It stays in `SUPERSEDES` below: the budget's record is taken
+     * off the old cash curve and still has to step aside.
      *
      * The two display keys are withheld for a different reason again: the
      * budget already states both of them, from two genuinely separate places
@@ -75,7 +77,7 @@ final class ForecastModelFacts implements ProvidesMethodology
      *
      * @var list<string>
      */
-    public const WITHHELD = ['stream.revenue', 'scope.required_horizon', 'scenario.lowest_cash', 'model.external_request',
+    public const WITHHELD = ['stream.revenue', 'scope.required_horizon', 'model.external_request',
         'cost.trace_display', 'model.fixed_cost_display'];
 
     /**
@@ -123,6 +125,7 @@ final class ForecastModelFacts implements ProvidesMethodology
     public function __construct(
         private readonly ForecastRun $run = new ForecastRun,
         private readonly ScenarioFacts $scenarios = new ScenarioFacts,
+        private readonly CashCurveFacts $curve = new CashCurveFacts,
     ) {}
 
     /** @return list<Fact> */
@@ -216,7 +219,7 @@ final class ForecastModelFacts implements ProvidesMethodology
         // month. The decomposition is what the model implies; the accounts are
         // what happened, and where both exist the second is the better figure.
         $profits = [];
-        foreach ($this->run->profit($inputs, $cash)['months'] as $month) {
+        foreach ($this->run->profit($inputs, $cash['movements'])['months'] as $month) {
             if ($month['profit'] !== null) {
                 $profits[$month['period']] = $month['profit'];
             }
@@ -682,47 +685,21 @@ final class ForecastModelFacts implements ProvidesMethodology
         foreach ($inputs->fundingSources as $funding) {
             $funders[$funding->id.'.draw'] = $funding->identity;
         }
-        $years = [];
-        foreach ($run['months'] as $month) {
-            if (! isset($offsets[$month['period']])) {
-                continue;
-            }
-            $number = $offsets[$month['period']] + 1;
-            $label = 'month:'.$number;
-            $movement = $month['receipts'] === null || $month['payments'] === null ? null
-                : (string) BigDecimal::of($month['receipts'])->minus($month['payments']);
-            $facts[] = new Fact('cash.period_start', $month['period'].'-01', period: $label, confirmed: true,
-                sources: [$source->reference('forecast_model.drivers.calendar')]);
-            $facts[] = new Fact('cash.opening', $month['opening_cash'], period: $label, unit: 'NZD', confirmed: true, sources: $at);
-            $facts[] = new Fact('cash.movement', $movement, period: $label, unit: 'NZD', confirmed: true, sources: $at);
-            $facts[] = new Fact('cash.closing', $month['closing_cash'], period: $label, unit: 'NZD', confirmed: true, sources: $at);
-            // A month whose receipts and payments are both known is a month in
-            // which every movement could be read and placed. Where the ledger
-            // withholds them it found one it could not value or could not
-            // date, and saying so is what keeps the month out of a
-            // reconciliation it cannot support.
-            $facts[] = new Fact('ledger.coverage', $movement === null ? 'incomplete' : 'complete',
-                period: $label, confirmed: true, sources: $at);
-            // Keyed by month number rather than appended, so the month that
-            // closes a year is the twelfth month of it and not whichever row
-            // happened to be written last.
-            $years[(int) ceil($number / 12)][$number] = ['movement' => $movement, 'closing' => $month['closing_cash']];
-        }
-        foreach ($years as $year => $rows) {
-            // A year the reconstruction does not finish has no annual total,
-            // and a sum of the months it does hold would be an annual figure
-            // for part of a year. One unreadable month withholds the year.
-            $last = $year * 12;
-            if (count($rows) !== 12 || ! isset($rows[$last]) || $rows[$last]['closing'] === null
-                || in_array(null, array_column($rows, 'movement'), true)) {
-                continue;
-            }
-            $sum = BigDecimal::zero();
-            foreach ($rows as $row) {
-                $sum = $sum->plus((string) $row['movement']);
-            }
-            $facts[] = new Fact('cash.annual_movement', (string) $sum, period: 'year:'.$year, unit: 'NZD', confirmed: true, sources: $at);
-            $facts[] = new Fact('cash.annual_closing', $rows[$last]['closing'], period: 'year:'.$year, unit: 'NZD', confirmed: true, sources: $at);
+        // The curve itself comes from the shared emitter, because SS-01 checks
+        // each scenario's curve against the same arithmetic MI-01 checks this
+        // one against, and two implementations of it would drift.
+        $facts = [...$facts, ...$this->curve->capture($source, $inputs->calendar, $run['months'], $at)];
+        // The base case's trough is stated here rather than with the scenario
+        // troughs, because it needs none of the scenario machinery - no
+        // actuals window, no catalogue, no shocks - and the budget's record
+        // under this key is superseded whether or not a scenario set can be
+        // built. Leaving it to the scenario producer would take the figure off
+        // the budget and replace it with nothing on every plan whose scenarios
+        // cannot be established.
+        $trough = $this->curve->trough($run['months']);
+        if ($trough !== null) {
+            $facts[] = new Fact('scenario.lowest_cash', $trough, unit: 'NZD',
+                basis: 'lowest_month_end_closing_balance', confirmed: true, sources: $at);
         }
         foreach ($run['movements'] as $movement) {
             $period = $movement->date === null ? null : substr($movement->date, 0, 7);

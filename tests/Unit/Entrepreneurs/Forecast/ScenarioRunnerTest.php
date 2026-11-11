@@ -240,6 +240,30 @@ final class ScenarioRunnerTest extends TestCase
         self::assertSame(['base'], $result['unranked']);
     }
 
+    /** The reserve policy is what the shortfall is measured against, not what
+     * the curve is drawn from. A scenario with no policy still has months.
+     */
+    public function test_a_scenario_states_its_curve_even_with_no_reserve_policy(): void
+    {
+        $calendar = new ForecastCalendar('2027-01', 2);
+        $inputs = new ForecastModelInputs(
+            calendar: $calendar,
+            streams: [$this->stream('10')],
+            founderMonths: $this->founderMonths($calendar),
+            cashOpening: new CashOpening('100', 'reviewed bank statement', true),
+            fixedCosts: [$this->rent('1000')],
+        );
+
+        $result = (new ScenarioRunner)->run($inputs, $this->openWindow($calendar),
+            [new ScenarioDefinition('base', 'Base', [], 'test')]);
+
+        $outcome = $result['outcomes'][0];
+        self::assertSame('cannot_verify', $outcome->status());
+        self::assertContains('reserve_policy', $outcome->funding['missing']);
+        self::assertNotNull($outcome->ledger, 'The months are established even where the reserve position is not.');
+        self::assertCount(2, $outcome->ledger['months']);
+    }
+
     /** A downside that improves an early cash minimum is reported as computed,
      * never adjusted to force a worse result than the base case.
      */
