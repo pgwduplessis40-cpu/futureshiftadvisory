@@ -120,7 +120,10 @@ final class ForecastModelFacts implements ProvidesMethodology
     public const SUPERSEDES = ['model.opening_cash', 'model.available_funds', 'model.funding_total', 'funding.amount',
         'cash.opening', 'cash.movement', 'cash.closing', 'cash.annual_movement', 'cash.annual_closing', 'scenario.lowest_cash'];
 
-    public function __construct(private readonly ForecastRun $run = new ForecastRun) {}
+    public function __construct(
+        private readonly ForecastRun $run = new ForecastRun,
+        private readonly ScenarioFacts $scenarios = new ScenarioFacts,
+    ) {}
 
     /** @return list<Fact> */
     public function capture(SourceRecords $source): array
@@ -151,7 +154,13 @@ final class ForecastModelFacts implements ProvidesMethodology
         return [...$this->model($source, $inputs), ...$this->streams($source, $inputs),
             ...$this->actuals($source, $inputs), ...$this->cash($source, $inputs, $cash),
             ...$this->ledger($source, $inputs, $cash), ...$this->funding($source, $inputs),
-            ...$this->costs($source, $inputs), ...$this->tax($source, $inputs, $cash)];
+            ...$this->costs($source, $inputs), ...$this->tax($source, $inputs, $cash),
+            // The stress dimensions live in their own producer. They are the
+            // scenario engines' evidence rather than this run's, and they are
+            // measured by shocking the reconstruction and reading the result
+            // back, which is a different job from reporting what this run
+            // computed once.
+            ...$this->scenarios->capture($source, $inputs)];
     }
 
     /**
