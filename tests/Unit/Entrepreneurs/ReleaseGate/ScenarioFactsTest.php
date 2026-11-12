@@ -18,6 +18,8 @@ use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastEngineVersion;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
+use App\Services\Entrepreneurs\Forecast\TaxCashPlan;
+use App\Services\Entrepreneurs\Forecast\TaxPolicy;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
 use App\Services\Entrepreneurs\ReleaseGate\CanonicalJson;
 use App\Services\Entrepreneurs\ReleaseGate\Fact;
@@ -337,6 +339,46 @@ final class ScenarioFactsTest extends TestCase
         self::assertSame($first, ScenarioFacts::baseline($this->inputs()), 'The same model has to hash the same.');
     }
 
+    /**
+     * A shock changes trading, not the tax the business is subject to.
+     *
+     * The scenario's four are read back off its own shocked reconstruction
+     * rather than copied from the base one, so the rule checks that rather
+     * than asserting it.
+     */
+    public function test_every_scenario_retains_the_tax_arrangement_of_the_base_case(): void
+    {
+        $arrangements = [];
+        foreach ($this->capture($this->taxed()) as $fact) {
+            if (in_array($fact->key, ['tax.policy', 'tax.rate', 'tax.opening_losses', 'tax.payment_policy'], true)) {
+                $arrangements[$fact->scenario][$fact->key] = $fact->value;
+            }
+        }
+
+        self::assertArrayHasKey('base', $arrangements);
+        self::assertArrayHasKey('cost_upside', $arrangements);
+        self::assertSame('none_due', $arrangements['base']['tax.payment_policy'],
+            'The payment policy is the scope the cash plan states, and nothing stated it before.');
+        foreach ($arrangements as $scenario => $arrangement) {
+            self::assertSame($arrangements['base'], $arrangement,
+                $scenario.' changed the tax arrangement, which no shock does.');
+        }
+    }
+
+    /** All four or none. A payment schedule for a tax nobody has established
+     * the basis of states the timing of a figure that has none.
+     */
+    public function test_a_reconstruction_with_no_tax_policy_states_no_arrangement(): void
+    {
+        $keys = [];
+        foreach ($this->capture() as $fact) {
+            $keys[] = $fact->key;
+        }
+
+        self::assertNotContains('tax.payment_policy', $keys);
+        self::assertNotContains('tax.policy', $keys);
+    }
+
     /** SS-01 could only ever report its scenarios as not established, because
      * nothing stated any. It now reaches the reconciliation itself.
      */
@@ -413,6 +455,26 @@ final class ScenarioFactsTest extends TestCase
                 '2026-02-01', 36, '200', 'straight_line_full_start_month', '0')],
             actualMonths: $actualMonths ?? [],
             fixedCosts: $fixedCosts ?? [new FixedCost('rent', 'lease', '1000', '1', 'monthly', '2026-02-10', '2026-06-10', 7, true)],
+        );
+    }
+
+    /** The same reconstruction with a tax arrangement recorded on it. */
+    private function taxed(): ForecastModelInputs
+    {
+        $base = $this->inputs();
+
+        return new ForecastModelInputs(
+            calendar: $base->calendar,
+            streams: $base->streams,
+            founderMonths: $base->founderMonths,
+            cashOpening: $base->cashOpening,
+            tradeItems: $base->tradeItems,
+            assets: $base->assets,
+            taxPolicy: new TaxPolicy('company', '28', true, 'IR policy note', 'advisor review', '2026.1'),
+            actualMonths: $base->actualMonths,
+            openingEligibleLosses: '1500',
+            fixedCosts: $base->fixedCosts,
+            taxCashPlan: new TaxCashPlan('none_due', 'none_due', 'IR account review', 'IR account review', []),
         );
     }
 

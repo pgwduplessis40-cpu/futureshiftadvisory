@@ -126,6 +126,7 @@ final class ForecastModelFacts implements ProvidesMethodology
         private readonly ForecastRun $run = new ForecastRun,
         private readonly ScenarioFacts $scenarios = new ScenarioFacts,
         private readonly CashCurveFacts $curve = new CashCurveFacts,
+        private readonly TaxPolicyFacts $taxPolicy = new TaxPolicyFacts,
     ) {}
 
     /** @return list<Fact> */
@@ -194,18 +195,10 @@ final class ForecastModelFacts implements ProvidesMethodology
             return [];
         }
         $at = [$source->reference('forecast_model.drivers.tax_policy')];
-        // Both source records, because the rule requires a confirmed policy
-        // and a policy nobody can point at is an assertion rather than a
-        // record. Either one absent leaves it stated but unconfirmed.
-        $confirmed = trim($policy->policySource ?? '') !== '' && trim($policy->eligibilitySource ?? '') !== '';
-        $facts = [
-            new Fact('tax.policy', $policy->lossesEligible === null ? null
-                : ($policy->lossesEligible ? 'loss_carry_forward' : 'losses_not_eligible'),
-                basis: $policy->entityBasis, confirmed: $confirmed, sources: $at),
-            new Fact('tax.rate', $policy->ratePercent, unit: 'percent', confirmed: $confirmed, sources: $at),
-            new Fact('tax.opening_losses', $inputs->openingEligibleLosses, unit: 'NZD', confirmed: $confirmed,
-                sources: [$source->reference('forecast_model.drivers.opening_eligible_losses')]),
-        ];
+        // The arrangement itself comes from the shared emitter, because SS-01
+        // holds each scenario's against this one and the two sides have to be
+        // derived the same way for the comparison to mean anything.
+        $facts = $this->taxPolicy->capture($source, $inputs);
         $reviewed = [];
         foreach ($inputs->actualMonths as $index => $month) {
             // A month nobody reconciled is not a recorded profit. Reading one

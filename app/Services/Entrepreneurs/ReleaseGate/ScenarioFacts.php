@@ -76,6 +76,7 @@ final class ScenarioFacts implements ProvidesMethodology
         private readonly ForecastRun $run = new ForecastRun,
         private readonly ScenarioRunner $runner = new ScenarioRunner,
         private readonly CashCurveFacts $curve = new CashCurveFacts,
+        private readonly TaxPolicyFacts $taxPolicy = new TaxPolicyFacts,
     ) {}
 
     public static function methodologyIds(): array
@@ -197,6 +198,17 @@ final class ScenarioFacts implements ProvidesMethodology
                 basis: 'unshocked_reconstruction', confirmed: true, sources: $at);
             $facts[] = new Fact('scenario.shocks', CanonicalJson::encode($outcome->definition->shocks),
                 scenario: $scenario, basis: $outcome->definition->defaultsSource, confirmed: true, sources: $at);
+            // Read back off the shocked reconstruction rather than copied from
+            // the base one. A shock is a change to trading, not to the tax the
+            // business is subject to, and taking these from the unshocked
+            // inputs would make the rule's comparison assert that rather than
+            // check it - a shock that did reach the tax policy would pass.
+            try {
+                $shocked = $this->application->shockInputs($window, $inputs, $outcome->definition);
+            } catch (\InvalidArgumentException|\LogicException) {
+                continue;
+            }
+            $facts = [...$facts, ...$this->taxPolicy->capture($source, $shocked, $scenario)];
         }
 
         return $facts;
