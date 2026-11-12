@@ -19,6 +19,7 @@ use App\Services\Entrepreneurs\Forecast\Storage\ForecastEngineVersion;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
 use App\Services\Entrepreneurs\Forecast\TaxCashPlan;
+use App\Services\Entrepreneurs\Forecast\TaxPeriod;
 use App\Services\Entrepreneurs\Forecast\TaxPolicy;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
 use App\Services\Entrepreneurs\ReleaseGate\CanonicalJson;
@@ -440,6 +441,66 @@ final class ScenarioFactsTest extends TestCase
         self::assertNotSame([], $resolved, 'No scenario month reconciled to the entries behind it.');
     }
 
+    /** Each scenario carries its own chain, not a relabelled copy of the base
+     * case's.
+     */
+    public function test_each_scenario_states_its_own_tax_chain(): void
+    {
+        $months = [];
+        foreach ($this->capture($this->taxed()) as $fact) {
+            if (in_array($fact->key, ['tax.profit', 'tax.expense', 'tax.closing_losses'], true)) {
+                $months[$fact->scenario][$fact->key][] = $fact->value;
+            }
+        }
+
+        self::assertArrayHasKey('base', $months);
+        foreach (['revenue_downside', 'cost_upside', 'combined_downside'] as $scenario) {
+            self::assertArrayHasKey($scenario, $months, $scenario.' states no tax chain.');
+            foreach (['tax.profit', 'tax.expense', 'tax.closing_losses'] as $key) {
+                self::assertArrayHasKey($key, $months[$scenario], $scenario.' states no '.$key.'.');
+            }
+        }
+    }
+
+    /**
+     * The reason a scenario needs its own chain at all.
+     *
+     * A revenue downside earns less, so it owes less. A chain copied from the
+     * base case would have every scenario owing the same tax on different
+     * profits, which is the error this exists to prevent.
+     */
+    public function test_a_revenue_downside_owes_less_tax_than_the_base_case(): void
+    {
+        $owed = [];
+        foreach ($this->capture($this->taxed()) as $fact) {
+            if ($fact->key === 'tax.expense' && $fact->value !== null) {
+                $owed[$fact->scenario] = ($owed[$fact->scenario] ?? 0) + (float) $fact->value;
+            }
+        }
+
+        self::assertArrayHasKey('base', $owed);
+        self::assertArrayHasKey('revenue_downside', $owed);
+        self::assertGreaterThan(0.0, $owed['base'], 'The base case owes nothing, so the comparison proves nothing.');
+        self::assertLessThan($owed['base'], $owed['revenue_downside'],
+            'A downside that owes the same tax as the base case is running the base case chain.');
+    }
+
+    /** SS-01 re-runs the whole tax rule against each scenario's chain, and
+     * could only report it unestablished while nothing stated one.
+     */
+    public function test_the_rule_reaches_the_scenario_tax_checks(): void
+    {
+        $checks = (new ScenarioRule)->evaluate($this->gateContext($this->taxed()), new RuleConfiguration);
+        $decided = [];
+        foreach ($checks as $check) {
+            if (str_contains($check->id, ':tax:') && ! $check->status->unresolved()) {
+                $decided[] = $check->id;
+            }
+        }
+
+        self::assertNotSame([], $decided, 'SS-01 decided none of its per-scenario tax checks.');
+    }
+
     /** SS-01 could only ever report its scenarios as not established, because
      * nothing stated any. It now reaches the reconciliation itself.
      */
@@ -475,10 +536,10 @@ final class ScenarioFactsTest extends TestCase
      * scenario month unverifiable for a reason that has nothing to do with
      * the scenarios.
      */
-    private function gateContext(): DocumentContext
+    private function gateContext(?ForecastModelInputs $inputs = null): DocumentContext
     {
         return SyntheticCase::context([
-            ...$this->capture(),
+            ...$this->capture($inputs),
             SyntheticCase::fact('model.horizon', 6, 'business', 'current', 'base', 'months'),
         ], 6);
     }
@@ -558,6 +619,9 @@ final class ScenarioFactsTest extends TestCase
             tradeItems: $base->tradeItems,
             assets: $base->assets,
             taxPolicy: new TaxPolicy('company', '28', true, 'IR policy note', 'advisor review', '2026.1'),
+            // Without a period covering the calendar every month's adjustment
+            // is unstated, and the chain withholds the expense behind it.
+            taxPeriods: [new TaxPeriod('2026-01-01', '2026-12-31', null, '0')],
             actualMonths: $base->actualMonths,
             openingEligibleLosses: '1500',
             fixedCosts: $base->fixedCosts,

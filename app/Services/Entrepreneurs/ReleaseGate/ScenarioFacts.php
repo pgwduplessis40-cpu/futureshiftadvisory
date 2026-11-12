@@ -78,6 +78,7 @@ final class ScenarioFacts implements ProvidesMethodology
         private readonly CashCurveFacts $curve = new CashCurveFacts,
         private readonly TaxPolicyFacts $taxPolicy = new TaxPolicyFacts,
         private readonly LedgerEntryFacts $entries = new LedgerEntryFacts,
+        private readonly TaxChainFacts $taxChain = new TaxChainFacts,
     ) {}
 
     public static function methodologyIds(): array
@@ -216,6 +217,14 @@ final class ScenarioFacts implements ProvidesMethodology
             // reconcile to the curve above rather than to the base case's.
             $facts = [...$facts, ...$this->entries->capture(
                 $inputs->calendar, $shocked, $outcome->ledger['movements'] ?? [], $at, $scenario)];
+            // The chain this scenario's own profit implies. A downside earns
+            // less, so it owes less and carries more loss forward, and that
+            // difference is the whole point of running it. The reviewed
+            // months still outrank it where they exist: a shock changes what
+            // the model implies about the future, never what the accounts
+            // recorded about the past.
+            $facts = [...$facts, ...$this->taxChain->capture(
+                $source, $shocked, $outcome->profit['months'] ?? [], $scenario)];
         }
 
         return $facts;
