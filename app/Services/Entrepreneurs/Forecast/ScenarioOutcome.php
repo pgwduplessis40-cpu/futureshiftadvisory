@@ -31,8 +31,14 @@ final readonly class ScenarioOutcome implements \JsonSerializable
      * are recognised from, and the dated movements the owner's pay is read
      * off. Absent for the same reason the curve is.
      *
+     * The curve carries the positioned movements beside its months, because
+     * the months are a total and a reconciliation needs the lines behind it.
+     * They are this scenario's own: collection-delayed where the shock moved
+     * them, so the entries reconcile to the movement the curve reports rather
+     * than to the base case's.
+     *
      * @param  FundingResult  $funding
-     * @param  array{months:list<array{period:string,opening_cash:?string,receipts:?string,payments:?string,closing_cash:?string}>,lowest_cash:?string,lowest_cash_date:?string}|null  $ledger
+     * @param  array{months:list<array{period:string,opening_cash:?string,receipts:?string,payments:?string,closing_cash:?string}>,lowest_cash:?string,lowest_cash_date:?string,movements:list<CashMovement>}|null  $ledger
      * @param  array{status:string,scope:string,months:list<array<string,string|null>>,missing:list<string>}|null  $profit
      */
     public function __construct(

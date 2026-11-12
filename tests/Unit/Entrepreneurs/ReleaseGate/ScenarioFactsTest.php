@@ -18,8 +18,11 @@ use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastEngineVersion;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
+use App\Services\Entrepreneurs\Forecast\TaxCashPlan;
+use App\Services\Entrepreneurs\Forecast\TaxPolicy;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
 use App\Services\Entrepreneurs\ReleaseGate\CanonicalJson;
+use App\Services\Entrepreneurs\ReleaseGate\DocumentContext;
 use App\Services\Entrepreneurs\ReleaseGate\Fact;
 use App\Services\Entrepreneurs\ReleaseGate\ForecastModelFacts;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
@@ -337,21 +340,147 @@ final class ScenarioFactsTest extends TestCase
         self::assertSame($first, ScenarioFacts::baseline($this->inputs()), 'The same model has to hash the same.');
     }
 
+    /**
+     * A shock changes trading, not the tax the business is subject to.
+     *
+     * The scenario's four are read back off its own shocked reconstruction
+     * rather than copied from the base one, so the rule checks that rather
+     * than asserting it.
+     */
+    public function test_every_scenario_retains_the_tax_arrangement_of_the_base_case(): void
+    {
+        $arrangements = [];
+        foreach ($this->capture($this->taxed()) as $fact) {
+            if (in_array($fact->key, ['tax.policy', 'tax.rate', 'tax.opening_losses', 'tax.payment_policy'], true)) {
+                $arrangements[$fact->scenario][$fact->key] = $fact->value;
+            }
+        }
+
+        self::assertArrayHasKey('base', $arrangements);
+        self::assertArrayHasKey('cost_upside', $arrangements);
+        self::assertSame('none_due', $arrangements['base']['tax.payment_policy'],
+            'The payment policy is the scope the cash plan states, and nothing stated it before.');
+        foreach ($arrangements as $scenario => $arrangement) {
+            self::assertSame($arrangements['base'], $arrangement,
+                $scenario.' changed the tax arrangement, which no shock does.');
+        }
+    }
+
+    /** All four or none. A payment schedule for a tax nobody has established
+     * the basis of states the timing of a figure that has none.
+     */
+    public function test_a_reconstruction_with_no_tax_policy_states_no_arrangement(): void
+    {
+        $keys = [];
+        foreach ($this->capture() as $fact) {
+            $keys[] = $fact->key;
+        }
+
+        self::assertNotContains('tax.payment_policy', $keys);
+        self::assertNotContains('tax.policy', $keys);
+    }
+
+    /**
+     * The entries are the scenario's own, not the base case's relabelled.
+     *
+     * A collections delay moves a receipt's date, so the dated line under that
+     * scenario has to move with it. Copying the base entries would leave the
+     * scenario reconciling a movement its own lines do not explain.
+     */
+    public function test_a_delayed_scenario_states_its_own_moved_receipt(): void
+    {
+        $dates = [];
+        foreach ($this->capture() as $fact) {
+            if ($fact->key === 'ledger.date' && $fact->entity === 'inv-1.balance') {
+                $dates[$fact->scenario] = $fact->value;
+            }
+        }
+
+        self::assertSame('2026-03-20', $dates['base'] ?? null);
+        self::assertArrayHasKey('collections_delay', $dates);
+        self::assertNotSame($dates['base'], $dates['collections_delay'],
+            'The delayed scenario reports the receipt on the day the base case does.');
+        self::assertSame('2026-04-19', $dates['collections_delay'], 'Thirty days later than the base case.');
+    }
+
+    /** Every entry a scenario states carries the classification, date and
+     * source the reconciliation needs; a bare amount reconciles nothing.
+     */
+    public function test_every_scenario_entry_is_classified_dated_and_sourced(): void
+    {
+        $entries = [];
+        foreach ($this->capture() as $fact) {
+            if (in_array($fact->key, ['ledger.amount', 'ledger.category', 'ledger.date', 'ledger.source'], true)
+                && $fact->scenario === 'cost_upside') {
+                $entries[$fact->entity][] = $fact->key;
+            }
+        }
+
+        self::assertNotSame([], $entries);
+        foreach ($entries as $entity => $keys) {
+            foreach (['ledger.amount', 'ledger.category', 'ledger.date', 'ledger.source'] as $key) {
+                self::assertContains($key, $keys, $entity.' is stated without its '.$key.'.');
+            }
+        }
+    }
+
+    /** The rule's own arithmetic: the classified lines have to sum to the
+     * movement the curve reports for that month.
+     */
+    public function test_the_rule_reconciles_a_scenario_month_to_its_own_entries(): void
+    {
+        $checks = (new ScenarioRule)->evaluate($this->gateContext(), new RuleConfiguration);
+        $resolved = [];
+        foreach ($checks as $check) {
+            if (preg_match('/^cost_upside:ledger:month:\d+$/D', $check->id) === 1 && ! $check->status->unresolved()) {
+                $resolved[] = $check->id;
+            }
+        }
+
+        self::assertNotSame([], $resolved, 'No scenario month reconciled to the entries behind it.');
+    }
+
     /** SS-01 could only ever report its scenarios as not established, because
      * nothing stated any. It now reaches the reconciliation itself.
      */
     public function test_the_rule_reaches_its_scenario_reconciliation(): void
     {
-        $checks = (new ScenarioRule)->evaluate(SyntheticCase::context($this->capture()), new RuleConfiguration);
+        $checks = (new ScenarioRule)->evaluate($this->gateContext(), new RuleConfiguration);
         $ids = array_map(fn (object $check): string => $check->id, $checks);
+        // Resolution, not mere presence: a missing subcheck carries the same
+        // id prefix as a decided one, so asserting the prefix exists would
+        // pass on the gap it is meant to prove is gone.
+        $resolved = [];
+        foreach ($checks as $check) {
+            if (! $check->status->unresolved()) {
+                $resolved[] = $check->id;
+            }
+        }
 
         self::assertNotContains('scenarios', $ids, 'SS-01 still sees no scenarios at all.');
-        self::assertNotSame([], array_filter($ids, fn (string $id): bool => str_starts_with($id, 'extremum:')),
-            'SS-01 did not reach the check that reconciles a trough to its curve.');
-        self::assertNotSame([], array_filter($ids, fn (string $id): bool => str_starts_with($id, 'baseline:')),
-            'SS-01 did not reach the check that holds each scenario to the shared baseline.');
+        self::assertNotSame([], array_filter($resolved, fn (string $id): bool => str_starts_with($id, 'extremum:')),
+            'SS-01 did not decide the check that reconciles a trough to its curve.');
+        self::assertNotSame([], array_filter($resolved, fn (string $id): bool => str_starts_with($id, 'baseline:')),
+            'SS-01 did not decide the check that holds each scenario to the shared baseline.');
         self::assertSame([], array_values(array_filter($ids, fn (string $id): bool => str_starts_with($id, 'inputs:'))),
             'A scenario stating its baseline and shocks has its inputs established.');
+    }
+
+    /**
+     * The captured facts as a rule sees them.
+     *
+     * `model.horizon` comes from the plan's budget rather than from the
+     * reconstruction, and the cash-ledger checks refuse to run without it, so
+     * a context built from reconstruction facts alone would report every
+     * scenario month unverifiable for a reason that has nothing to do with
+     * the scenarios.
+     */
+    private function gateContext(): DocumentContext
+    {
+        return SyntheticCase::context([
+            ...$this->capture(),
+            SyntheticCase::fact('model.horizon', 6, 'business', 'current', 'base', 'months'),
+        ], 6);
     }
 
     /** @return list<Fact> */
@@ -413,6 +542,26 @@ final class ScenarioFactsTest extends TestCase
                 '2026-02-01', 36, '200', 'straight_line_full_start_month', '0')],
             actualMonths: $actualMonths ?? [],
             fixedCosts: $fixedCosts ?? [new FixedCost('rent', 'lease', '1000', '1', 'monthly', '2026-02-10', '2026-06-10', 7, true)],
+        );
+    }
+
+    /** The same reconstruction with a tax arrangement recorded on it. */
+    private function taxed(): ForecastModelInputs
+    {
+        $base = $this->inputs();
+
+        return new ForecastModelInputs(
+            calendar: $base->calendar,
+            streams: $base->streams,
+            founderMonths: $base->founderMonths,
+            cashOpening: $base->cashOpening,
+            tradeItems: $base->tradeItems,
+            assets: $base->assets,
+            taxPolicy: new TaxPolicy('company', '28', true, 'IR policy note', 'advisor review', '2026.1'),
+            actualMonths: $base->actualMonths,
+            openingEligibleLosses: '1500',
+            fixedCosts: $base->fixedCosts,
+            taxCashPlan: new TaxCashPlan('none_due', 'none_due', 'IR account review', 'IR account review', []),
         );
     }
 
