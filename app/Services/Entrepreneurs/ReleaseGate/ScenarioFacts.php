@@ -77,6 +77,7 @@ final class ScenarioFacts implements ProvidesMethodology
         private readonly ScenarioRunner $runner = new ScenarioRunner,
         private readonly CashCurveFacts $curve = new CashCurveFacts,
         private readonly TaxPolicyFacts $taxPolicy = new TaxPolicyFacts,
+        private readonly LedgerEntryFacts $entries = new LedgerEntryFacts,
     ) {}
 
     public static function methodologyIds(): array
@@ -209,6 +210,12 @@ final class ScenarioFacts implements ProvidesMethodology
                 continue;
             }
             $facts = [...$facts, ...$this->taxPolicy->capture($source, $shocked, $scenario)];
+            // The lines behind each month's movement. The shocked inputs
+            // supply the funding identities, and the scenario's own
+            // collection-delayed movements supply the entries, so they
+            // reconcile to the curve above rather than to the base case's.
+            $facts = [...$facts, ...$this->entries->capture(
+                $inputs->calendar, $shocked, $outcome->ledger['movements'] ?? [], $at, $scenario)];
         }
 
         return $facts;

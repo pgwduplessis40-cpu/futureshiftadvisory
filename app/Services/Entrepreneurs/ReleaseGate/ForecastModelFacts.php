@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs\ReleaseGate;
 
-use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\MonthlyTaxChain;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
@@ -127,6 +126,7 @@ final class ForecastModelFacts implements ProvidesMethodology
         private readonly ScenarioFacts $scenarios = new ScenarioFacts,
         private readonly CashCurveFacts $curve = new CashCurveFacts,
         private readonly TaxPolicyFacts $taxPolicy = new TaxPolicyFacts,
+        private readonly LedgerEntryFacts $entries = new LedgerEntryFacts,
     ) {}
 
     /** @return list<Fact> */
@@ -669,15 +669,6 @@ final class ForecastModelFacts implements ProvidesMethodology
         // restriction that nobody made.
         $facts = [new Fact('model.opening_cash', $opening?->amount, unit: 'NZD', asOf: $inputs->calendar->startMonth.'-01',
             confirmed: $opening?->verified === true, sources: [$source->reference('forecast_model.drivers.cash_opening')])];
-        $offsets = array_flip($inputs->calendar->periods);
-        // Which declared source each financing inflow came from. The rule
-        // requires every one of them to map to a named source, and the map is
-        // built from the inputs rather than guessed from the movement, so a
-        // source nobody has named leaves its draw unmapped and reported.
-        $funders = [];
-        foreach ($inputs->fundingSources as $funding) {
-            $funders[$funding->id.'.draw'] = $funding->identity;
-        }
         // The curve itself comes from the shared emitter, because SS-01 checks
         // each scenario's curve against the same arithmetic MI-01 checks this
         // one against, and two implementations of it would drift.
@@ -705,82 +696,12 @@ final class ForecastModelFacts implements ProvidesMethodology
         // and an empty declaration is what says so.
         $facts[] = new Fact('scenario.shocks', '[]', basis: 'the_base_case_declares_no_shock',
             confirmed: true, sources: $at);
-        foreach ($run['movements'] as $movement) {
-            $period = $movement->date === null ? null : substr($movement->date, 0, 7);
-            if ($period === null || ! isset($offsets[$period])) {
-                // A movement the ledger could not date belongs to no month,
-                // and one dated past the calendar is not part of the curve
-                // being checked. Filing either under a month would put it in
-                // a reconciliation it is not in. Nothing is hidden by that:
-                // an undated movement already withholds every balance in the
-                // ledger, so the months report themselves as unverifiable.
-                continue;
-            }
-            $label = 'month:'.($offsets[$period] + 1);
-            $facts[] = new Fact('ledger.amount', $movement->amount, $movement->id, $label, unit: 'NZD', confirmed: true, sources: $at);
-            $facts[] = new Fact('ledger.date', $movement->date, $movement->id, $label, confirmed: true, sources: $at);
-            // The record and the movement within it. One invoice can settle in
-            // instalments, and the rule requires each ledger line to be
-            // identifiable once; the record on its own would read as the same
-            // line counted twice.
-            $facts[] = new Fact('ledger.source', $movement->source.' ('.$movement->id.')', $movement->id, $label, confirmed: true, sources: $at);
-            $category = $this->category($movement);
-            if ($category !== null) {
-                $facts[] = new Fact('ledger.category', $category, $movement->id, $label, confirmed: true, sources: $at);
-            }
-            if (($funders[$movement->id] ?? null) !== null) {
-                $facts[] = new Fact('ledger.funding_identity', $funders[$movement->id], $movement->id, $label, confirmed: true, sources: $at);
-            }
-        }
 
-        return $facts;
-    }
-
-    /**
-     * The gate's ledger category for an engine movement, or none.
-     *
-     * The two vocabularies do not line up, and the direction decides as much
-     * as the category does. The rule holds amounts non-negative and takes the
-     * direction from the classification, so every inflow has to reach an
-     * inflow category and every outflow an outflow one, or the classified
-     * lines would not sum to the month's reported movement.
-     *
-     * Interest, fees and owner pay are operating payments: the rule has no
-     * category for any of them, a distribution is separately named, and cash
-     * paid out of the business for the owner's work is an operating payment
-     * rather than a return of capital.
-     *
-     * Four combinations have no honest home and get no category, which makes
-     * MI-01 report the entry rather than reconcile it. A tax or GST refund and
-     * an asset disposal are receipts, but the rule's three inflow categories
-     * are customer receipts, other operating receipts and financing inflows,
-     * and none of them describes a refund of tax or the proceeds of a disposal
-     * without asserting something about its nature. A restricted transfer is
-     * a movement between restricted and unrestricted cash, which the rule's
-     * categories do not cover at all. Filing any of them under a category
-     * that does not fit would let a month reconcile on a classification the
-     * gate's own taxonomy cannot support; reporting it unclassified is the
-     * honest outcome and names the entry to the advisor.
-     */
-    private function category(CashMovement $movement): ?string
-    {
-        return match ($movement->direction) {
-            'in' => match ($movement->category) {
-                'operating_receipt' => 'customer_receipts',
-                'funding' => 'financing_inflows',
-                default => null,
-            },
-            'out' => match ($movement->category) {
-                'operating_payment', 'owner_pay', 'interest', 'fees' => 'operating_payments',
-                'tax' => 'cash_tax',
-                'gst' => 'gst',
-                'capex' => 'capex',
-                'debt_principal' => 'principal',
-                'distribution' => 'distributions',
-                default => null,
-            },
-            default => null,
-        };
+        // The entries come from the shared emitter, because SS-01 reconciles
+        // each scenario's against the same classification MI-01 reconciles
+        // these against, and a second implementation of that taxonomy would
+        // drift silently - both sides would still add up.
+        return [...$facts, ...$this->entries->capture($inputs->calendar, $inputs, $run['movements'], $at)];
     }
 
     private function ramp(?string $previous, ?string $current): ?string

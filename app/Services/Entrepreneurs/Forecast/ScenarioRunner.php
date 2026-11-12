@@ -108,7 +108,7 @@ final class ScenarioRunner implements ProvidesMethodology
             $this->application->shockCollections($actuals, $movements, $definition));
 
         $curve = ['months' => $ledger['months'], 'lowest_cash' => $ledger['lowest_cash'],
-            'lowest_cash_date' => $ledger['lowest_cash_date']];
+            'lowest_cash_date' => $ledger['lowest_cash_date'], 'movements' => $ledger['movements']];
         // Recognised from the shocked inputs, with the owner's pay read off
         // the movements this scenario actually generates. A downside that
         // lowers revenue lowers revenue-linked pay with it, so taking the pay
