@@ -140,6 +140,54 @@ final class FrameworkTest extends TestCase
         self::assertSame(CanonicalJson::hash(['b' => 2, 'a' => 1]), CanonicalJson::hash(['a' => 1, 'b' => 2]));
     }
 
+    /**
+     * The lookups are indexed, and the index has to answer exactly as a scan
+     * of every fact did.
+     *
+     * Two things would break quietly if it did not. A coordinate index that
+     * overwrote on collision would turn competing records into a silent
+     * last-one-wins, which is the ambiguity `one()` exists to catch. And a
+     * key index that lost insertion order would renumber the subchecks of
+     * every rule that iterates months or entries, because they are numbered
+     * by position.
+     */
+    public function test_indexed_lookups_answer_as_a_scan_of_every_fact_would(): void
+    {
+        $facts = [
+            new Fact('cash.closing', '10', 'business', 'month:1'),
+            new Fact('cash.closing', '20', 'business', 'month:2'),
+            new Fact('cash.closing', '30', 'business', 'month:1', 'downside'),
+            new Fact('cash.closing', '40', 'business', 'month:3'),
+            new Fact('other', '50'),
+        ];
+        $set = new FactSet($facts);
+
+        self::assertSame('10', $set->one('cash.closing', 'business', 'month:1')?->value);
+        self::assertSame('30', $set->one('cash.closing', 'business', 'month:1', 'downside')?->value);
+        self::assertNull($set->one('cash.closing', 'business', 'month:9'), 'A coordinate nobody stated has no fact.');
+
+        self::assertSame(['10', '20', '30', '40'], array_column($set->all('cash.closing'), 'value'),
+            'A key lookup returns every fact under it, in the order they were stated.');
+        self::assertSame(['10', '20', '40'], array_column($set->all('cash.closing', 'base'), 'value'));
+        self::assertSame(['30'], array_column($set->all('cash.closing', 'downside'), 'value'));
+        self::assertSame([], $set->all('nothing.stated'));
+        self::assertCount(5, $set->all(), 'An unfiltered read is still every fact.');
+    }
+
+    /** A separator appearing inside a field would let two different
+     * coordinates collide and resolve each other to nothing.
+     */
+    public function test_a_coordinate_cannot_be_forged_by_a_field_that_looks_like_two(): void
+    {
+        $set = new FactSet([
+            new Fact('a.b', '1', 'c', 'd'),
+            new Fact('a', '2', 'b.c', 'd'),
+        ]);
+
+        self::assertSame('1', $set->one('a.b', 'c', 'd')?->value);
+        self::assertSame('2', $set->one('a', 'b.c', 'd')?->value);
+    }
+
     public function test_f1_manifest_hash_and_observable_cash_arithmetic_are_independent(): void
     {
         $path = dirname(__DIR__, 3).'/Fixtures/Entrepreneurs/ReleaseGate/';
