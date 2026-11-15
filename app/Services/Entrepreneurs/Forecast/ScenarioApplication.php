@@ -412,6 +412,36 @@ final class ScenarioApplication implements ProvidesMethodology
     }
 
     /**
+     * The factor a definition declares against one stream's volumes in one
+     * month, or none where it declares nothing.
+     *
+     * Published so the gate can state the shock a scenario declared beside
+     * the value the engine produced. Deriving that factor by dividing the two
+     * would make the comparison circular - it would agree with itself however
+     * the shock had actually been applied - so the declared figure comes from
+     * the definition and the applied one from the model.
+     */
+    public function volumeFactor(ScenarioDefinition $definition, string $streamId, string $period): ?BigDecimal
+    {
+        return $this->factor(
+            $this->targeting($definition->shocksOfType(ScenarioShock::TYPE_VOLUME_FACTOR), $streamId),
+            $period,
+        );
+    }
+
+    /**
+     * The factor a definition declares against one cost category, in a month
+     * for a per-month rate or across the horizon for an arrangement-level one.
+     */
+    public function costFactor(ScenarioDefinition $definition, string $category, ?string $period = null): ?BigDecimal
+    {
+        return $this->factor(
+            $this->targeting($definition->shocksOfType(ScenarioShock::TYPE_COST_RATE_FACTOR), $category),
+            $period,
+        );
+    }
+
+    /**
      * The shocks out of a set that reach one named target.
      *
      * @param  list<ScenarioShock>  $shocks

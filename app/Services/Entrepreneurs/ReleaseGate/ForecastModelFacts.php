@@ -127,6 +127,8 @@ final class ForecastModelFacts implements ProvidesMethodology
         private readonly TaxPolicyFacts $taxPolicy = new TaxPolicyFacts,
         private readonly LedgerEntryFacts $entries = new LedgerEntryFacts,
         private readonly TaxChainFacts $taxChain = new TaxChainFacts,
+        private readonly ScenarioInputFacts $scenarioInputs = new ScenarioInputFacts,
+        private readonly ProfitDecompositionFacts $decomposition = new ProfitDecompositionFacts,
     ) {}
 
     /** @return list<Fact> */
@@ -552,6 +554,18 @@ final class ForecastModelFacts implements ProvidesMethodology
         // and an empty declaration is what says so.
         $facts[] = new Fact('scenario.shocks', '[]', basis: 'the_base_case_declares_no_shock',
             confirmed: true, sources: $at);
+        // The inventory every scenario is compared against. It belongs here
+        // rather than with the scenario run for the reason the trough and the
+        // baseline do: the rule reads the base case whenever the
+        // reconstruction closes its months, and a comparison needs something
+        // to compare against even where no scenario set can be built.
+        $facts = [...$facts, ...$this->scenarioInputs->capture($inputs, $at)];
+        // The base case's own decomposition, for the same reason. SS-01 reads
+        // it as a scenario of its own, so stating this only for the shocked
+        // ones would leave the base case reporting its profit unestablished
+        // while every scenario derived from it reconciled.
+        $facts = [...$facts, ...$this->decomposition->capture(
+            $inputs->calendar, $this->run->profit($inputs, $run['movements']), $at)];
 
         // The entries come from the shared emitter, because SS-01 reconciles
         // each scenario's against the same classification MI-01 reconciles

@@ -1157,12 +1157,16 @@ final class ForecastModelInputsTest extends TestCase
         self::assertFalse($byId['extremum:0']->status->unresolved(),
             'The reported trough reconciles to the curve the reconstruction states.');
 
-        // Still an honest gap rather than a fabricated pass: the per-scenario
-        // profit decomposition, tax chain and input inventory are not stated
-        // yet, and the rule names each of them.
+        // The evidence SS-01 reads is now stated for the base case, so the
+        // reconciliation reaches its own arithmetic rather than reporting its
+        // inputs unestablished. The inventory, the decomposition and the
+        // declared shocks are all established.
+        self::assertSame([], array_values(array_filter($ids,
+            fn (string $id): bool => str_starts_with($id, 'input-inventory:'))));
+        self::assertNotSame([], array_filter($after->subchecks,
+            fn (Subcheck $check): bool => str_starts_with($check->id, 'profit:') && ! $check->status->unresolved()),
+            'The base case decomposition reconciles to the parts behind it.');
         self::assertSame('cannot_verify', $after->status?->value);
-        self::assertContains('input-inventory:base', $ids);
-        self::assertNotSame([], array_filter($ids, fn (string $id): bool => str_starts_with($id, 'profit:')));
     }
 
     public function test_with_a_budget_in_place_only_the_cash_ledger_rule_changes_its_verdict(): void

@@ -501,6 +501,107 @@ final class ScenarioFactsTest extends TestCase
         self::assertNotSame([], $decided, 'SS-01 decided none of its per-scenario tax checks.');
     }
 
+    /** The inventory claims to be complete, so it has to cover every value a
+     * shock can reach: the three volume fields and the provider unit cost on
+     * each stream month, each fixed cost's rate, each asset's cost.
+     */
+    public function test_the_inventory_covers_every_value_a_shock_can_reach(): void
+    {
+        $entities = [];
+        $inventory = [];
+        foreach ($this->capture() as $fact) {
+            if ($fact->key === 'scenario.input' && $fact->scenario === 'base') {
+                $entities[$fact->entity] = true;
+            }
+            if ($fact->key === 'scenario.input_inventory') {
+                $inventory[$fact->scenario] = $fact->value;
+            }
+        }
+
+        foreach (['booked_units', 'delivery_units', 'invoiced_units', 'provider_unit_cost'] as $field) {
+            self::assertArrayHasKey('stream:intensive.'.$field, $entities, $field.' is outside the inventory.');
+        }
+        self::assertArrayHasKey('fixed_cost:rent.rate', $entities);
+        self::assertArrayHasKey('asset:laptop.cost', $entities);
+        self::assertSame('complete', $inventory['base'] ?? null);
+        self::assertSame('complete', $inventory['cost_upside'] ?? null);
+    }
+
+    /**
+     * The declared multiplier against the applied value.
+     *
+     * The multiplier comes from the definition and the value from the shocked
+     * model, so the comparison tests the engine. Dividing one by the other
+     * would agree with itself however the shock had been applied.
+     */
+    public function test_a_shocked_value_is_the_baseline_with_its_declared_multiplier_applied(): void
+    {
+        $values = [];
+        $multipliers = [];
+        foreach ($this->capture() as $fact) {
+            if ($fact->key === 'scenario.input' && $fact->entity === 'fixed_cost:rent.rate') {
+                $values[$fact->scenario] = $fact->value;
+            }
+            if ($fact->key === 'scenario.shock_multiplier' && $fact->entity === 'fixed_cost:rent.rate') {
+                $multipliers[$fact->scenario] = $fact->value;
+            }
+        }
+
+        self::assertSame('1000', $values['base']);
+        self::assertSame('1.1', $multipliers['cost_upside'] ?? null, 'The declared factor is the one the catalogue set.');
+        self::assertEqualsWithDelta(
+            (float) $values['base'] * (float) $multipliers['cost_upside'],
+            (float) $values['cost_upside'],
+            0.005,
+            'The shocked rate is not the baseline with its declared factor applied.',
+        );
+    }
+
+    /** An undeclared input stays at the shared baseline, and the rule compares
+     * the two as strings, so they have to match exactly rather than merely
+     * being equal as numbers.
+     */
+    public function test_an_unshocked_value_is_byte_identical_to_the_baseline(): void
+    {
+        $values = [];
+        $shocked = [];
+        foreach ($this->capture() as $fact) {
+            if ($fact->key === 'scenario.input' && $fact->entity === 'asset:laptop.cost') {
+                $values[$fact->scenario] = $fact->value;
+            }
+            if ($fact->key === 'scenario.shock_multiplier' && $fact->entity === 'asset:laptop.cost') {
+                $shocked[$fact->scenario] = true;
+            }
+        }
+
+        self::assertArrayNotHasKey('collections_delay', $shocked, 'A delay declares nothing against capex.');
+        self::assertSame($values['base'], $values['collections_delay'],
+            'An undeclared input moved, or moved only in how it is written.');
+    }
+
+    /** SS-01 reported the inventory unestablished on every scenario while
+     * nothing stated one.
+     */
+    public function test_the_rule_reaches_its_input_comparison(): void
+    {
+        $checks = (new ScenarioRule)->evaluate($this->gateContext(), new RuleConfiguration);
+        $ids = array_map(fn (object $check): string => $check->id, $checks);
+        $decided = [];
+        foreach ($checks as $check) {
+            if (! $check->status->unresolved()) {
+                $decided[] = $check->id;
+            }
+        }
+
+        self::assertSame([], array_values(array_filter($ids,
+            fn (string $id): bool => str_starts_with($id, 'input-inventory:'))),
+            'A scenario stating a complete inventory has it established.');
+        self::assertNotSame([], array_filter($decided, fn (string $id): bool => str_starts_with($id, 'shock:')),
+            'SS-01 decided none of its declared-shock comparisons.');
+        self::assertNotSame([], array_filter($decided, fn (string $id): bool => str_starts_with($id, 'input-count:')),
+            'SS-01 did not decide that the scenarios use the same inventory.');
+    }
+
     /** SS-01 could only ever report its scenarios as not established, because
      * nothing stated any. It now reaches the reconciliation itself.
      */
