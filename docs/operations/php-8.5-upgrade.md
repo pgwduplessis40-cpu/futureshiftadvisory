@@ -1,6 +1,6 @@
 # PHP 8.5 upgrade (production)
 
-Production runs PHP 8.4 from the Remi module stream on AlmaLinux. PHP 8.4
+Production runs PHP 8.4 from the Remi module stream on CentOS Stream 9. PHP 8.4
 receives bug fixes until 31 December 2026 and security fixes until
 31 December 2028. PHP 8.5 receives security fixes until 31 December 2029.
 Complete this upgrade before 31 December 2026.
@@ -19,9 +19,10 @@ latest patch release of whichever branch is installed, so keep applying
   casts, `__sleep`/`__wakeup`, `case` labels ending in `;`) exists in `app/`,
   `config/`, `routes/`, `database/`, or `bootstrap/`.
 - Every PHP process uses `/usr/bin/php` or the `php-fpm` unit: PHP-FPM, the
-  `inertia-ssr` service (`/usr/bin/php artisan inertia:start-ssr`), and the
-  scheduler timer. A Remi module-stream switch keeps those paths and unit
-  names, so no systemd unit or nginx change is required.
+  `inertia-ssr` service (`/usr/bin/php artisan inertia:start-ssr`), the
+  Supervisor queue worker (`futureshiftadvisory-queue`), and the scheduler
+  timer. A Remi module-stream switch keeps those paths and unit names, so no
+  systemd unit, Supervisor program, or nginx change is required.
 
 ## 1. Pre-flight (any day before; read-only, about 10 minutes)
 
@@ -34,8 +35,9 @@ dnf module list php
 ```
 
 Continue only if `dnf module list php` lists a `remi-8.5` stream and marks
-`remi-8.4` as enabled (`[e]`). If dnf reports that modules are unavailable
-(AlmaLinux 10), stop: the switch commands below do not apply.
+`remi-8.4` as enabled (`[e]`). Choose `remi-8.5` even when a newer stream is
+listed: CI does not test a newer PHP release. If dnf reports that modules are
+unavailable (an EL10 host), stop: the switch commands below do not apply.
 
 Record the current state so the upgrade can be compared against it:
 
@@ -52,8 +54,15 @@ List every long-running PHP process that must be restarted after the switch:
 systemctl list-units --type=service --state=running | grep -iE 'php|ssr|queue|worker|reverb|supervisor'
 ```
 
-Expect `php-fpm.service` and `inertia-ssr.service`. Note any other match, such
-as a queue worker; it must also be restarted in step 3.
+Expect `php-fpm.service`, `inertia-ssr.service`, and `supervisord.service`.
+Supervisor runs the queue worker; confirm it is the only Supervisor program:
+
+```bash
+supervisorctl status
+```
+
+Expect `futureshiftadvisory-queue:futureshiftadvisory-queue_00` as `RUNNING`.
+Note any other PHP process; it must also be restarted in step 3.
 
 Preview the switch without changing anything:
 
@@ -62,7 +71,8 @@ sudo dnf module switch-to php:remi-8.5 --assumeno
 ```
 
 Read the transaction summary. Installed `php-*` packages should appear under
-Upgrading. If a PHP extension package appears under Removing without a
+Upgrading. `php-common` replacing `php-opcache` is expected: OPcache is built
+into PHP 8.5. If a PHP extension package appears under Removing without a
 replacement, stop: that extension has no PHP 8.5 build and must be resolved
 before the window.
 
@@ -87,7 +97,8 @@ restarts PHP-FPM mid-switch:
 sudo systemctl stop futureshiftadvisory-scheduler.timer futureshiftadvisory-edge-watchdog.timer
 ```
 
-Put the application in maintenance mode:
+Put the application in maintenance mode. The queue worker holds queued jobs
+until the application is back up:
 
 ```bash
 php artisan down
@@ -123,13 +134,16 @@ them as `.rpmnew`, so `.rpmnew` files need no action. An `.rpmsave` file means
 an edited file was replaced: copy the settings back from it. The settings diff
 must print nothing.
 
-Validate the PHP-FPM configuration, then restart the PHP services and any extra
-process noted in pre-flight:
+Validate the PHP-FPM configuration, then restart PHP-FPM, SSR, the queue
+worker, and any extra process noted in pre-flight. A running PHP process keeps
+the old binary in memory until it restarts:
 
 ```bash
 sudo php-fpm -t
 sudo systemctl restart php-fpm inertia-ssr
 systemctl is-active php-fpm inertia-ssr
+sudo supervisorctl restart 'futureshiftadvisory-queue:*'
+sudo supervisorctl status
 ```
 
 Confirm the installed dependencies accept PHP 8.5 and its extensions. Every
@@ -180,6 +194,7 @@ sudo dnf module switch-to php:remi-8.4 -y
 sudo tar xzf ~/php-8.4-config.tgz -C /
 sudo php-fpm -t
 sudo systemctl restart php-fpm inertia-ssr
+sudo supervisorctl restart 'futureshiftadvisory-queue:*'
 php artisan up
 ./deploy.sh
 ```
