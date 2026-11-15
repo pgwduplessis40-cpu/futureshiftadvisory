@@ -11,6 +11,7 @@ use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
+use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\ReservePolicy;
@@ -20,6 +21,7 @@ use App\Services\Entrepreneurs\Forecast\ScenarioCatalogue;
 use App\Services\Entrepreneurs\Forecast\ScenarioDefinition;
 use App\Services\Entrepreneurs\Forecast\ScenarioRunner;
 use App\Services\Entrepreneurs\Forecast\ScenarioShock;
+use App\Services\Entrepreneurs\Forecast\ShockReport;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
 use App\Services\Entrepreneurs\Forecast\TradeItem;
@@ -36,9 +38,7 @@ final class ScenarioRunnerTest extends TestCase
             new ScenarioShock(ScenarioShock::TYPE_VOLUME_FACTOR, '0.8', ['intensive']),
         ], 'test');
 
-        $report = (new ScenarioApplication)->revenueShockReport(
-            $calendar, $window, [$this->stream('10')], $this->founderMonths($calendar), $definition
-        );
+        $report = $this->report($calendar, $window, $this->stream('10'), $definition);
 
         self::assertNotNull($report);
         self::assertSame('0.8', $report->requestedFactor);
@@ -62,9 +62,7 @@ final class ScenarioRunnerTest extends TestCase
 
         // 20 requested units against 10 units of founder capacity: the base
         // case already delivers 10, and 16 requested still delivers 10.
-        $report = (new ScenarioApplication)->revenueShockReport(
-            $calendar, $window, [$this->stream('20')], $this->founderMonths($calendar), $definition
-        );
+        $report = $this->report($calendar, $window, $this->stream('20'), $definition);
 
         self::assertNotNull($report);
         self::assertSame($report->baselineAmount, $report->shockedAmount);
@@ -77,9 +75,26 @@ final class ScenarioRunnerTest extends TestCase
         $calendar = new ForecastCalendar('2027-01', 2);
         $base = new ScenarioDefinition('base', 'Base', [], 'test');
 
-        self::assertNull((new ScenarioApplication)->revenueShockReport(
-            $calendar, $this->openWindow($calendar), [$this->stream('10')], $this->founderMonths($calendar), $base
-        ));
+        self::assertNull($this->report($calendar, $this->openWindow($calendar), $this->stream('10'), $base));
+    }
+
+    /**
+     * The report the way the runner builds it: both revenue totals taken from
+     * projections the run already holds, rather than two the report takes for
+     * itself.
+     */
+    private function report(ForecastCalendar $calendar, ActualsWindow $window, RevenueStream $stream,
+        ScenarioDefinition $definition): ?ShockReport
+    {
+        $application = new ScenarioApplication;
+        $inputs = new ForecastModelInputs(calendar: $calendar, streams: [$stream],
+            founderMonths: $this->founderMonths($calendar));
+        $run = new ForecastRun;
+        $shocked = $application->shockInputs($window, $inputs, $definition);
+
+        return $application->revenueShockReport($calendar, $inputs->streams, $definition,
+            ScenarioApplication::totalRevenue($run->revenue($inputs)['months']),
+            ScenarioApplication::totalRevenue($run->revenue($shocked)['months']));
     }
 
     public function test_the_runner_ranks_the_worst_scenario_by_its_named_metric_and_records_maxima(): void

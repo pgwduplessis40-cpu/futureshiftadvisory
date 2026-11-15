@@ -321,8 +321,15 @@ final class ScenarioFacts implements ProvidesMethodology
 
         $requested = $this->percent($shock->factorValue());
         if ($shock->type === ScenarioShock::TYPE_VOLUME_FACTOR) {
-            $report = $this->application->revenueShockReport($inputs->calendar, $window, $inputs->streams,
-                $inputs->founderMonths, $definition);
+            // Both totals come from projections this run already holds. The
+            // report used to take its own two, one of them the unshocked case
+            // it recomputed for every scenario that asked.
+            $report = $this->application->revenueShockReport(
+                $inputs->calendar, $inputs->streams, $definition,
+                ScenarioApplication::totalRevenue($this->run->revenue($inputs)['months']),
+                ScenarioApplication::totalRevenue($this->run->revenue(
+                    $this->application->shockInputs($window, $inputs, $definition))['months']),
+            );
             $factor = $report?->effectiveFactor();
 
             return [$requested, $factor === null ? null : $this->percent(BigDecimal::of($factor)),
