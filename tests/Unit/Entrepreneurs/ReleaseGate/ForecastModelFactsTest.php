@@ -13,6 +13,7 @@ use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingRequest;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastEngineVersion;
@@ -310,6 +311,12 @@ final class ForecastModelFactsTest extends TestCase
                 'Capitalisation policy v2', true, '2026-02-10', '2026-02-01', 36, '200', 'straight_line_full_start_month', '0')] : [],
             fundingSources: $sources,
             fundingInventoryComplete: $funded ? $inventoryComplete : null,
+            // A finished reconstruction that asks for external money states
+            // the ask, because the reconstruction takes that key over from
+            // the budget. One that asks for nothing states nothing, and the
+            // budget's figure is superseded away rather than borrowed back.
+            fundingRequest: $funded ? new FundingRequest('25000', '2026-02-15', 'cash_deficit', 'combined_downside',
+                '5000', null) : null,
         );
     }
 

@@ -8,8 +8,10 @@ use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastDates;
+use App\Services\Entrepreneurs\Forecast\FundingRequest;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
+use App\Services\Entrepreneurs\Forecast\ScenarioCatalogue;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\TaxCashPlan;
 use App\Services\Entrepreneurs\Forecast\TaxPeriod;
@@ -35,7 +37,7 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type FundingRow array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:string|null}
  * @phpstan-type FixedCostRow array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,first_invoice_on:string|null,last_invoice_on:string|null,creditor_days:int|string|null,reviewed:string|null}
  * @phpstan-type TaxPaymentRow array{id:string,source:string,date:string|null,amount:string|null,category:string,direction:string,verified:string|null}
- * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null,tax_cash_state:string|null,gst_cash_state:string|null,tax_cash_source:string|null,gst_cash_source:string|null,tax_payments:list<TaxPaymentRow>,owner_pay_deductible:string|null}
+ * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null,tax_cash_state:string|null,gst_cash_state:string|null,tax_cash_source:string|null,gst_cash_source:string|null,tax_payments:list<TaxPaymentRow>,owner_pay_deductible:string|null,funding_request_amount:string|null,funding_request_needed_on:string|null,funding_request_metric:string|null,funding_request_basis_scenario:string|null,funding_request_non_external_total:string|null,funding_reserve_only_disclosure:string|null}
  */
 final readonly class AdvisorForecastTerms
 {
@@ -71,6 +73,20 @@ final readonly class AdvisorForecastTerms
      * and a schedule with rows contradicts both of them.
      */
     public const CASH_STATES = ['scheduled', 'none_due', 'not_applicable'];
+
+    /**
+     * The scenarios a funding request can be sized against.
+     *
+     * Taken from the catalogue the run actually builds, because SS-03 reads a
+     * request whose basis scenario has no stated deficit as unstated. A free
+     * text field would accept a scenario nobody runs and fail the rule later,
+     * with nothing on the screen saying why.
+     *
+     * @var list<string>
+     */
+    public const SCENARIOS = [ScenarioCatalogue::BASE, ScenarioCatalogue::REVENUE_DOWNSIDE,
+        ScenarioCatalogue::SLOW_START, ScenarioCatalogue::COST_UPSIDE, ScenarioCatalogue::COLLECTIONS_DELAY,
+        ScenarioCatalogue::COMBINED_DOWNSIDE];
 
     /** @return array<string,list<string>> */
     public function rules(): array
@@ -189,6 +205,17 @@ final readonly class AdvisorForecastTerms
             // drawing against it. The two give different profits off the same
             // cash, and which applies depends on the entity.
             'owner_pay_deductible' => $stated,
+            // What is being asked of a lender, and what sized it. The metric
+            // and the basis scenario are constrained rather than free text:
+            // the rule reads a request sized against a scenario the model
+            // does not run as unstated, so a field that accepts one would
+            // take an answer it could never use.
+            'funding_request_amount' => $number,
+            'funding_request_needed_on' => $date,
+            'funding_request_metric' => ['present', 'nullable', 'in:'.implode(',', FundingRequest::METRICS)],
+            'funding_request_basis_scenario' => ['present', 'nullable', 'in:'.implode(',', self::SCENARIOS)],
+            'funding_request_non_external_total' => $number,
+            'funding_reserve_only_disclosure' => ['present', 'nullable', 'string', 'max:1000'],
         ];
     }
 
@@ -224,7 +251,34 @@ final readonly class AdvisorForecastTerms
             fixedCostScheduleComplete: $this->stated($data['fixed_cost_schedule_complete']),
             taxCashPlan: $this->taxCashPlan($data),
             ownerPayDeductible: $this->stated($data['owner_pay_deductible']),
+            fundingRequest: $this->fundingRequest($data),
         );
+    }
+
+    /**
+     * A request nobody has said anything about stays absent rather than
+     * becoming an empty one, for the same reason the tax cash plan does.
+     *
+     * The reconstruction takes this key over from the budget, so an empty
+     * request would not read as "nothing asked for" - it would take the
+     * budget's figure away and replace it with a blank.
+     *
+     * @param  TermsData  $data
+     */
+    private function fundingRequest(array $data): ?FundingRequest
+    {
+        $fields = [
+            $this->blank($data['funding_request_amount']),
+            $this->blank($data['funding_request_needed_on']),
+            $this->blank($data['funding_request_metric']),
+            $this->blank($data['funding_request_basis_scenario']),
+            $this->blank($data['funding_request_non_external_total']),
+            $this->blank($data['funding_reserve_only_disclosure']),
+        ];
+
+        return array_filter($fields, fn (?string $value): bool => $value !== null) === []
+            ? null
+            : new FundingRequest(...$fields);
     }
 
     /**

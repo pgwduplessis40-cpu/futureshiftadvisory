@@ -14,7 +14,10 @@ use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingRequest;
+use App\Services\Entrepreneurs\Forecast\ReservePolicy;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
+use App\Services\Entrepreneurs\Forecast\ScenarioRunner;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastEngineVersion;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\StreamMonth;
@@ -27,6 +30,7 @@ use App\Services\Entrepreneurs\ReleaseGate\DocumentContext;
 use App\Services\Entrepreneurs\ReleaseGate\Fact;
 use App\Services\Entrepreneurs\ReleaseGate\ForecastModelFacts;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
+use App\Services\Entrepreneurs\ReleaseGate\Rules\ScenarioFundingRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\ScenarioRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\StressDimensionRule;
 use App\Services\Entrepreneurs\ReleaseGate\ScenarioFacts;
@@ -602,6 +606,201 @@ final class ScenarioFactsTest extends TestCase
             'SS-01 did not decide that the scenarios use the same inventory.');
     }
 
+    /**
+     * SS-03 sizes a funding ask against these, and reads a deficit whose
+     * basis differs from the shared one as missing evidence rather than as a
+     * mismatch. So every scenario's has to carry the same footing the base
+     * case's does.
+     */
+    public function test_every_scenario_states_its_deficit_and_reserve_gap_on_the_shared_basis(): void
+    {
+        $bases = [];
+        $deficits = [];
+        $gaps = [];
+        $shared = null;
+        foreach ($this->capture($this->funded()) as $fact) {
+            if ($fact->key === 'funding.basis') {
+                $shared = $fact->value;
+            }
+            if ($fact->key === 'scenario.cash_deficit') {
+                $deficits[$fact->scenario] = $fact->value;
+                $bases[] = $fact->basis;
+            }
+            if ($fact->key === 'scenario.reserve_gap') {
+                $gaps[$fact->scenario] = $fact->value;
+                $bases[] = $fact->basis;
+            }
+        }
+
+        self::assertSame(ScenarioRunner::SCOPE, $shared);
+        self::assertArrayHasKey('base', $deficits);
+        self::assertArrayHasKey('cost_upside', $deficits);
+        self::assertArrayHasKey('cost_upside', $gaps);
+        self::assertSame([$shared], array_values(array_unique($bases)),
+            'A measure on another footing is a different number, and the rule reads it as missing.');
+    }
+
+    /** The base case is stated once. A second record under the same
+     * coordinate resolves to nothing, which would lose its metrics rather
+     * than add to them.
+     */
+    public function test_the_base_metrics_are_not_stated_twice(): void
+    {
+        $counts = [];
+        foreach ($this->capture($this->funded()) as $fact) {
+            if (in_array($fact->key, ['scenario.cash_deficit', 'scenario.reserve_gap', 'funding.basis'], true)) {
+                $counts[$fact->key.':'.$fact->scenario] = ($counts[$fact->key.':'.$fact->scenario] ?? 0) + 1;
+            }
+        }
+
+        foreach ($counts as $coordinate => $count) {
+            self::assertSame(1, $count, $coordinate.' is stated more than once, so it resolves to nothing.');
+        }
+    }
+
+    /** The run already decides which scenario each measure peaks in. Naming
+     * it is what lets the rule check the claim instead of recomputing it.
+     */
+    public function test_the_worst_scenario_for_each_measure_is_named(): void
+    {
+        $named = [];
+        $deficits = [];
+        foreach ($this->capture($this->funded()) as $fact) {
+            if (in_array($fact->key, ['funding.worst_deficit_scenario', 'funding.worst_reserve_scenario'], true)) {
+                $named[$fact->key] = $fact->value;
+            }
+            if ($fact->key === 'scenario.cash_deficit' && $fact->value !== null) {
+                $deficits[$fact->scenario] = (float) $fact->value;
+            }
+        }
+
+        self::assertArrayHasKey('funding.worst_deficit_scenario', $named);
+        self::assertContains($named['funding.worst_deficit_scenario'], array_keys($deficits));
+        self::assertSame(max($deficits), $deficits[$named['funding.worst_deficit_scenario']],
+            'The named worst deficit scenario is not the one with the highest deficit.');
+    }
+
+    /** SS-03 could only ever report its scenarios as not established. It now
+     * reaches the comparisons it was written to make.
+     */
+    public function test_the_funding_rule_reaches_its_worst_scenario_comparisons(): void
+    {
+        $checks = (new ScenarioFundingRule)->evaluate($this->gateContext($this->funded()), new RuleConfiguration);
+        $ids = array_map(fn (object $check): string => $check->id, $checks);
+        $decided = [];
+        foreach ($checks as $check) {
+            if (! $check->status->unresolved()) {
+                $decided[] = $check->id;
+            }
+        }
+
+        self::assertNotContains('scenarios', $ids, 'SS-03 still sees no scenarios at all.');
+        self::assertNotContains('basis', $ids, 'SS-03 still cannot read the basis the scenarios share.');
+        self::assertContains('worst:deficit', $decided, 'SS-03 did not decide which scenario has the worst deficit.');
+        self::assertContains('worst:reserve', $decided, 'SS-03 did not decide which scenario has the worst reserve gap.');
+    }
+
+    /**
+     * The check the whole request slice exists to enable.
+     *
+     * SS-03 holds the amount against the requirement it names, less the
+     * non-external sources applied first. The expected figure is read back off
+     * the facts rather than written in here, because hard-coding it would
+     * test this fixture's arithmetic instead of the rule's.
+     */
+    public function test_the_funding_rule_checks_a_request_against_the_requirement_it_names(): void
+    {
+        $deficits = [];
+        foreach ($this->capture($this->funded()) as $fact) {
+            if ($fact->key === 'scenario.cash_deficit' && $fact->value !== null) {
+                $deficits[$fact->scenario] = (float) $fact->value;
+            }
+        }
+        self::assertArrayHasKey('combined_downside', $deficits);
+
+        $nonExternal = 500.0;
+        $sized = $this->asking((string) ($deficits['combined_downside'] - $nonExternal), (string) $nonExternal);
+        $checks = (new ScenarioFundingRule)->evaluate($this->gateContext($sized), new RuleConfiguration);
+
+        $request = null;
+        foreach ($checks as $check) {
+            if ($check->id === 'request') {
+                $request = $check;
+            }
+        }
+
+        self::assertNotNull($request, 'SS-03 never reached the request check.');
+        self::assertFalse($request->status->unresolved(),
+            'SS-03 still reports the request unestablished with every statement behind it present.');
+    }
+
+    /** The non-external total is subtracted once. A request already net of it
+     * would be reduced twice and understate what is needed, so a request
+     * sized at the full requirement has to fail.
+     */
+    public function test_a_request_that_ignores_the_non_external_sources_is_demonstrated(): void
+    {
+        $deficits = [];
+        foreach ($this->capture($this->funded()) as $fact) {
+            if ($fact->key === 'scenario.cash_deficit' && $fact->value !== null) {
+                $deficits[$fact->scenario] = (float) $fact->value;
+            }
+        }
+
+        $full = $this->asking((string) $deficits['combined_downside'], '500');
+        $checks = (new ScenarioFundingRule)->evaluate($this->gateContext($full), new RuleConfiguration);
+
+        $failed = [];
+        foreach ($checks as $check) {
+            if ($check->id === 'request' && $check->status->value === 'fail') {
+                $failed[] = $check->id;
+            }
+        }
+
+        self::assertSame(['request'], $failed,
+            'A request ignoring the sources applied first was not demonstrated.');
+    }
+
+    /**
+     * A reserve shortfall with no month running out of cash is a decision to
+     * run thinner than policy, not an automatic need to borrow.
+     *
+     * SS-03 lets it stand but not go unsaid, so the disclosure is the one
+     * thing it requires on the no-request path. The preconditions are
+     * asserted first: without them the rule returns no checks at all and the
+     * test would pass on silence.
+     */
+    public function test_a_reserve_only_shortfall_with_no_request_is_disclosed(): void
+    {
+        $facts = $this->capture($this->disclosing());
+        $deficits = [];
+        $gaps = [];
+        foreach ($facts as $fact) {
+            if ($fact->key === 'scenario.cash_deficit' && $fact->value !== null) {
+                $deficits[$fact->scenario] = (float) $fact->value;
+            }
+            if ($fact->key === 'scenario.reserve_gap' && $fact->value !== null) {
+                $gaps[$fact->scenario] = (float) $fact->value;
+            }
+        }
+
+        self::assertNotSame([], $deficits);
+        self::assertSame(0.0, max($deficits), 'A month short of cash puts this on the borrowing path, not the disclosure one.');
+        self::assertGreaterThan(0.0, max($gaps), 'With no reserve shortfall there is nothing to disclose.');
+
+        $checks = (new ScenarioFundingRule)->evaluate($this->gateContext($this->disclosing()), new RuleConfiguration);
+        $disclosure = null;
+        foreach ($checks as $check) {
+            if ($check->id === 'disclosure') {
+                $disclosure = $check;
+            }
+        }
+
+        self::assertNotNull($disclosure, 'SS-03 never asked for the disclosure.');
+        self::assertFalse($disclosure->status->unresolved(),
+            'The shortfall is disclosed, so the check is decided rather than reported missing.');
+    }
+
     /** SS-01 could only ever report its scenarios as not established, because
      * nothing stated any. It now reaches the reconciliation itself.
      */
@@ -669,7 +868,13 @@ final class ScenarioFactsTest extends TestCase
             'engine_version' => ForecastEngineVersion::CURRENT,
             'drivers' => json_decode(CanonicalJson::encode($inputs->driversPayload()), true),
             'actuals' => json_decode(CanonicalJson::encode($inputs->actualsPayload()), true),
-            'reserve_policy' => null,
+            // Carried through rather than nulled. The funding measures have
+            // nothing to measure against without it, so a fixture that sets a
+            // policy and a capture that drops it would report every deficit
+            // unstated and look like the engine withholding them.
+            'reserve_policy' => $inputs->reservePolicyPayload() === null
+                ? null
+                : json_decode(CanonicalJson::encode($inputs->reservePolicyPayload()), true),
         ]];
 
         return (new ForecastModelFacts)->capture(new SourceRecords(new SourceVersion(
@@ -704,6 +909,78 @@ final class ScenarioFactsTest extends TestCase
                 '2026-02-01', 36, '200', 'straight_line_full_start_month', '0')],
             actualMonths: $actualMonths ?? [],
             fixedCosts: $fixedCosts ?? [new FixedCost('rent', 'lease', '1000', '1', 'monthly', '2026-02-10', '2026-06-10', 7, true)],
+        );
+    }
+
+    /**
+     * The same reconstruction with a reserve policy on it.
+     *
+     * Without one the funding measures have nothing to measure against, so
+     * every scenario's deficit and shortfall are unstated and there is no
+     * maximum for the run to name.
+     */
+    private function funded(): ForecastModelInputs
+    {
+        $base = $this->inputs();
+
+        return new ForecastModelInputs(
+            calendar: $base->calendar,
+            streams: $base->streams,
+            founderMonths: $base->founderMonths,
+            cashOpening: $base->cashOpening,
+            tradeItems: $base->tradeItems,
+            assets: $base->assets,
+            actualMonths: $base->actualMonths,
+            reservePolicy: new ReservePolicy('1000', 3, false, null, '0.10',
+                'three months of fixed costs excluding owner pay'),
+            fixedCosts: $base->fixedCosts,
+        );
+    }
+
+    /** The funded reconstruction with an external ask recorded against it. */
+    private function asking(string $amount, string $nonExternal): ForecastModelInputs
+    {
+        $base = $this->funded();
+
+        return new ForecastModelInputs(
+            calendar: $base->calendar,
+            streams: $base->streams,
+            founderMonths: $base->founderMonths,
+            cashOpening: $base->cashOpening,
+            tradeItems: $base->tradeItems,
+            assets: $base->assets,
+            actualMonths: $base->actualMonths,
+            reservePolicy: $base->reservePolicy,
+            fixedCosts: $base->fixedCosts,
+            fundingRequest: new FundingRequest($amount, '2026-05-01', 'cash_deficit', 'combined_downside',
+                $nonExternal, null),
+        );
+    }
+
+    /**
+     * Enough opening cash that no month runs out, but less held than the
+     * reserve policy asks for, and nothing requested.
+     *
+     * The request records only the disclosure: an amount of none is what puts
+     * this on the no-request path, and the disclosure is what the rule then
+     * requires.
+     */
+    private function disclosing(): ForecastModelInputs
+    {
+        $base = $this->funded();
+
+        return new ForecastModelInputs(
+            calendar: $base->calendar,
+            streams: $base->streams,
+            founderMonths: $base->founderMonths,
+            cashOpening: new CashOpening('10000', 'Bank statement to 31 December 2025', true),
+            tradeItems: $base->tradeItems,
+            assets: $base->assets,
+            actualMonths: $base->actualMonths,
+            reservePolicy: $base->reservePolicy,
+            fixedCosts: $base->fixedCosts,
+            fundingRequest: new FundingRequest(null, null, null, null, null,
+                'Reserve target accepted as short for two quarters; board minute 2026-04-18.'),
         );
     }
 

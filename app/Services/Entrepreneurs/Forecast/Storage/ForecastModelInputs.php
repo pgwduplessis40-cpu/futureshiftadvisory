@@ -11,6 +11,7 @@ use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingRequest;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\ReservePolicy;
@@ -88,6 +89,12 @@ final readonly class ForecastModelInputs
         // payment, so it is asked rather than inferred from the entity basis,
         // which is free text.
         public ?bool $ownerPayDeductible = null,
+        // What is being asked of a lender, and the reasoning that sized it.
+        // It lives with the reconstruction rather than with the budget
+        // because the requirement it answers comes from this model's own
+        // scenarios: an ask stated in one model and sized against another's
+        // downside is two models' arithmetic presented as one answer.
+        public ?FundingRequest $fundingRequest = null,
     ) {}
 
     /**
@@ -133,11 +140,12 @@ final readonly class ForecastModelInputs
             fixedCostScheduleComplete: $this->fixedCostScheduleComplete,
             taxCashPlan: $this->taxCashPlan,
             ownerPayDeductible: $this->ownerPayDeductible,
+            fundingRequest: $this->fundingRequest,
         );
     }
 
     /**
-     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool,tax_cash_plan:?TaxCashPlan,owner_pay_deductible:?bool}
+     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool,tax_cash_plan:?TaxCashPlan,owner_pay_deductible:?bool,funding_request:?FundingRequest}
      */
     public function driversPayload(): array
     {
@@ -161,6 +169,7 @@ final readonly class ForecastModelInputs
             'fixed_cost_schedule_complete' => $this->fixedCostScheduleComplete,
             'tax_cash_plan' => $this->taxCashPlan,
             'owner_pay_deductible' => $this->ownerPayDeductible,
+            'funding_request' => $this->fundingRequest,
         ];
     }
 

@@ -11,6 +11,7 @@ use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingRequest;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
@@ -244,6 +245,26 @@ final class DriverCodec
         }
 
         return $assets;
+    }
+
+    /**
+     * The request and the reasoning that sized it.
+     *
+     * Every field is read as stated text. A request whose metric was stored
+     * as something the engine no longer recognises refuses on construction
+     * rather than loading as a cash deficit, because the two metrics give
+     * different amounts off the same scenarios.
+     */
+    public static function fundingRequest(mixed $node): FundingRequest
+    {
+        return new FundingRequest(
+            StoredValues::text($node, 'amount'),
+            StoredValues::text($node, 'needed_on'),
+            StoredValues::text($node, 'metric'),
+            StoredValues::text($node, 'basis_scenario'),
+            StoredValues::text($node, 'non_external_total'),
+            StoredValues::text($node, 'reserve_only_disclosure'),
+        );
     }
 
     public static function taxCashPlan(mixed $node): TaxCashPlan
