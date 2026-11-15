@@ -20,8 +20,14 @@ import { Textarea } from '@/components/ui/textarea';
 
 const METRICS: { value: string; label: string }[] = [
     { value: '', label: 'Not stated' },
-    { value: 'cash_deficit', label: 'Cash deficit — money the business runs out of' },
-    { value: 'reserve_gap', label: 'Reserve gap — less held than policy requires' },
+    {
+        value: 'cash_deficit',
+        label: 'Cash deficit — money the business runs out of',
+    },
+    {
+        value: 'reserve_gap',
+        label: 'Reserve gap — less held than policy requires',
+    },
 ];
 
 const SCENARIOS: { value: string; label: string }[] = [
@@ -68,14 +74,16 @@ export function FundingRequestFields({
             <legend className="px-1 text-sm font-medium">
                 External funding request
             </legend>
-            <p className="text-muted-foreground mb-3 text-sm">
+            <p className="mb-3 text-sm text-muted-foreground">
                 Leave every field blank where no external money is being asked
                 for. An amount of zero is a decision not to borrow; blank is
                 nobody having said.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                    <Label htmlFor="funding-request-amount">Amount requested</Label>
+                    <Label htmlFor="funding-request-amount">
+                        Amount requested
+                    </Label>
                     <Input
                         id="funding-request-amount"
                         name="funding_request_amount"
@@ -101,7 +109,7 @@ export function FundingRequestFields({
                     <select
                         id="funding-request-metric"
                         name="funding_request_metric"
-                        className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                         value={metric}
                         onChange={(event) => onMetric(event.target.value)}
                     >
@@ -119,7 +127,7 @@ export function FundingRequestFields({
                     <select
                         id="funding-request-basis-scenario"
                         name="funding_request_basis_scenario"
-                        className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                         value={basisScenario}
                         onChange={(event) =>
                             onBasisScenario(event.target.value)
@@ -145,9 +153,9 @@ export function FundingRequestFields({
                             onNonExternalTotal(event.target.value)
                         }
                     />
-                    <p className="text-muted-foreground mt-1 text-xs">
-                        Subtracted once, when the request is checked. Do not
-                        net it off the amount above as well.
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Subtracted once, when the request is checked. Do not net
+                        it off the amount above as well.
                     </p>
                 </div>
             </div>
@@ -164,10 +172,10 @@ export function FundingRequestFields({
                         onReserveOnlyDisclosure(event.target.value)
                     }
                 />
-                <p className="text-muted-foreground mt-1 text-xs">
-                    Required where the reserve target is short but no month
-                    runs out of cash and nothing is being borrowed. Running
-                    thinner than policy is allowed to stand, not to go unsaid.
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Required where the reserve target is short but no month runs
+                    out of cash and nothing is being borrowed. Running thinner
+                    than policy is allowed to stand, not to go unsaid.
                 </p>
             </div>
         </fieldset>
