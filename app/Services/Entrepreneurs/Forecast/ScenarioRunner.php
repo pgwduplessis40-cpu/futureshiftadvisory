@@ -25,6 +25,22 @@ final class ScenarioRunner implements ProvidesMethodology
 {
     public const VERSION = 'phase-2e.1';
 
+    /**
+     * The footing every deficit and shortfall in this run is measured on.
+     *
+     * Named here because two producers state it. SS-03 rejects a deficit
+     * whose basis differs from the one it was told the scenarios share -
+     * as missing evidence rather than as a mismatch, because a deficit
+     * calculated on a different footing is a different number - so the
+     * reconstruction and the scenario run have to name one string, not two
+     * kept in step by hand.
+     *
+     * Funding already arranged is inside it, because that is money the
+     * business has. The facility this sizing exists to recommend is not an
+     * input and cannot fund its own case.
+     */
+    public const SCOPE = 'before_proposed_facility';
+
     public function __construct(
         private readonly ScenarioApplication $application = new ScenarioApplication,
         private readonly FundingMeasures $funding = new FundingMeasures,
@@ -84,7 +100,7 @@ final class ScenarioRunner implements ProvidesMethodology
 
         return [
             'engine_version' => self::VERSION,
-            'scope' => 'before_proposed_facility',
+            'scope' => self::SCOPE,
             'status' => $this->status($outcomes),
             'outcomes' => $outcomes,
             'worst' => $worst,
@@ -187,7 +203,7 @@ final class ScenarioRunner implements ProvidesMethodology
     /** @return RunResult */
     private function refused(string $refusal): array
     {
-        return ['engine_version' => self::VERSION, 'scope' => 'before_proposed_facility', 'status' => 'fail',
+        return ['engine_version' => self::VERSION, 'scope' => self::SCOPE, 'status' => 'fail',
             'outcomes' => [], 'worst' => ['scenario_id' => null, 'ranking_metric' => null, 'value' => null],
             'maxima' => [], 'unranked' => [], 'refusal' => $refusal];
     }

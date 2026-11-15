@@ -6,6 +6,7 @@ namespace App\Services\Entrepreneurs\ReleaseGate;
 
 use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
+use App\Services\Entrepreneurs\Forecast\ScenarioRunner;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelCodec;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Support\Methodology\ProvidesMethodology;
@@ -51,8 +52,15 @@ final class ForecastModelFacts implements ProvidesMethodology
      * resolves to nothing rather than to the first of them, so emitting one
      * here would turn a figure a rule can read into a figure it reports as
      * missing. `stream.revenue` is read by PM-04, which currently sees none;
-     * `scope.required_horizon` feeds MI-06 and the snapshot's own horizon; and
-     * a second `model.external_request` would make PM-12's lookup ambiguous.
+     * and `scope.required_horizon` feeds MI-06 and the snapshot's own horizon.
+     *
+     * `model.external_request` used to be withheld here, because a second
+     * record of it would have made PM-12's lookup ambiguous. The
+     * reconstruction now states it and takes it over through `SUPERSEDES`
+     * instead, so there is one record rather than two: the requirement a
+     * request answers comes from this model's own scenarios, and an ask
+     * stated in one model while sized against another's downside is two
+     * models' arithmetic presented as one answer.
      *
      * `scenario.lowest_cash` used to be withheld here because nothing could
      * state it: SS-01 compares it against the minimum of the month-end closing
@@ -75,7 +83,7 @@ final class ForecastModelFacts implements ProvidesMethodology
      *
      * @var list<string>
      */
-    public const WITHHELD = ['stream.revenue', 'scope.required_horizon', 'model.external_request',
+    public const WITHHELD = ['stream.revenue', 'scope.required_horizon',
         'cost.trace_display', 'model.fixed_cost_display'];
 
     /**
@@ -118,7 +126,8 @@ final class ForecastModelFacts implements ProvidesMethodology
      * @var list<string>
      */
     public const SUPERSEDES = ['model.opening_cash', 'model.available_funds', 'model.funding_total', 'funding.amount',
-        'cash.opening', 'cash.movement', 'cash.closing', 'cash.annual_movement', 'cash.annual_closing', 'scenario.lowest_cash'];
+        'cash.opening', 'cash.movement', 'cash.closing', 'cash.annual_movement', 'cash.annual_closing', 'scenario.lowest_cash',
+        'model.external_request'];
 
     public function __construct(
         private readonly ForecastRun $run = new ForecastRun,
@@ -129,6 +138,7 @@ final class ForecastModelFacts implements ProvidesMethodology
         private readonly TaxChainFacts $taxChain = new TaxChainFacts,
         private readonly ScenarioInputFacts $scenarioInputs = new ScenarioInputFacts,
         private readonly ProfitDecompositionFacts $decomposition = new ProfitDecompositionFacts,
+        private readonly FundingRequestFacts $fundingRequest = new FundingRequestFacts,
     ) {}
 
     /** @return list<Fact> */
@@ -498,8 +508,21 @@ final class ForecastModelFacts implements ProvidesMethodology
                 sources: [$source->reference('forecast_model.drivers.calendar')]);
         }
         $at = [$source->reference('forecast_model.reserve_policy')];
-        $facts[] = new Fact('scenario.cash_deficit', $run['cash_deficit'], unit: 'NZD', confirmed: true, sources: $at);
-        $facts[] = new Fact('scenario.reserve_gap', $run['reserve_shortfall'], unit: 'NZD', confirmed: true, sources: $at);
+        // Both carry the footing they were measured on, because SS-03 reads a
+        // deficit whose basis differs from the one the scenarios share as
+        // missing evidence rather than as a mismatch: a deficit calculated on
+        // a different footing is a different number, not a wrong one.
+        $facts[] = new Fact('scenario.cash_deficit', $run['cash_deficit'], unit: 'NZD',
+            basis: ScenarioRunner::SCOPE, confirmed: true, sources: $at);
+        $facts[] = new Fact('scenario.reserve_gap', $run['reserve_shortfall'], unit: 'NZD',
+            basis: ScenarioRunner::SCOPE, confirmed: true, sources: $at);
+        // The footing itself. Stated here rather than with the scenario run
+        // because the base case's metrics are stated here, and a rule that
+        // cannot read the basis reports every scenario's metrics missing
+        // before it looks at any of them.
+        $facts[] = new Fact('funding.basis', ScenarioRunner::SCOPE,
+            basis: 'recorded_funding_included_proposed_facility_excluded', confirmed: true, sources: $at);
+        $facts = [...$facts, ...$this->fundingRequest->capture($source, $inputs, $at)];
 
         return $facts;
     }
