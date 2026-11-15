@@ -6,6 +6,7 @@ namespace App\Services\Entrepreneurs\Forecast;
 
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Support\Methodology\ProvidesMethodology;
+use Brick\Math\BigDecimal;
 
 /**
  * Runs the required scenarios and records what each one needs.
@@ -62,8 +63,14 @@ final class ScenarioRunner implements ProvidesMethodology
     {
         $outcomes = [];
         try {
+            // Projected once for the whole set. Every scenario's shock report
+            // compares against this same unshocked figure, and the run's
+            // memoisation holds one reconstruction at a time, so asking for it
+            // inside the loop would evict the shocked projection each pass and
+            // recompute both for every scenario.
+            $baseline = ScenarioApplication::totalRevenue($this->forecast->revenue($inputs)['months']);
             foreach ($definitions as $definition) {
-                $outcomes[] = $this->outcome($inputs, $actuals, $definition);
+                $outcomes[] = $this->outcome($inputs, $actuals, $definition, $baseline);
             }
         } catch (\InvalidArgumentException $e) {
             // The schedules refuse inputs they cannot read, the ledger refuses
@@ -87,13 +94,20 @@ final class ScenarioRunner implements ProvidesMethodology
         ];
     }
 
-    private function outcome(ForecastModelInputs $inputs, ActualsWindow $actuals, ScenarioDefinition $definition): ScenarioOutcome
+    private function outcome(ForecastModelInputs $inputs, ActualsWindow $actuals, ScenarioDefinition $definition,
+        ?BigDecimal $baseline): ScenarioOutcome
     {
-        // Reported from the unshocked streams on purpose: the report's whole
+        // The shocked reconstruction is built first so everything below reads
+        // one projection of it: the shock report, the owner pay inside the
+        // movements, and the profit. The report used to shock the streams
+        // itself into an object nothing else could reuse, which made it the
+        // single most expensive part of running a scenario.
+        $shocked = $this->application->shockInputs($actuals, $inputs, $definition);
+        // Reported against the unshocked total on purpose: the report's whole
         // job is to compare what the shock asked for against what the model
         // did with it, which needs the base case beside the shocked one.
-        $report = $this->application->revenueShockReport(
-            $inputs->calendar, $actuals, $inputs->streams, $inputs->founderMonths, $definition);
+        $report = $this->application->revenueShockReport($inputs->calendar, $inputs->streams, $definition,
+            $baseline, ScenarioApplication::totalRevenue($this->forecast->revenue($shocked)['months']));
 
         $opening = $inputs->cashOpening;
         if ($opening === null) {
@@ -102,7 +116,6 @@ final class ScenarioRunner implements ProvidesMethodology
             return new ScenarioOutcome($definition, $this->unverifiable(['cash_opening']), $report);
         }
 
-        $shocked = $this->application->shockInputs($actuals, $inputs, $definition);
         [$movements, , $dated, $flat] = $this->forecast->movements($shocked);
         $ledger = (new CashLedger)->calculate($inputs->calendar, $opening,
             $this->application->shockCollections($actuals, $movements, $definition));

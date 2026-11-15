@@ -246,27 +246,22 @@ final class ScenarioApplication implements ProvidesMethodology
      * and streams outside the target set are untouched. Each of those is
      * reported as a reason so the difference reads as a modelled consequence.
      *
+     * Both totals are supplied rather than projected here, because the caller
+     * already holds them: the unshocked one is the same for every scenario,
+     * and the shocked one is the projection the ledger and the profit are
+     * built from.
+     *
      * @param  list<RevenueStream>  $baseStreams
-     * @param  array<string,FounderMonth>  $founderMonths
      */
     public function revenueShockReport(
         ForecastCalendar $calendar,
-        ActualsWindow $actuals,
         array $baseStreams,
-        array $founderMonths,
         ScenarioDefinition $definition,
+        ?BigDecimal $baselineRevenue,
+        ?BigDecimal $shockedRevenue,
     ): ?ShockReport {
         $shocks = $definition->shocksOfType(ScenarioShock::TYPE_VOLUME_FACTOR);
-        if ($shocks === []) {
-            return null;
-        }
-
-        $projection = new RevenueProjection;
-        $baseline = $this->totalBaseRevenue($projection->calculate($calendar, $baseStreams, $founderMonths));
-        $shockedStreams = $this->shockStreams($actuals, $baseStreams, $definition);
-        $shocked = $this->totalBaseRevenue($projection->calculate($calendar, $shockedStreams, $founderMonths));
-
-        if ($baseline === null || $shocked === null) {
+        if ($shocks === [] || $baselineRevenue === null || $shockedRevenue === null) {
             return null;
         }
 
@@ -274,22 +269,36 @@ final class ScenarioApplication implements ProvidesMethodology
             $definition->id,
             ScenarioShock::TYPE_VOLUME_FACTOR,
             $shocks[0]->factor,
-            DriverNumbers::money($baseline),
-            DriverNumbers::money($shocked),
+            DriverNumbers::money($baselineRevenue),
+            DriverNumbers::money($shockedRevenue),
             $this->divergenceReasons($calendar, $baseStreams, $shocks),
         );
     }
 
-    /** Sums usable base revenue. One unusable month makes the comparison
-     * meaningless, so the whole total is withheld rather than silently
-     * summing the months that happened to compute.
+    /**
+     * Base-case revenue totalled across a projection's months.
      *
-     * @param  array{months:list<array{base_revenue:?string}>}  $projection
+     * Published so the two figures this report compares can be taken from
+     * projections the caller already has. It used to run its own two - one
+     * over the base streams, identical for every scenario, and one over
+     * streams it shocked itself into an object nothing else could reuse - and
+     * on a two-year plan that was more than half the cost of every shocked
+     * scenario.
+     *
+     * A month that could not be valued makes the whole total absent rather
+     * than lowering it, because a sum over the months that happened to
+     * project is not the revenue being compared. A projection with no months
+     * has no total either: there is nothing to compare, not nothing earned.
+     *
+     * @param  list<array{base_revenue:string|null,...}>  $months
      */
-    private function totalBaseRevenue(array $projection): ?BigDecimal
+    public static function totalRevenue(array $months): ?BigDecimal
     {
+        if ($months === []) {
+            return null;
+        }
         $total = BigDecimal::zero();
-        foreach ($projection['months'] as $month) {
+        foreach ($months as $month) {
             if ($month['base_revenue'] === null) {
                 return null;
             }
