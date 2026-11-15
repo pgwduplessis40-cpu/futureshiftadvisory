@@ -179,6 +179,10 @@ export type ForecastModel = {
     fixed_costs: FixedCostRow[];
     fixed_cost_schedule_complete: boolean | null;
     tax_cash_plan: TaxCashPlanRow | null;
+    /** The external ask and the reasoning that sized it. Null where nobody
+     * has recorded one, which is different from an ask of nothing: a model
+     * that asks for nothing is a decision, and one nobody has stated is not. */
+    funding_request: FundingRequestRow | null;
     /** Three states: true an expense of the business, false a drawing against
      * it, null nobody has said. The two give different profits off the same
      * cash, so an unanswered month states no profit at all. */
@@ -397,8 +401,23 @@ export type TaxCashPlanRow = {
     movements: TaxPaymentRow[];
 };
 
+export type FundingRequestRow = {
+    amount: string | null;
+    needed_on: string | null;
+    metric: string | null;
+    basis_scenario: string | null;
+    non_external_total: string | null;
+    reserve_only_disclosure: string | null;
+};
+
 export type TermsForm = {
     expected_revision: number | null;
+    funding_request_amount: string;
+    funding_request_needed_on: string;
+    funding_request_metric: string;
+    funding_request_basis_scenario: string;
+    funding_request_non_external_total: string;
+    funding_reserve_only_disclosure: string;
     tax_cash_state: string;
     gst_cash_state: string;
     tax_cash_source: string;

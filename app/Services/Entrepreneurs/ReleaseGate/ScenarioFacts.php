@@ -216,6 +216,28 @@ final class ScenarioFacts implements ProvidesMethodology
             // rule compares what was declared against what was applied rather
             // than comparing the engine with itself.
             $facts = [...$facts, ...$this->inputs->capture($shocked, $at, $scenario, $outcome->definition)];
+            // The measures SS-03 sizes a funding ask against, carrying the
+            // footing they were measured on. The base case states its own, so
+            // only the shocked ones are stated here: two records under one
+            // coordinate resolve to nothing, and that would lose the base
+            // case's metrics rather than add to them.
+            $facts[] = new Fact('scenario.cash_deficit', $outcome->funding['cash_deficit'], scenario: $scenario,
+                unit: 'NZD', basis: ScenarioRunner::SCOPE, confirmed: true, sources: $at);
+            $facts[] = new Fact('scenario.reserve_gap', $outcome->funding['reserve_shortfall'], scenario: $scenario,
+                unit: 'NZD', basis: ScenarioRunner::SCOPE, confirmed: true, sources: $at);
+        }
+
+        // Which scenario each measure peaks in. The run already decides this
+        // and discarded it at the fact boundary; naming it is what lets SS-03
+        // check the claim rather than recompute it. The two are named
+        // separately because a cash deficit and a reserve shortfall are not
+        // required to peak in the same scenario.
+        foreach (['cash_deficit' => 'funding.worst_deficit_scenario',
+            'reserve_shortfall' => 'funding.worst_reserve_scenario'] as $measure => $key) {
+            $worst = $run['maxima'][$measure]['scenario_id'] ?? null;
+            if ($worst !== null) {
+                $facts[] = new Fact($key, $worst, basis: ScenarioRunner::SCOPE, confirmed: true, sources: $at);
+            }
         }
 
         return $facts;

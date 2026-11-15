@@ -1000,7 +1000,75 @@ final class ForecastModelInputsTest extends TestCase
             'gst_cash_source' => '',
             'tax_payments' => [],
             'owner_pay_deductible' => '',
+            // Left unstated in the shared fixture, because the reconstruction
+            // takes this key over from the budget: stating a request here
+            // would change what PM-12 reads in every other test on this form.
+            'funding_request_amount' => '',
+            'funding_request_needed_on' => '',
+            'funding_request_metric' => '',
+            'funding_request_basis_scenario' => '',
+            'funding_request_non_external_total' => '',
+            'funding_reserve_only_disclosure' => '',
         ];
+    }
+
+    /**
+     * The whole path for the funding ask: form, storage, and the facts the
+     * gate reads back.
+     *
+     * The amount on its own says nothing checkable, so the four statements
+     * that size it travel with it. The metric and the scenario are
+     * constrained to what the model can answer, because a request sized
+     * against a scenario the run does not build has no deficit behind it.
+     */
+    public function test_the_funding_request_is_recorded_with_the_reasoning_that_sized_it(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        $terms['funding_request_amount'] = '25000';
+        $terms['funding_request_needed_on'] = '2026-09-01';
+        $terms['funding_request_metric'] = 'cash_deficit';
+        $terms['funding_request_basis_scenario'] = 'combined_downside';
+        $terms['funding_request_non_external_total'] = '5000';
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+
+        $store = app(ForecastModelStore::class);
+        $model = $store->forPlan($this->plan);
+        self::assertNotNull($model);
+        $request = $store->inputs($model)->fundingRequest;
+
+        self::assertSame('25000', $request?->amount, 'The request did not survive the round trip.');
+        self::assertSame('2026-09-01', $request?->neededOn);
+        self::assertSame('cash_deficit', $request?->metric);
+        self::assertSame('combined_downside', $request?->basisScenario);
+        self::assertSame('5000', $request?->nonExternalTotal);
+    }
+
+    /** A scenario the run never builds has no deficit to size a request
+     * against, so the form refuses it rather than storing an answer the gate
+     * would read as unstated.
+     */
+    public function test_a_request_sized_against_a_scenario_the_model_does_not_run_is_refused(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        $terms['funding_request_amount'] = '25000';
+        $terms['funding_request_basis_scenario'] = 'wishful_upside';
+
+        $this->post($this->url().'/terms', $terms)->assertSessionHasErrors('funding_request_basis_scenario');
+    }
+
+    /** An amount is not a requirement. A request addressing something the
+     * gate has no measure for is refused at the form.
+     */
+    public function test_a_request_addressing_an_unrecognised_requirement_is_refused(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $terms = $this->terms();
+        $terms['funding_request_amount'] = '25000';
+        $terms['funding_request_metric'] = 'vibes';
+
+        $this->post($this->url().'/terms', $terms)->assertSessionHasErrors('funding_request_metric');
     }
 
     public function test_the_cash_inputs_the_engine_needs_are_recorded_and_survive_the_other_forms(): void

@@ -51,7 +51,7 @@ use Brick\Math\BigDecimal;
  * @phpstan-type ProjectionPayload array{engine_version:string,status:string,months_projected:int,base_revenue_months:int,missing:list<GapPayload>,errors:list<GapPayload>,refusal:string|null}
  * @phpstan-type CashPayload array{status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,missing:list<GapPayload>,refusal:string|null}
  * @phpstan-type SectionPayload array{key:string,label:string,captured:bool,editable:bool,detail:string}
- * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,tax_cash_plan:TaxCashPayload|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,owner_pay_deductible:bool|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
+ * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,tax_cash_plan:TaxCashPayload|null,funding_request:array{amount:?string,needed_on:?string,metric:?string,basis_scenario:?string,non_external_total:?string,reserve_only_disclosure:?string}|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,owner_pay_deductible:bool|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
  */
 final readonly class AdvisorForecastModelPayload
 {
@@ -120,6 +120,7 @@ final readonly class AdvisorForecastModelPayload
                 'tax_source' => $inputs->taxCashPlan->taxSource, 'gst_source' => $inputs->taxCashPlan->gstSource,
                 'movements' => array_map($this->taxPayment(...), $inputs->taxCashPlan->movements),
             ],
+            'funding_request' => $inputs?->fundingRequest === null ? null : $inputs->fundingRequest->jsonSerialize(),
             'trade_items' => array_map($this->tradeItem(...), $inputs->tradeItems ?? []),
             'owner_pay_steps' => array_map($this->ownerPayStep(...), $inputs->ownerPaySteps ?? []),
             'assets' => array_map($this->asset(...), $inputs->assets ?? []),
@@ -258,6 +259,35 @@ final readonly class AdvisorForecastModelPayload
      * empty schedule is equally a business with nothing due, one outside the
      * regime, and one nobody has worked out. Only the first two are finished.
      */
+    /**
+     * What the request says, and what it still needs to be checkable.
+     *
+     * The gate will not read an amount on its own: it asks which requirement
+     * the request answers, which scenario that came from, what was applied
+     * first and when the money is needed. Naming the gaps here is what stops
+     * an advisor recording an amount and finding the rule unmoved.
+     */
+    private function fundingRequestDetail(?ForecastModelInputs $inputs): string
+    {
+        $request = $inputs?->fundingRequest;
+        if ($request === null) {
+            return 'Not captured, so the model states no external ask.';
+        }
+        $missing = [];
+        foreach (['an amount' => $request->amount, 'the date it is needed' => $request->neededOn,
+            'the requirement it answers' => $request->metric, 'the scenario it is sized against' => $request->basisScenario,
+            'the non-external sources applied first' => $request->nonExternalTotal] as $label => $value) {
+            if ($value === null) {
+                $missing[] = $label;
+            }
+        }
+        $stated = $request->isRequested()
+            ? $request->amount.' requested'
+            : 'No external money requested';
+
+        return $stated.'.'.($missing === [] ? '' : ' Still to state: '.implode(', ', $missing).'.');
+    }
+
     private function taxCashDetail(?ForecastModelInputs $inputs): string
     {
         $plan = $inputs?->taxCashPlan;
@@ -582,6 +612,8 @@ final readonly class AdvisorForecastModelPayload
                 'detail' => $this->taxDetail($inputs, $counted)],
             ['key' => 'tax_cash_plan', 'label' => 'Tax and GST cash', 'captured' => $inputs?->taxCashPlan?->taxState !== null, 'editable' => true,
                 'detail' => $this->taxCashDetail($inputs)],
+            ['key' => 'funding_request', 'label' => 'External funding request', 'captured' => $inputs?->fundingRequest !== null, 'editable' => true,
+                'detail' => $this->fundingRequestDetail($inputs)],
             // Held by the reconstruction and captured nowhere on this screen.
             // A table that claims to say what the model holds has to say so,
             // rather than leave an advisor to assume the list is complete.

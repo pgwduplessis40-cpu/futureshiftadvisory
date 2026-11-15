@@ -11,6 +11,7 @@ use App\Services\Entrepreneurs\Forecast\CashOpening;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
+use App\Services\Entrepreneurs\Forecast\FundingRequest;
 use App\Services\Entrepreneurs\Forecast\FundingSource;
 use App\Services\Entrepreneurs\Forecast\OwnerPayStep;
 use App\Services\Entrepreneurs\Forecast\ReservePolicy;
@@ -127,6 +128,8 @@ final class ForecastModelInputsCloneTest extends TestCase
             fixedCostScheduleComplete: true,
             taxCashPlan: new TaxCashPlan('none_due', 'none_due', 'IR account review', 'IR account review', []),
             ownerPayDeductible: true,
+            fundingRequest: new FundingRequest('25000', '2026-09-01', 'cash_deficit', 'combined_downside',
+                '5000', 'Reserve shortfall accepted for one quarter.'),
         );
     }
 }

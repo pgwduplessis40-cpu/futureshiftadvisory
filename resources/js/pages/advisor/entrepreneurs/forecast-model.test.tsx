@@ -115,6 +115,14 @@ const model: ForecastModel = {
         },
     ],
     fixed_cost_schedule_complete: null,
+    funding_request: {
+        amount: '25000',
+        needed_on: '2026-09-01',
+        metric: 'cash_deficit',
+        basis_scenario: 'combined_downside',
+        non_external_total: '5000',
+        reserve_only_disclosure: null,
+    },
     tax_cash_plan: {
         tax_state: 'scheduled',
         gst_state: 'not_applicable',

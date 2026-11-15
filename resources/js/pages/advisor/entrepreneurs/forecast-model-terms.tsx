@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react';
 import { AssetFields, TaxFields } from './forecast-model-assets';
 import { FixedCostFields } from './forecast-model-fixed-costs';
 import { FundingFields } from './forecast-model-funding';
+import { FundingRequestFields } from './forecast-model-funding-request';
 import { TaxCashFields } from './forecast-model-tax-cash';
 import type {
     AssetInputRow,
@@ -117,6 +118,20 @@ function initial(model: ForecastModel | null): TermsForm {
         ),
         fixed_cost_schedule_complete: stated(
             model?.fixed_cost_schedule_complete ?? null,
+        ),
+        funding_request_amount: text(model?.funding_request?.amount ?? null),
+        funding_request_needed_on: text(
+            model?.funding_request?.needed_on ?? null,
+        ),
+        funding_request_metric: text(model?.funding_request?.metric ?? null),
+        funding_request_basis_scenario: text(
+            model?.funding_request?.basis_scenario ?? null,
+        ),
+        funding_request_non_external_total: text(
+            model?.funding_request?.non_external_total ?? null,
+        ),
+        funding_reserve_only_disclosure: text(
+            model?.funding_request?.reserve_only_disclosure ?? null,
         ),
         tax_cash_state: text(model?.tax_cash_plan?.tax_state ?? null),
         gst_cash_state: text(model?.tax_cash_plan?.gst_state ?? null),
@@ -296,6 +311,34 @@ export function TermsFormSection({
                     )
                 }
                 onChange={(payments) => form.setData('tax_payments', payments)}
+            />
+            <FundingRequestFields
+                amount={form.data.funding_request_amount}
+                neededOn={form.data.funding_request_needed_on}
+                metric={form.data.funding_request_metric}
+                basisScenario={form.data.funding_request_basis_scenario}
+                nonExternalTotal={form.data.funding_request_non_external_total}
+                reserveOnlyDisclosure={
+                    form.data.funding_reserve_only_disclosure
+                }
+                onAmount={(value) =>
+                    form.setData('funding_request_amount', value)
+                }
+                onNeededOn={(value) =>
+                    form.setData('funding_request_needed_on', value)
+                }
+                onMetric={(value) =>
+                    form.setData('funding_request_metric', value)
+                }
+                onBasisScenario={(value) =>
+                    form.setData('funding_request_basis_scenario', value)
+                }
+                onNonExternalTotal={(value) =>
+                    form.setData('funding_request_non_external_total', value)
+                }
+                onReserveOnlyDisclosure={(value) =>
+                    form.setData('funding_reserve_only_disclosure', value)
+                }
             />
             <fieldset className="rounded border p-4">
                 <legend className="font-semibold">Trade terms</legend>
