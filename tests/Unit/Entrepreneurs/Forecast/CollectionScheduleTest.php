@@ -124,6 +124,40 @@ final class CollectionScheduleTest extends TestCase
         self::assertSame($ids, array_values(array_unique($ids)));
     }
 
+    /**
+     * Every receipt holds its own sequence slot, not one shared by each month
+     * of a stream.
+     *
+     * Numbering by stream and part alone is unique only while the dates are.
+     * A collection-delay shock moves some receipts and leaves others - one
+     * dated past the horizon is not a forecast month any more - so a moved
+     * receipt can land on an unmoved one's date, and the ledger refuses two
+     * movements claiming one position.
+     */
+    public function test_every_receipt_holds_its_own_sequence_slot(): void
+    {
+        $calendar = new ForecastCalendar('2026-01', 3);
+        $schedule = [];
+        foreach ($calendar->periods as $period) {
+            $schedule[$period] = new StreamMonth('4', '4', '4', '24', '0');
+        }
+        $streams = [
+            new RevenueStream('intensive', 'Intensive', 'day', '1200', '2', '6', true, 'own_record', $schedule),
+            new RevenueStream('retainer', 'Retainer', 'month', '1200', '2', '6', true, 'own_record', $schedule),
+        ];
+
+        $result = (new CollectionSchedule)->calculate($calendar, $streams,
+            new CollectionTerms(30, '20', 'Engagement letter'), 5);
+        $sequences = array_column($result['movements'], 'sequence');
+
+        self::assertCount(12, $sequences);
+        self::assertSame($sequences, array_values(array_unique($sequences)),
+            'Two receipts sharing a slot collide as soon as a shock moves one onto the other.');
+        self::assertSame(5, min($sequences), 'Numbering starts at the slot it was given.');
+        self::assertSame(12, $result['sequences'],
+            'The caller reserves what was allocated rather than recomputing it.');
+    }
+
     /** @return array{movements:list<CashMovement>,invoiced:array<string,string>,missing:list<string>} */
     private function calculate(?CollectionTerms $terms): array
     {

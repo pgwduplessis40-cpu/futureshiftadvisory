@@ -28,7 +28,15 @@ use Brick\Math\RoundingMode;
  * stated how it collects reports that, and its revenue reaches no month's
  * cash - which is the position every model was in before these terms existed.
  *
- * @phpstan-type CollectionResult array{movements:list<CashMovement>,invoiced:array<string,string>,missing:list<string>}
+ * Each receipt holds its own sequence slot. Numbering by stream alone would
+ * give every month of a stream one position, which is unique only while the
+ * dates are: a collection-delay shock covering one month moves that month's
+ * receipt onto the next month's date, and the ledger refuses two movements
+ * claiming one position. The count consumed is reported rather than left for
+ * the caller to recompute, so a reservation cannot diverge from what was
+ * allocated.
+ *
+ * @phpstan-type CollectionResult array{movements:list<CashMovement>,invoiced:array<string,string>,missing:list<string>,sequences:int}
  */
 final class CollectionSchedule implements ProvidesMethodology
 {
@@ -46,22 +54,23 @@ final class CollectionSchedule implements ProvidesMethodology
     public function calculate(ForecastCalendar $calendar, array $streams, ?CollectionTerms $terms, int $sequence = 0): array
     {
         if ($terms === null) {
-            return ['movements' => [], 'invoiced' => [], 'missing' => []];
+            return ['movements' => [], 'invoiced' => [], 'missing' => [], 'sequences' => 0];
         }
         if (! $terms->complete()) {
             // Partly stated terms schedule nothing. A day count with no
             // invoice share leaves the split unknown and a share with no day
             // count leaves the balance undated, and guessing either would put
             // cash in a month nobody said it arrives in.
-            return ['movements' => [], 'invoiced' => [], 'missing' => $terms->missing()];
+            return ['movements' => [], 'invoiced' => [], 'missing' => $terms->missing(), 'sequences' => 0];
         }
 
         $movements = [];
         $invoiced = [];
         $missing = [];
+        $slot = 0;
         $share = BigDecimal::of((string) $terms->onInvoicePercent)->dividedBy(100, 8, RoundingMode::HalfUp);
 
-        foreach ($streams as $index => $stream) {
+        foreach ($streams as $stream) {
             $price = DriverNumbers::read($stream->price);
             foreach ($calendar->periods as $period) {
                 $month = $stream->schedule[$period] ?? null;
@@ -91,8 +100,8 @@ final class CollectionSchedule implements ProvidesMethodology
                 // amount billed however the share rounds.
                 $balance = $billed->minus($onInvoice);
 
-                foreach ([['on_invoice', $onInvoice, $billedOn, 0],
-                    ['balance', $balance, ForecastDates::shift($billedOn, $terms->debtorDays), 1]] as [$part, $amount, $date, $offset]) {
+                foreach ([['on_invoice', $onInvoice, $billedOn],
+                    ['balance', $balance, ForecastDates::shift($billedOn, $terms->debtorDays)]] as [$part, $amount, $date]) {
                     if ($amount->isZero()) {
                         continue;
                     }
@@ -103,12 +112,14 @@ final class CollectionSchedule implements ProvidesMethodology
                         DriverNumbers::money($amount),
                         'in',
                         'operating_receipt',
-                        $sequence + ($index * 2) + $offset,
+                        $sequence + $slot,
                     );
+                    $slot++;
                 }
             }
         }
 
-        return ['movements' => $movements, 'invoiced' => $invoiced, 'missing' => array_values(array_unique($missing))];
+        return ['movements' => $movements, 'invoiced' => $invoiced,
+            'missing' => array_values(array_unique($missing)), 'sequences' => $slot];
     }
 }

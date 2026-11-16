@@ -9,6 +9,7 @@ use App\Services\Entrepreneurs\Forecast\ActualsWindow;
 use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
+use App\Services\Entrepreneurs\Forecast\CollectionTerms;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\ForecastRun;
@@ -133,6 +134,63 @@ final class ScenarioRunnerTest extends TestCase
         self::assertSame('2027-01-20', $result['maxima']['cash_deficit']['date']);
         self::assertSame([], $result['unranked']);
         self::assertNull($result['refusal']);
+    }
+
+    /**
+     * A collection delay must not make the ledger unpositionable.
+     *
+     * The ledger refuses two dated movements claiming one position, and a
+     * delay moves only the receipts whose period is still forecast - a
+     * receipt dated past the horizon stays where it is. Numbering collection
+     * receipts by stream and part alone gave every month of a stream one
+     * position, unique only while the dates were, so a moved receipt could
+     * land on an unmoved one and the scenario would report a refusal the
+     * advisor had no part in.
+     */
+    public function test_a_collection_delay_leaves_every_receipt_in_its_own_ledger_position(): void
+    {
+        // Four months, collected thirty days out. March's balance is dated
+        // 30 April - still a forecast month, so a delay moves it to 30 May -
+        // and April's balance is already dated 30 May, past the horizon and
+        // therefore left alone. The two meet on one date.
+        $calendar = new ForecastCalendar('2027-01', 4);
+        $schedule = [];
+        foreach ($calendar->periods as $period) {
+            $schedule[$period] = new StreamMonth('10', '10', '10', '60', '0');
+        }
+        $inputs = new ForecastModelInputs(
+            calendar: $calendar,
+            streams: [new RevenueStream('intensive', 'Intensive', 'day', '1500', '0', '6', true, 'founder_stated', $schedule)],
+            founderMonths: $this->founderMonths($calendar),
+            cashOpening: new CashOpening('100', 'reviewed bank statement', true),
+            reservePolicy: new ReservePolicy('1000', 3, false, null, '0.10', 'three months of fixed costs excluding owner pay'),
+            collectionTerms: new CollectionTerms(30, '20', 'Signed terms of trade'),
+        );
+        $definitions = [
+            new ScenarioDefinition('base', 'Base', [], 'test'),
+            new ScenarioDefinition('collections_delay', 'Collections delay', [
+                new ScenarioShock(ScenarioShock::TYPE_COLLECTION_DELAY_DAYS, '30', ['operating_receipt']),
+            ], 'test'),
+        ];
+
+        $result = (new ScenarioRunner)->run($inputs, $this->openWindow($calendar), $definitions);
+
+        self::assertSame('pass', $result['status'],
+            'A delay on stated collection terms must not refuse the run.');
+        self::assertNull($result['refusal']);
+        self::assertCount(2, $result['outcomes']);
+
+        // Every receipt holds its own position, before and after the delay.
+        foreach ($result['outcomes'] as $outcome) {
+            $positions = [];
+            foreach ($outcome->ledger['movements'] as $movement) {
+                if ($movement->date !== null) {
+                    $positions[] = $movement->date.':'.$movement->sequence;
+                }
+            }
+            self::assertSame($positions, array_values(array_unique($positions)),
+                'Two movements claiming one position is what the ledger refuses.');
+        }
     }
 
     /**
