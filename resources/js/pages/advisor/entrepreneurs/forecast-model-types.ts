@@ -183,6 +183,9 @@ export type ForecastModel = {
      * has recorded one, which is different from an ask of nothing: a model
      * that asks for nothing is a decision, and one nobody has stated is not. */
     funding_request: FundingRequestRow | null;
+    /** How long revenue takes to become cash. Null where nobody has stated
+     * it, which is why the model collects none of its forecast revenue. */
+    collection_terms: CollectionTermsRow | null;
     /** Three states: true an expense of the business, false a drawing against
      * it, null nobody has said. The two give different profits off the same
      * cash, so an unanswered month states no profit at all. */
@@ -410,8 +413,17 @@ export type FundingRequestRow = {
     reserve_only_disclosure: string | null;
 };
 
+export type CollectionTermsRow = {
+    debtor_days: number | null;
+    on_invoice_percent: string | null;
+    source: string | null;
+};
+
 export type TermsForm = {
     expected_revision: number | null;
+    collection_debtor_days: string;
+    collection_on_invoice_percent: string;
+    collection_source: string;
     funding_request_amount: string;
     funding_request_needed_on: string;
     funding_request_metric: string;

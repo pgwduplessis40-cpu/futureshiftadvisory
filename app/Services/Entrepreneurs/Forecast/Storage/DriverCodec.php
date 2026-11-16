@@ -8,6 +8,7 @@ use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\BankOpening;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
+use App\Services\Entrepreneurs\Forecast\CollectionTerms;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
@@ -264,6 +265,16 @@ final class DriverCodec
             StoredValues::text($node, 'basis_scenario'),
             StoredValues::text($node, 'non_external_total'),
             StoredValues::text($node, 'reserve_only_disclosure'),
+        );
+    }
+
+    /** How long revenue takes to become cash, as the advisor stated it. */
+    public static function collectionTerms(mixed $node): CollectionTerms
+    {
+        return new CollectionTerms(
+            StoredValues::count($node, 'debtor_days'),
+            StoredValues::text($node, 'on_invoice_percent'),
+            StoredValues::text($node, 'source'),
         );
     }
 

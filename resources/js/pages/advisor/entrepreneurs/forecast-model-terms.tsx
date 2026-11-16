@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { AssetFields, TaxFields } from './forecast-model-assets';
+import { CollectionFields } from './forecast-model-collection';
 import { FixedCostFields } from './forecast-model-fixed-costs';
 import { FundingFields } from './forecast-model-funding';
 import { FundingRequestFields } from './forecast-model-funding-request';
@@ -119,6 +120,13 @@ function initial(model: ForecastModel | null): TermsForm {
         fixed_cost_schedule_complete: stated(
             model?.fixed_cost_schedule_complete ?? null,
         ),
+        collection_debtor_days: text(
+            model?.collection_terms?.debtor_days?.toString() ?? null,
+        ),
+        collection_on_invoice_percent: text(
+            model?.collection_terms?.on_invoice_percent ?? null,
+        ),
+        collection_source: text(model?.collection_terms?.source ?? null),
         funding_request_amount: text(model?.funding_request?.amount ?? null),
         funding_request_needed_on: text(
             model?.funding_request?.needed_on ?? null,
@@ -311,6 +319,18 @@ export function TermsFormSection({
                     )
                 }
                 onChange={(payments) => form.setData('tax_payments', payments)}
+            />
+            <CollectionFields
+                debtorDays={form.data.collection_debtor_days}
+                onInvoicePercent={form.data.collection_on_invoice_percent}
+                source={form.data.collection_source}
+                onDebtorDays={(value) =>
+                    form.setData('collection_debtor_days', value)
+                }
+                onInvoicePercentChange={(value) =>
+                    form.setData('collection_on_invoice_percent', value)
+                }
+                onSource={(value) => form.setData('collection_source', value)}
             />
             <FundingRequestFields
                 amount={form.data.funding_request_amount}
