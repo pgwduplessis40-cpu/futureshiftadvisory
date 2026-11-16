@@ -243,6 +243,7 @@ final class MethodologyDriftGuardTest extends TestCase
         Forecast\FundingSource::class => 'Immutable named funding input; its draw is the recorded amount on the recorded date, and the ledger it enters is owned by CashLedger.',
         Forecast\FixedCost::class => 'Immutable recurring-overhead input; recognition and invoicing are owned by ExpenseSchedule.',
         Forecast\FundingRequest::class => 'Immutable statement of an external ask and what sized it; whether the amount meets the requirement it names is checked by the release gate, not computed here.',
+        Forecast\CollectionTerms::class => 'Immutable statement of how long revenue takes to become cash; the receipts it implies are owned by CollectionSchedule.',
         Forecast\TradeItem::class => 'Immutable obligation and settlement contract; calculations are owned by TradeBalances.',
         Forecast\OwnerPayStep::class => 'Immutable dated pay-policy input; calculations are owned by OwnerPaySchedule.',
         Forecast\AssetInput::class => 'Immutable asset policy input; calculations are owned by AssetSchedule.',

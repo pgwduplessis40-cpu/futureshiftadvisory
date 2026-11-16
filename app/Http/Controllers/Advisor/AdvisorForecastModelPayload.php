@@ -51,7 +51,7 @@ use Brick\Math\BigDecimal;
  * @phpstan-type ProjectionPayload array{engine_version:string,status:string,months_projected:int,base_revenue_months:int,missing:list<GapPayload>,errors:list<GapPayload>,refusal:string|null}
  * @phpstan-type CashPayload array{status:string,movements_counted:int,settled_before_opening:int,lowest_cash:string|null,lowest_cash_date:string|null,cash_deficit:string|null,reserve_target:string|null,reserve_shortfall:string|null,missing:list<GapPayload>,refusal:string|null}
  * @phpstan-type SectionPayload array{key:string,label:string,captured:bool,editable:bool,detail:string}
- * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,tax_cash_plan:TaxCashPayload|null,funding_request:array{amount:?string,needed_on:?string,metric:?string,basis_scenario:?string,non_external_total:?string,reserve_only_disclosure:?string}|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,owner_pay_deductible:bool|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
+ * @phpstan-type ModelPayload array{revision:int,engine_version:string,readable:bool,load_error:string|null,selected:bool,selected_at:string|null,selected_by:string|null,calendar:CalendarPayload|null,cash_opening:CashOpeningPayload,reserve:ReservePayload,actuals:list<ActualPayload>,streams:list<StreamPayload>,founder_months:list<FounderMonthPayload>,funding_sources:list<FundingPayload>,funding_inventory_complete:bool|null,fixed_costs:list<FixedCostPayload>,fixed_cost_schedule_complete:bool|null,tax_cash_plan:TaxCashPayload|null,funding_request:array{amount:?string,needed_on:?string,metric:?string,basis_scenario:?string,non_external_total:?string,reserve_only_disclosure:?string}|null,collection_terms:array{debtor_days:?int,on_invoice_percent:?string,source:?string}|null,trade_items:list<TradeItemPayload>,owner_pay_steps:list<OwnerPayPayload>,assets:list<AssetPayload>,tax:TaxPayload,projection:ProjectionPayload|null,cash:CashPayload|null,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,owner_pay_deductible:bool|null,opening_eligible_losses:string|null,sections:list<SectionPayload>}
  */
 final readonly class AdvisorForecastModelPayload
 {
@@ -121,6 +121,7 @@ final readonly class AdvisorForecastModelPayload
                 'movements' => array_map($this->taxPayment(...), $inputs->taxCashPlan->movements),
             ],
             'funding_request' => $inputs?->fundingRequest === null ? null : $inputs->fundingRequest->jsonSerialize(),
+            'collection_terms' => $inputs?->collectionTerms === null ? null : $inputs->collectionTerms->jsonSerialize(),
             'trade_items' => array_map($this->tradeItem(...), $inputs->tradeItems ?? []),
             'owner_pay_steps' => array_map($this->ownerPayStep(...), $inputs->ownerPaySteps ?? []),
             'assets' => array_map($this->asset(...), $inputs->assets ?? []),
@@ -253,12 +254,36 @@ final readonly class AdvisorForecastModelPayload
     }
 
     /**
-     * What the tax cash schedule states, and what it leaves open.
+     * How long revenue takes to become cash, and what it costs to leave it
+     * unsaid.
      *
-     * The scope states are reported rather than the row count, because an
-     * empty schedule is equally a business with nothing due, one outside the
-     * regime, and one nobody has worked out. Only the first two are finished.
+     * The consequence is worth stating on the screen rather than leaving an
+     * advisor to find it in a rule: without these terms the model recognises
+     * revenue and never collects it, so a revenue downside barely moves the
+     * cash position and a funding ask sized against that position understates
+     * what the business needs.
      */
+    private function collectionDetail(?ForecastModelInputs $inputs): string
+    {
+        $terms = $inputs?->collectionTerms;
+        if ($terms === null) {
+            return 'Not captured, so forecast revenue reaches no month as cash and a revenue downside barely moves the cash position.';
+        }
+        if (! $terms->complete()) {
+            // The gap ids are what the engine reports; an advisor reading this
+            // screen is told which answer is still wanted instead.
+            $labels = ['debtor_days' => 'how many days later the balance is collected',
+                'on_invoice_percent' => 'the share collected when billed',
+                'source' => 'the record these come from'];
+            $missing = array_map(fn (string $gap): string => $labels[$gap] ?? $gap, $terms->missing());
+
+            return 'Partly captured, so nothing is collected yet. Still to state: '.implode(', ', $missing).'.';
+        }
+
+        return $terms->onInvoicePercent.'% collected when billed at month end, the balance '
+            .$terms->debtorDays.' days later.';
+    }
+
     /**
      * What the request says, and what it still needs to be checkable.
      *
@@ -288,6 +313,13 @@ final readonly class AdvisorForecastModelPayload
         return $stated.'.'.($missing === [] ? '' : ' Still to state: '.implode(', ', $missing).'.');
     }
 
+    /**
+     * What the tax cash schedule states, and what it leaves open.
+     *
+     * The scope states are reported rather than the row count, because an
+     * empty schedule is equally a business with nothing due, one outside the
+     * regime, and one nobody has worked out. Only the first two are finished.
+     */
     private function taxCashDetail(?ForecastModelInputs $inputs): string
     {
         $plan = $inputs?->taxCashPlan;
@@ -614,6 +646,8 @@ final readonly class AdvisorForecastModelPayload
                 'detail' => $this->taxCashDetail($inputs)],
             ['key' => 'funding_request', 'label' => 'External funding request', 'captured' => $inputs?->fundingRequest !== null, 'editable' => true,
                 'detail' => $this->fundingRequestDetail($inputs)],
+            ['key' => 'collection_terms', 'label' => 'Revenue collection terms', 'captured' => $inputs?->collectionTerms?->complete() === true, 'editable' => true,
+                'detail' => $this->collectionDetail($inputs)],
             // Held by the reconstruction and captured nowhere on this screen.
             // A table that claims to say what the model holds has to say so,
             // rather than leave an advisor to assume the list is complete.

@@ -115,6 +115,11 @@ const model: ForecastModel = {
         },
     ],
     fixed_cost_schedule_complete: null,
+    collection_terms: {
+        debtor_days: 30,
+        on_invoice_percent: '20',
+        source: 'Standard terms on the engagement letter',
+    },
     funding_request: {
         amount: '25000',
         needed_on: '2026-09-01',
@@ -457,6 +462,25 @@ test('stored trade, pay, asset and tax values load into the terms form', async (
     // A loss keeps its sign on the way back to the form.
     assert.match(html, /value="-4500.00"/);
     assert.match(html, /Save trade, pay, assets and tax/);
+});
+
+test('stored collection terms load into the terms form', async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Revenue collection terms/);
+    // Terms that do not survive the round trip to the form are terms an
+    // advisor retypes, and a blank box here reads as "collects nothing".
+    assert.match(
+        html,
+        /name="collection_on_invoice_percent"[^>]*value="20"|value="20"[^>]*name="collection_on_invoice_percent"/,
+    );
+    assert.match(
+        html,
+        /name="collection_debtor_days"[^>]*value="30"|value="30"[^>]*name="collection_debtor_days"/,
+    );
+    assert.match(
+        html,
+        /name="collection_source"[^>]*value="Standard terms on the engagement letter"|value="Standard terms on the engagement letter"[^>]*name="collection_source"/,
+    );
 });
 
 test('a revenue threshold is asked for only by the trigger that uses one', async () => {

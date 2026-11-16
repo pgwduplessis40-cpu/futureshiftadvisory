@@ -8,6 +8,7 @@ use App\Services\Entrepreneurs\Forecast\ActualMonth;
 use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\BankOpening;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
+use App\Services\Entrepreneurs\Forecast\CollectionTerms;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
@@ -95,6 +96,11 @@ final readonly class ForecastModelInputs
         // scenarios: an ask stated in one model and sized against another's
         // downside is two models' arithmetic presented as one answer.
         public ?FundingRequest $fundingRequest = null,
+        // How long revenue takes to become cash. Without it the model
+        // recognises revenue and never collects it, so a revenue downside
+        // barely moves the cash position and an ask sized against that
+        // position understates what the business needs.
+        public ?CollectionTerms $collectionTerms = null,
     ) {}
 
     /**
@@ -141,11 +147,12 @@ final readonly class ForecastModelInputs
             taxCashPlan: $this->taxCashPlan,
             ownerPayDeductible: $this->ownerPayDeductible,
             fundingRequest: $this->fundingRequest,
+            collectionTerms: $this->collectionTerms,
         );
     }
 
     /**
-     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool,tax_cash_plan:?TaxCashPlan,owner_pay_deductible:?bool,funding_request:?FundingRequest}
+     * @return array{calendar:ForecastCalendar,streams:list<RevenueStream>,founder_months:array<string,FounderMonth>,cash_opening:?CashOpening,bank_opening:?BankOpening,trade_items:list<TradeItem>,owner_pay_steps:list<OwnerPayStep>,owner_pay_source:?string,owner_pay_first_payment_on:?string,assets:list<AssetInput>,tax_policy:?TaxPolicy,tax_periods:list<TaxPeriod>,opening_eligible_losses:?string,funding_sources:list<FundingSource>,funding_inventory_complete:?bool,fixed_costs:list<FixedCost>,fixed_cost_schedule_complete:?bool,tax_cash_plan:?TaxCashPlan,owner_pay_deductible:?bool,funding_request:?FundingRequest,collection_terms:?CollectionTerms}
      */
     public function driversPayload(): array
     {
@@ -170,6 +177,7 @@ final readonly class ForecastModelInputs
             'tax_cash_plan' => $this->taxCashPlan,
             'owner_pay_deductible' => $this->ownerPayDeductible,
             'funding_request' => $this->fundingRequest,
+            'collection_terms' => $this->collectionTerms,
         ];
     }
 

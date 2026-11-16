@@ -499,6 +499,30 @@ final class ForecastRun implements ProvidesMethodology
                 $flat[] = 'tax_cash.'.$reason;
             }
         }
+        // Forecast revenue becoming cash. Nothing is scheduled until the
+        // terms are stated, so a reconstruction that has not said how it
+        // collects keeps the position it had before they existed: revenue
+        // recognised and never collected, reported rather than assumed away.
+        //
+        // One sequence slot per receipt, above everything numbered so far,
+        // and the schedule reports how many it took rather than letting this
+        // reservation recompute it: a receipt and its balance can fall on one
+        // day, a collection-delay shock can move one month's receipt onto the
+        // next month's date, and the ledger refuses two movements claiming
+        // the same position.
+        $collection = (new CollectionSchedule)->calculate($inputs->calendar, $inputs->streams, $inputs->collectionTerms, $next);
+        $next += $collection['sequences'];
+        foreach ($collection['movements'] as $receipt) {
+            if ($receipt->date !== null && $receipt->date < $opens) {
+                $early++;
+
+                continue;
+            }
+            $movements[] = $receipt;
+        }
+        foreach ($collection['missing'] as $reason) {
+            $flat[] = 'collection.'.$reason;
+        }
         foreach ($inputs->fundingSources as $fundingSource) {
             // One sequence per source, so two drawn on one day hold different
             // positions in the ledger rather than colliding.

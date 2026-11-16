@@ -38,6 +38,23 @@ final class ForecastDates implements ProvidesMethodology
         return $value !== null && $days !== null ? $value->modify(sprintf('%+d days', $days))->format('Y-m-d') : null;
     }
 
+    /**
+     * The last day of a `YYYY-MM` period.
+     *
+     * A stream month states a month and no invoice date, so revenue billed
+     * for it needs a convention. Month end is the conservative one: cash
+     * arrives later than under any mid-month assumption, and nothing improves
+     * a cash position by billing earlier than a business does.
+     */
+    public static function monthEnd(string $period): string
+    {
+        if (preg_match('/^[1-9]\d{3}-(0[1-9]|1[0-2])$/D', $period) !== 1) {
+            throw new \InvalidArgumentException('A forecast period is a real YYYY-MM month.');
+        }
+
+        return (new \DateTimeImmutable($period.'-01', new \DateTimeZone('UTC')))->format('Y-m-t');
+    }
+
     public static function end(ForecastCalendar $calendar): string
     {
         return (new \DateTimeImmutable($calendar->periods[array_key_last($calendar->periods)].'-01', new \DateTimeZone('UTC')))->format('Y-m-t');

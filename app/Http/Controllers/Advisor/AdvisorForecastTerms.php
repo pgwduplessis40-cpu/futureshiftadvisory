@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Advisor;
 
 use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
+use App\Services\Entrepreneurs\Forecast\CollectionTerms;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastDates;
 use App\Services\Entrepreneurs\Forecast\FundingRequest;
@@ -37,7 +38,7 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type FundingRow array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:string|null}
  * @phpstan-type FixedCostRow array{id:string,source:string,rate:string|null,quantity:string|null,frequency:string|null,first_invoice_on:string|null,last_invoice_on:string|null,creditor_days:int|string|null,reviewed:string|null}
  * @phpstan-type TaxPaymentRow array{id:string,source:string,date:string|null,amount:string|null,category:string,direction:string,verified:string|null}
- * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null,tax_cash_state:string|null,gst_cash_state:string|null,tax_cash_source:string|null,gst_cash_source:string|null,tax_payments:list<TaxPaymentRow>,owner_pay_deductible:string|null,funding_request_amount:string|null,funding_request_needed_on:string|null,funding_request_metric:string|null,funding_request_basis_scenario:string|null,funding_request_non_external_total:string|null,funding_reserve_only_disclosure:string|null}
+ * @phpstan-type TermsData array{expected_revision:int|null,trade_items:list<TradeRow>,owner_pay_steps:list<OwnerPayRow>,owner_pay_source:string|null,owner_pay_first_payment_on:string|null,assets:list<AssetRow>,tax_entity_basis:string|null,tax_rate_percent:string|null,tax_losses_eligible:string|null,tax_policy_source:string|null,tax_eligibility_source:string|null,tax_version:string|null,tax_periods:list<TaxPeriodRow>,opening_eligible_losses:string|null,funding_sources:list<FundingRow>,funding_inventory_complete:string|null,fixed_costs:list<FixedCostRow>,fixed_cost_schedule_complete:string|null,tax_cash_state:string|null,gst_cash_state:string|null,tax_cash_source:string|null,gst_cash_source:string|null,tax_payments:list<TaxPaymentRow>,owner_pay_deductible:string|null,funding_request_amount:string|null,funding_request_needed_on:string|null,funding_request_metric:string|null,funding_request_basis_scenario:string|null,funding_request_non_external_total:string|null,funding_reserve_only_disclosure:string|null,collection_debtor_days:int|string|null,collection_on_invoice_percent:string|null,collection_source:string|null}
  */
 final readonly class AdvisorForecastTerms
 {
@@ -216,6 +217,18 @@ final readonly class AdvisorForecastTerms
             'funding_request_basis_scenario' => ['present', 'nullable', 'in:'.implode(',', self::SCENARIOS)],
             'funding_request_non_external_total' => $number,
             'funding_reserve_only_disclosure' => ['present', 'nullable', 'string', 'max:1000'],
+            // How long revenue takes to become cash. Without these the model
+            // recognises revenue and never collects it, so a revenue downside
+            // barely moves the cash position.
+            //
+            // Each is independently optional so a half-finished answer can be
+            // saved, and the schedule refuses to collect on one: a day count
+            // with no invoice share leaves the split unknown, and a share with
+            // no day count leaves the balance undated. The gap is reported
+            // rather than blocking the save.
+            'collection_debtor_days' => ['present', 'nullable', 'integer', 'min:0', 'max:36500'],
+            'collection_on_invoice_percent' => ['present', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'collection_source' => ['present', 'nullable', 'string', 'max:255'],
         ];
     }
 
@@ -252,7 +265,34 @@ final readonly class AdvisorForecastTerms
             taxCashPlan: $this->taxCashPlan($data),
             ownerPayDeductible: $this->stated($data['owner_pay_deductible']),
             fundingRequest: $this->fundingRequest($data),
+            collectionTerms: $this->collectionTerms($data),
         );
+    }
+
+    /**
+     * Terms nobody has stated stay absent rather than becoming empty ones.
+     *
+     * The difference matters more here than elsewhere: absent terms collect
+     * nothing and the schedule says so, while terms recording a zero-day,
+     * nothing-on-invoice arrangement would be a statement that the business
+     * collects everything the instant it bills, which is the most optimistic
+     * reading available and not one anybody chose.
+     *
+     * @param  TermsData  $data
+     */
+    private function collectionTerms(array $data): ?CollectionTerms
+    {
+        // The day count arrives as a string from the form and as a number from
+        // anything posting JSON, which is why it is not read through blank().
+        $days = $data['collection_debtor_days'];
+        $days = $days === null || (is_string($days) && trim($days) === '') ? null : (int) $days;
+        $percent = $this->blank($data['collection_on_invoice_percent']);
+        $source = $this->blank($data['collection_source']);
+        if ($days === null && $percent === null && $source === null) {
+            return null;
+        }
+
+        return new CollectionTerms($days, $percent, $source);
     }
 
     /**

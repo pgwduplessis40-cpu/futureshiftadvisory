@@ -8,6 +8,7 @@ use App\Services\Entrepreneurs\Forecast\AssetInput;
 use App\Services\Entrepreneurs\Forecast\BankOpening;
 use App\Services\Entrepreneurs\Forecast\CashMovement;
 use App\Services\Entrepreneurs\Forecast\CashOpening;
+use App\Services\Entrepreneurs\Forecast\CollectionTerms;
 use App\Services\Entrepreneurs\Forecast\FixedCost;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
 use App\Services\Entrepreneurs\Forecast\FounderMonth;
@@ -130,6 +131,7 @@ final class ForecastModelInputsCloneTest extends TestCase
             ownerPayDeductible: true,
             fundingRequest: new FundingRequest('25000', '2026-09-01', 'cash_deficit', 'combined_downside',
                 '5000', 'Reserve shortfall accepted for one quarter.'),
+            collectionTerms: new CollectionTerms(30, '20', 'Standard terms on the engagement letter'),
         );
     }
 }

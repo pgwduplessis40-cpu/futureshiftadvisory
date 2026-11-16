@@ -10,6 +10,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\Forecast\ForecastCalendar;
+use App\Services\Entrepreneurs\Forecast\ForecastRun;
 use App\Services\Entrepreneurs\Forecast\RevenueStream;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelInputs;
 use App\Services\Entrepreneurs\Forecast\Storage\ForecastModelStore;
@@ -1009,6 +1010,13 @@ final class ForecastModelInputsTest extends TestCase
             'funding_request_basis_scenario' => '',
             'funding_request_non_external_total' => '',
             'funding_reserve_only_disclosure' => '',
+            // Left unstated in the shared fixture for the same reason the
+            // fixed costs are: collection terms put operating receipts in the
+            // ledger for every revenue stream and would move every cash
+            // balance in every other test on this form.
+            'collection_debtor_days' => '',
+            'collection_on_invoice_percent' => '',
+            'collection_source' => '',
         ];
     }
 
@@ -1069,6 +1077,156 @@ final class ForecastModelInputsTest extends TestCase
         $terms['funding_request_metric'] = 'vibes';
 
         $this->post($this->url().'/terms', $terms)->assertSessionHasErrors('funding_request_metric');
+    }
+
+    /**
+     * The whole path for the collection terms: form, storage, and the dated
+     * receipts they put in the ledger.
+     *
+     * This is the slice's point rather than a storage check. Before these
+     * terms existed the only operating receipts in the model came from trade
+     * items - opening debtors and one-offs typed as amounts - so forecast
+     * revenue reached no month as cash at all.
+     */
+    public function test_collection_terms_turn_forecast_revenue_into_dated_receipts(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+
+        $terms = $this->terms();
+        $terms['expected_revision'] = 2;
+        $terms['collection_debtor_days'] = '30';
+        $terms['collection_on_invoice_percent'] = '25';
+        $terms['collection_source'] = 'Signed terms of trade';
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+
+        $store = app(ForecastModelStore::class);
+        $model = $store->forPlan($this->plan);
+        self::assertNotNull($model);
+        $inputs = $store->inputs($model);
+
+        self::assertSame(30, $inputs->collectionTerms?->debtorDays,
+            'A whole number typed into a text box has to arrive as an integer.');
+        self::assertSame('25', $inputs->collectionTerms?->onInvoicePercent);
+        self::assertSame('Signed terms of trade', $inputs->collectionTerms?->source);
+
+        // The stream bills 2 units at 450 in 2026-03, so 900 is invoiced at
+        // month end: a quarter of it then, the balance 30 days later.
+        [$movements] = (new ForecastRun)->movements($inputs);
+        $collected = [];
+        foreach ($movements as $movement) {
+            if (str_starts_with($movement->id, 'workshops.')) {
+                $collected[$movement->id] = [$movement->date, $movement->amount, $movement->category];
+            }
+        }
+        self::assertSame([
+            'workshops.2026-03.on_invoice' => ['2026-03-31', '225.00', 'operating_receipt'],
+            'workshops.2026-03.balance' => ['2026-04-30', '675.00', 'operating_receipt'],
+        ], $collected, 'Forecast revenue must reach the ledger as cash on the terms that were stated.');
+
+        $sections = collect(data_get($this->get($this->url())->viewData('page'), 'props.model.sections'))->keyBy('key');
+        self::assertStringContainsString('25% collected when billed at month end, the balance 30 days later',
+            $sections['collection_terms']['detail']);
+    }
+
+    /**
+     * Half an answer collects nothing, and the screen says which half is
+     * wanted in words rather than in the engine's gap ids.
+     *
+     * A day count with no invoice share leaves the split unknown and a share
+     * with no day count leaves the balance undated. Filling in either would
+     * put cash in a month nobody said it arrives in.
+     */
+    public function test_partly_stated_collection_terms_collect_nothing_and_name_what_is_wanted(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+
+        $terms = $this->terms();
+        $terms['expected_revision'] = 2;
+        $terms['collection_debtor_days'] = '30';
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+
+        $store = app(ForecastModelStore::class);
+        $model = $store->forPlan($this->plan);
+        self::assertNotNull($model);
+        $inputs = $store->inputs($model);
+        self::assertSame(30, $inputs->collectionTerms?->debtorDays,
+            'What was stated is kept, so the advisor does not retype it.');
+        self::assertFalse($inputs->collectionTerms?->complete());
+
+        [$movements, , , $flat] = (new ForecastRun)->movements($inputs);
+        foreach ($movements as $movement) {
+            self::assertStringStartsNotWith('workshops.', $movement->id,
+                'Half-stated terms must schedule no receipt rather than a guessed one.');
+        }
+        self::assertContains('collection.on_invoice_percent', $flat,
+            'The gap carries its subject once, not twice.');
+        self::assertContains('collection.source', $flat);
+
+        $sections = collect(data_get($this->get($this->url())->viewData('page'), 'props.model.sections'))->keyBy('key');
+        self::assertStringContainsString('Still to state: the share collected when billed, the record these come from',
+            $sections['collection_terms']['detail']);
+    }
+
+    /**
+     * The day count is read as a number whichever way it arrives.
+     *
+     * The form posts it as a string from a text box, and anything posting
+     * JSON sends it as a number. Reading it through the helper that trims
+     * strings would make the second a type error rather than a saved figure.
+     */
+    public function test_a_debtor_day_count_posted_as_a_number_is_recorded_the_same_as_one_typed(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+
+        $terms = $this->terms();
+        $terms['expected_revision'] = 2;
+        $terms['collection_debtor_days'] = 30;
+        $terms['collection_on_invoice_percent'] = '25';
+        $terms['collection_source'] = 'Signed terms of trade';
+        $this->postJson($this->url().'/terms', $terms)->assertRedirect();
+
+        $store = app(ForecastModelStore::class);
+        $model = $store->forPlan($this->plan);
+        self::assertNotNull($model);
+        self::assertSame(30, $store->inputs($model)->collectionTerms?->debtorDays);
+    }
+
+    /**
+     * Terms nobody has stated collect nothing and report no gap.
+     *
+     * Unstated is not incomplete: a model that has said nothing about its
+     * collection terms is not a model halfway through stating them, and
+     * reporting a gap for every reconstruction that predates the form would
+     * make the real gaps unreadable.
+     */
+    public function test_unstated_collection_terms_collect_nothing_and_report_no_gap(): void
+    {
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
+        $this->post($this->url().'/drivers', $this->drivers())->assertSessionHasNoErrors();
+
+        $terms = $this->terms();
+        $terms['expected_revision'] = 2;
+        $this->post($this->url().'/terms', $terms)->assertSessionHasNoErrors();
+
+        $store = app(ForecastModelStore::class);
+        $model = $store->forPlan($this->plan);
+        self::assertNotNull($model);
+        $inputs = $store->inputs($model);
+        self::assertNull($inputs->collectionTerms,
+            'Three blank boxes are not a statement that nothing is collected on time.');
+
+        [, , , $flat] = (new ForecastRun)->movements($inputs);
+        foreach ($flat as $gap) {
+            self::assertStringStartsNotWith('collection.', $gap,
+                'A reconstruction that has said nothing about collection reports no collection gap.');
+        }
+
+        $sections = collect(data_get($this->get($this->url())->viewData('page'), 'props.model.sections'))->keyBy('key');
+        self::assertStringContainsString('forecast revenue reaches no month as cash',
+            $sections['collection_terms']['detail']);
     }
 
     public function test_the_cash_inputs_the_engine_needs_are_recorded_and_survive_the_other_forms(): void
