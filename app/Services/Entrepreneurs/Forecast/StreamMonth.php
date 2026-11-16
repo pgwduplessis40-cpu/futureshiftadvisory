@@ -15,17 +15,21 @@ final readonly class StreamMonth implements \JsonSerializable
         public ?string $provider = null,
         public ?string $providerUnitCost = null,
         public ?string $noCostBasis = null,
+        public ?string $providerCapacityHours = null,
+        public ?string $providerStart = null,
     ) {
-        foreach ([$bookedUnits, $deliveryUnits, $invoicedUnits, $founderHours, $additionalCapacityUnits, $providerUnitCost] as $value) {
+        foreach ([$bookedUnits, $deliveryUnits, $invoicedUnits, $founderHours, $additionalCapacityUnits,
+            $providerUnitCost, $providerCapacityHours] as $value) {
             DriverNumbers::read($value);
         }
     }
 
-    /** @return array{booked_units:?string,delivery_units:?string,invoiced_units:?string,founder_hours:?string,additional_capacity_units:?string,provider:?string,provider_unit_cost:?string,no_cost_basis:?string} */
+    /** @return array{booked_units:?string,delivery_units:?string,invoiced_units:?string,founder_hours:?string,additional_capacity_units:?string,provider:?string,provider_unit_cost:?string,no_cost_basis:?string,provider_capacity_hours:?string,provider_start:?string} */
     public function jsonSerialize(): array
     {
         return ['booked_units' => $this->bookedUnits, 'delivery_units' => $this->deliveryUnits, 'invoiced_units' => $this->invoicedUnits,
             'founder_hours' => $this->founderHours, 'additional_capacity_units' => $this->additionalCapacityUnits,
-            'provider' => $this->provider, 'provider_unit_cost' => $this->providerUnitCost, 'no_cost_basis' => $this->noCostBasis];
+            'provider' => $this->provider, 'provider_unit_cost' => $this->providerUnitCost, 'no_cost_basis' => $this->noCostBasis,
+            'provider_capacity_hours' => $this->providerCapacityHours, 'provider_start' => $this->providerStart];
     }
 }

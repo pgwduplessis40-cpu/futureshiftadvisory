@@ -47,6 +47,8 @@ export type StreamMonthRow = {
     provider: string | null;
     provider_unit_cost: string | null;
     no_cost_basis: string | null;
+    provider_capacity_hours: string | null;
+    provider_start: string | null;
 };
 export type StreamRow = {
     id: string;
@@ -246,6 +248,8 @@ export type StreamMonthInput = {
     provider: string;
     provider_unit_cost: string;
     no_cost_basis: string;
+    provider_capacity_hours: string;
+    provider_start: string;
 };
 export type StreamInput = {
     id: string;

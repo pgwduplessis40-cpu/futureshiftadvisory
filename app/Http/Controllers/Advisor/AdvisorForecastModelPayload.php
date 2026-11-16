@@ -34,7 +34,7 @@ use Brick\Math\BigDecimal;
  * @phpstan-type CashOpeningPayload array{amount:string|null,source:string|null,verified:bool|null}
  * @phpstan-type ReservePayload array{monthly_fixed_costs:string|null,months_covered:int,includes_owner_pay:bool|null,one_off_cash_costs:string|null,contingency_rate:string,basis:string|null,base_reserve:string|null,contingency:string|null,target:string|null,missing:list<string>}
  * @phpstan-type ActualPayload array{period:string,state:string|null,reconciled:bool|null,closing_bank_cash:string|null,reviewed_by:string|null,reviewed_on:string|null,pre_trading_evidence:string|null,revenue:string|null,operating_expenses:string|null,depreciation:string|null,interest:string|null,other_income:string|null,profit_before_tax:string|null,income_tax_expense:string|null}
- * @phpstan-type StreamMonthPayload array{period:string,booked_units:string|null,delivery_units:string|null,invoiced_units:string|null,founder_hours:string|null,additional_capacity_units:string|null,provider:string|null,provider_unit_cost:string|null,no_cost_basis:string|null}
+ * @phpstan-type StreamMonthPayload array{period:string,booked_units:string|null,delivery_units:string|null,invoiced_units:string|null,founder_hours:string|null,additional_capacity_units:string|null,provider:string|null,provider_unit_cost:string|null,no_cost_basis:string|null,provider_capacity_hours:string|null,provider_start:string|null}
  * @phpstan-type StreamPayload array{id:string,name:string,unit:string|null,price:string|null,preparation_hours_per_unit:string|null,delivery_hours_per_unit:string|null,in_base_case:bool|null,evidence_status:string|null,schedule:list<StreamMonthPayload>}
  * @phpstan-type FounderMonthPayload array{period:string,available_hours:string|null,administration_hours:string|null,business_development_hours:string|null}
  * @phpstan-type FundingPayload array{id:string,source:string,identity:string|null,type:string|null,amount:string|null,commitment:string|null,available_from:string|null,drawn_on:string|null,restriction:string|null,verified:bool|null}
@@ -180,6 +180,7 @@ final readonly class AdvisorForecastModelPayload
                     'invoiced_units' => $month->invoicedUnits, 'founder_hours' => $month->founderHours,
                     'additional_capacity_units' => $month->additionalCapacityUnits, 'provider' => $month->provider,
                     'provider_unit_cost' => $month->providerUnitCost, 'no_cost_basis' => $month->noCostBasis,
+                    'provider_capacity_hours' => $month->providerCapacityHours, 'provider_start' => $month->providerStart,
                 ],
                 array_keys($schedule),
                 $schedule,
