@@ -320,6 +320,81 @@ final class ForecastModelFactsTest extends TestCase
         );
     }
 
+    /**
+     * A provider's capacity and start date reach the fact set, once per
+     * provider per month however many streams that provider delivers.
+     *
+     * PM-11 reads them at the coordinate (provider, month), and competing
+     * records under one coordinate resolve to nothing, so a record per stream
+     * row would report a provider the advisor had described in full as
+     * undescribed. Two streams delivered by one provider in one month is
+     * ordinary.
+     */
+    public function test_a_provider_delivering_two_streams_in_one_month_states_its_capacity_once(): void
+    {
+        $stated = $this->providerFacts($this->capture($this->shared('40', '40')));
+
+        self::assertSame(['provider.cost', 'provider.capacity_hours', 'provider.start'],
+            array_column($stated, 'key'), 'One record per key, not one per stream row.');
+        foreach ($stated as $fact) {
+            self::assertSame('Acme Contracting', $fact->entity);
+            self::assertSame('month:1', $fact->period);
+            self::assertCount(2, $fact->sources, 'A consolidated record cites every row that stated it.');
+        }
+        $keyed = $this->keyed($stated);
+        self::assertSame('40', $keyed['provider.capacity_hours:Acme Contracting:month:1']->value);
+        self::assertSame('hours', $keyed['provider.capacity_hours:Acme Contracting:month:1']->unit);
+        self::assertSame('2026-01-12', $keyed['provider.start:Acme Contracting:month:1']->value);
+    }
+
+    /** Two rows stating different capacities for one provider in one month
+     * state neither, because contradictory statements are not a statement.
+     * The fields they do agree on are unaffected: the reading is per field,
+     * not per provider.
+     */
+    public function test_two_rows_stating_different_capacities_state_neither(): void
+    {
+        $keys = array_column($this->providerFacts($this->capture($this->shared('40', '32'))), 'key');
+
+        self::assertNotContains('provider.capacity_hours', $keys,
+            'Two capacities that cannot both be true are not one capacity.');
+        self::assertSame(['provider.cost', 'provider.start'], $keys);
+    }
+
+    /**
+     * Two streams delivered by one provider in the same month.
+     *
+     * @param  string  $first  the capacity the first stream's row states
+     * @param  string  $second  the capacity the second stream's row states
+     */
+    private function shared(string $first, string $second): ForecastModelInputs
+    {
+        $month = fn (string $capacity): StreamMonth => new StreamMonth('2', '2', '2', '20', '1',
+            'Acme Contracting', '300', null, $capacity, '2026-01-12');
+
+        return new ForecastModelInputs(
+            calendar: new ForecastCalendar('2026-01', 1),
+            streams: [
+                new RevenueStream('intensive', 'Intensives', 'day', '1200', '2', '6', true, 'own_record',
+                    ['2026-01' => $month($first)]),
+                new RevenueStream('retainer', 'Retainers', 'month', '900', '2', '6', true, 'own_record',
+                    ['2026-01' => $month($second)]),
+            ],
+            founderMonths: ['2026-01' => new FounderMonth('120', '20', '15')],
+            cashOpening: new CashOpening('5000', 'Bank statement to 31 December 2025', true),
+        );
+    }
+
+    /**
+     * @param  list<Fact>  $facts
+     * @return list<Fact>
+     */
+    private function providerFacts(array $facts): array
+    {
+        return array_values(array_filter($facts,
+            static fn (Fact $fact): bool => str_starts_with($fact->key, 'provider.')));
+    }
+
     /** @return list<Fact> */
     private function facts(): array
     {

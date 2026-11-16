@@ -417,6 +417,13 @@ final class ScenarioApplication implements ProvidesMethodology
             // here would compound that cent through every unit and month.
             $costFactor === null ? $month->providerUnitCost : $this->scaleUnits($month->providerUnitCost, $costFactor),
             $month->noCostBasis,
+            // What the provider can deliver, and from when, are facts about the
+            // provider rather than drivers of this month's volumes. A revenue
+            // downside does not shrink their capacity and a cost upside does
+            // not move their start date, so both carry through unscaled and
+            // PM-11 holds each scenario against the same stated capacity.
+            $month->providerCapacityHours,
+            $month->providerStart,
         );
     }
 

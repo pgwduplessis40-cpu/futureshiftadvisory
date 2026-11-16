@@ -403,7 +403,7 @@ final class ForecastModelFacts implements ProvidesMethodology
             $facts = [...$facts, ...$this->streamMonths($source, $inputs, $stream, $index)];
         }
 
-        return $facts;
+        return [...$facts, ...$this->providers($source, $inputs)];
     }
 
     /** @return list<Fact> */
@@ -421,12 +421,6 @@ final class ForecastModelFacts implements ProvidesMethodology
             $label = 'month:'.($offset + 1);
             $at = [$source->reference('forecast_model.drivers.streams.'.$index.'.schedule.'.$period)];
             $facts[] = new Fact('stream.units', $month->deliveryUnits, $stream->id, $label, unit: 'units', confirmed: true, sources: $at);
-            if ($month->provider !== null && trim($month->provider) !== '') {
-                $facts[] = new Fact('provider.cost', $month->providerUnitCost, $month->provider, $label, unit: 'NZD/unit', confirmed: true, sources: $at);
-                if ($month->noCostBasis !== null) {
-                    $facts[] = new Fact('provider.no_cost_basis', $month->noCostBasis, $month->provider, $label, confirmed: true, sources: $at);
-                }
-            }
             // Month-on-month growth, and only where both months are known.
             // A ramp measured from an absent month would read as a step up
             // from zero rather than as a month nobody has filled in.
@@ -435,6 +429,71 @@ final class ForecastModelFacts implements ProvidesMethodology
                 $facts[] = new Fact('model.ramp', $ramp, $stream->id, $label, unit: 'percent', confirmed: true, sources: $at);
             }
             $previous = $month->deliveryUnits;
+        }
+
+        return $facts;
+    }
+
+    /**
+     * What each provider can deliver, from when, and at what cost - one record
+     * per provider per month.
+     *
+     * PM-11 reads these at the coordinate (provider, month), so the unit of
+     * record is the provider's month and not the stream row that mentions it.
+     * Two streams delivered by one provider in one month is ordinary, and a
+     * producer publishing a record per row would publish several under one
+     * coordinate. Competing records resolve to nothing, so a provider the
+     * advisor had described completely would be reported as undescribed.
+     *
+     * Agreement is therefore consolidated and disagreement is left unresolved.
+     * Rows stating the same thing publish it once, citing every row that
+     * stated it; rows stating different things publish nothing, because
+     * contradictory statements are not a statement and the rule reporting the
+     * provider as unverified is the honest reading of two figures that cannot
+     * both be true. Agreement is exact text: deciding that 8 and 8.0 are one
+     * capacity would be this producer resolving a contradiction it was handed
+     * rather than reporting it.
+     *
+     * A capacity, a start date and a cost are published even when unstated, so
+     * the fact set records that the producer looked; a no-cost basis is
+     * published only when stated, because an absent one is not a claim that
+     * the provider is free.
+     *
+     * @return list<Fact>
+     */
+    private function providers(SourceRecords $source, ForecastModelInputs $inputs): array
+    {
+        /** @var array<string,array{provider:string,label:string,sources:list<SourceReference>,stated:array<string,list<?string>>}> $months */
+        $months = [];
+        foreach ($inputs->streams as $index => $stream) {
+            foreach ($inputs->calendar->periods as $offset => $period) {
+                $month = $stream->schedule[$period] ?? null;
+                if ($month === null || $month->provider === null || trim($month->provider) === '') {
+                    continue;
+                }
+                $provider = trim($month->provider);
+                $label = 'month:'.($offset + 1);
+                $key = $provider."\0".$label;
+                $months[$key] ??= ['provider' => $provider, 'label' => $label, 'sources' => [], 'stated' => []];
+                $months[$key]['sources'][] = $source->reference('forecast_model.drivers.streams.'.$index.'.schedule.'.$period);
+                foreach (['cost' => $month->providerUnitCost, 'capacity_hours' => $month->providerCapacityHours,
+                    'start' => $month->providerStart, 'no_cost_basis' => $month->noCostBasis] as $field => $value) {
+                    $months[$key]['stated'][$field][] = $value;
+                }
+            }
+        }
+
+        $units = ['cost' => 'NZD/unit', 'capacity_hours' => 'hours'];
+        $facts = [];
+        foreach ($months as ['provider' => $provider, 'label' => $label, 'sources' => $at, 'stated' => $stated]) {
+            foreach ($stated as $field => $values) {
+                $distinct = array_values(array_unique($values));
+                if (count($distinct) !== 1 || ($field === 'no_cost_basis' && $distinct[0] === null)) {
+                    continue;
+                }
+                $facts[] = new Fact('provider.'.$field, $distinct[0], $provider, $label,
+                    unit: $units[$field] ?? null, confirmed: true, sources: $at);
+            }
         }
 
         return $facts;

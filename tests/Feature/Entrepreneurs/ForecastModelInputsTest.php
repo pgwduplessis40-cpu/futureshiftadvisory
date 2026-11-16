@@ -809,7 +809,8 @@ final class ForecastModelInputsTest extends TestCase
             $schedule[] = ['period' => $period, 'booked_units' => $trading ? '2' : '0',
                 'delivery_units' => $trading ? '2' : '0', 'invoiced_units' => $trading ? '2' : '0',
                 'founder_hours' => $trading ? '20' : '0', 'additional_capacity_units' => '0',
-                'provider' => null, 'provider_unit_cost' => null, 'no_cost_basis' => null];
+                'provider' => null, 'provider_unit_cost' => null, 'no_cost_basis' => null,
+                'provider_capacity_hours' => null, 'provider_start' => null];
         }
         $drivers['streams'][0]['schedule'] = $schedule;
         $this->post($this->url().'/drivers', $drivers)->assertSessionHasNoErrors();
@@ -929,6 +930,7 @@ final class ForecastModelInputsTest extends TestCase
                     'period' => '2026-03', 'booked_units' => '2', 'delivery_units' => '2', 'invoiced_units' => '2',
                     'founder_hours' => '20', 'additional_capacity_units' => null, 'provider' => null,
                     'provider_unit_cost' => null, 'no_cost_basis' => null,
+                    'provider_capacity_hours' => null, 'provider_start' => null,
                 ]],
             ]],
             'founder_months' => [[
@@ -1475,6 +1477,115 @@ final class ForecastModelInputsTest extends TestCase
 
         self::assertNull(app(ForecastModelStore::class)->forPlan($this->plan)?->drivers['funding_sources'][0] ?? null,
             'A refused save must leave nothing behind.');
+    }
+
+    /**
+     * A described provider is what PM-11 was missing.
+     *
+     * The reconstruction has always held the provider's name and unit cost but
+     * neither the hours they can deliver nor the date they start, so a stream
+     * delivered by anyone other than the founder reported its provider
+     * unverified however completely the advisor had filled the rest in. The
+     * rule is registered as Block, so that was a live finding nobody could
+     * clear.
+     */
+    public function test_a_described_provider_is_what_the_shared_capacity_rule_was_missing(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->shortCalendar())->assertSessionHasNoErrors();
+        $this->post($this->url().'/drivers', $this->contractedDrivers(null, null))->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        $before = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'PM-11');
+        $unresolved = fn (RuleResult $result): array => array_column(array_values(array_filter($result->subchecks,
+            fn (Subcheck $check): bool => $check->status->unresolved())), 'id');
+        self::assertSame(['provider:0'], $unresolved($before),
+            'Only the provider is unverified: the hours and the time budget are already stated.');
+
+        $this->post($this->url().'/drivers', $this->contractedDrivers('40', '2026-03-02'))->assertSessionHasNoErrors();
+        $after = $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), 'PM-11');
+
+        self::assertSame([], $unresolved($after), 'A described provider leaves the rule nothing to report.');
+        self::assertSame('pass', $after->status?->value);
+    }
+
+    /**
+     * Two streams delivered by one provider in one month, which is what makes
+     * the record a record of the provider's month rather than of the row.
+     *
+     * Stating the same capacity twice must read as one capacity; stating two
+     * different ones must read as none, because the rule cannot hold hours
+     * against a figure the model gives two answers for.
+     */
+    public function test_one_provider_delivering_two_streams_is_described_once_or_not_at_all(): void
+    {
+        $this->budget();
+        $gate = app(ReleaseGate::class);
+        $this->actingAsMfa($this->advisor)->post($this->url(), $this->shortCalendar())->assertSessionHasNoErrors();
+        $agreed = $this->contractedDrivers('40', '2026-03-02');
+        $agreed['streams'][] = ['id' => 'retainers', 'name' => 'Retainers', 'unit' => 'month', 'price' => '900',
+            'preparation_hours_per_unit' => '1', 'delivery_hours_per_unit' => '2',
+            'in_base_case' => 'base', 'evidence_status' => 'own_record',
+            'schedule' => [$agreed['streams'][0]['schedule'][0]]];
+        $this->post($this->url().'/drivers', $agreed)->assertSessionHasNoErrors();
+        $this->post($this->url().'/selection', ['selected' => true])->assertSessionHasNoErrors();
+
+        $unresolved = fn (string $id): array => array_column(array_values(array_filter(
+            $this->ruleResult($gate->evaluate($this->plan->refresh(), 'plan'), $id)->subchecks,
+            fn (Subcheck $check): bool => $check->status->unresolved())), 'id');
+        self::assertSame([], $unresolved('PM-11'),
+            'One provider described identically on two rows is one description, not a contradiction.');
+
+        $disagreed = $agreed;
+        $disagreed['expected_revision'] = null;
+        $disagreed['streams'][1]['schedule'][0]['provider_capacity_hours'] = '32';
+        $this->post($this->url().'/drivers', $disagreed)->assertSessionHasNoErrors();
+
+        self::assertSame(['provider:0', 'provider:1'], $unresolved('PM-11'),
+            'Forty hours and thirty-two hours for the same provider in the same month are not a stated capacity.');
+    }
+
+    /**
+     * A three-month horizon, so a stated time budget can cover all of it.
+     *
+     * PM-11 asks for one shared founder budget per forecast month and reports
+     * every month that has none. On the twenty-four month fixture that is
+     * twenty-three findings with nothing to do with a provider, and they would
+     * keep the rule from ever passing.
+     *
+     * @return array<string,mixed>
+     */
+    private function shortCalendar(): array
+    {
+        $calendar = $this->payload();
+        $calendar['months'] = 3;
+
+        return $calendar;
+    }
+
+    /**
+     * One stream delivered by a named provider, with a founder time budget in
+     * every month so the only thing in question is the provider.
+     *
+     * @return array<string,mixed>
+     */
+    private function contractedDrivers(?string $capacityHours, ?string $start): array
+    {
+        $drivers = $this->drivers();
+        $drivers['expected_revision'] = null;
+        $drivers['founder_months'] = array_map(fn (int $month): array => [
+            'period' => sprintf('2026-%02d', $month), 'available_hours' => '120',
+            'administration_hours' => '20', 'business_development_hours' => '15',
+        ], [1, 2, 3]);
+        $drivers['streams'][0]['schedule'][0] = [
+            'period' => '2026-03', 'booked_units' => '2', 'delivery_units' => '2', 'invoiced_units' => '2',
+            'founder_hours' => '20', 'additional_capacity_units' => '1', 'provider' => 'Acme Contracting',
+            'provider_unit_cost' => '300', 'no_cost_basis' => null,
+            'provider_capacity_hours' => $capacityHours, 'provider_start' => $start,
+        ];
+
+        return $drivers;
     }
 
     public function test_a_recorded_fixed_cost_schedule_is_what_the_fixed_cost_rule_was_missing(): void

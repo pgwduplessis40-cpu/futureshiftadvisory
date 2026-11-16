@@ -82,6 +82,8 @@ final class DriverCodec
             StoredValues::text($node, 'provider'),
             StoredValues::text($node, 'provider_unit_cost'),
             StoredValues::text($node, 'no_cost_basis'),
+            StoredValues::text($node, 'provider_capacity_hours'),
+            StoredValues::text($node, 'provider_start'),
         );
     }
 

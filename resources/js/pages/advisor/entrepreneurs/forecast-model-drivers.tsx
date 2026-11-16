@@ -34,6 +34,8 @@ function emptyMonth(): StreamMonthInput {
         provider: '',
         provider_unit_cost: '',
         no_cost_basis: '',
+        provider_capacity_hours: '',
+        provider_start: '',
     };
 }
 
@@ -65,6 +67,10 @@ function initial(model: ForecastModel | null): DriversForm {
                         provider: text(month.provider),
                         provider_unit_cost: text(month.provider_unit_cost),
                         no_cost_basis: text(month.no_cost_basis),
+                        provider_capacity_hours: text(
+                            month.provider_capacity_hours,
+                        ),
+                        provider_start: text(month.provider_start),
                     }),
                 ),
             }),
@@ -91,6 +97,8 @@ const MONTH_FIELDS: { key: keyof StreamMonthInput; label: string }[] = [
     { key: 'provider', label: 'Capacity provider' },
     { key: 'provider_unit_cost', label: 'Provider cost per unit' },
     { key: 'no_cost_basis', label: 'Why the provider costs nothing' },
+    { key: 'provider_capacity_hours', label: 'Provider hours available' },
+    { key: 'provider_start', label: 'Provider starts (YYYY-MM-DD)' },
 ];
 
 const FOUNDER_FIELDS: { key: keyof FounderMonthInput; label: string }[] = [

@@ -72,6 +72,8 @@ const model: ForecastModel = {
                     provider: null,
                     provider_unit_cost: null,
                     no_cost_basis: null,
+                    provider_capacity_hours: '37.5',
+                    provider_start: '2026-03-02',
                 },
             ],
         },
@@ -426,6 +428,17 @@ test('stored streams and founder hours load into the driver form', async () => {
     assert.match(html, /value="workshops"/);
     assert.match(html, /value="120"/);
     assert.match(html, /Save streams and capacity/);
+});
+
+/** PM-11 reports a provider's capacity and start date as missing until they
+ * are stated, so the form that captures the rest of the provider has to ask
+ * for these two as well. */
+test("a stored provider's hours and start date load into the driver form", async () => {
+    const html = await render({ can_edit: true });
+    assert.match(html, /Provider hours available/);
+    assert.match(html, /Provider starts \(YYYY-MM-DD\)/);
+    assert.match(html, /value="37\.5"/);
+    assert.match(html, /value="2026-03-02"/);
 });
 
 test('the driver form is withheld until a calendar exists to hang months on', async () => {

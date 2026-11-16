@@ -39,7 +39,7 @@ use Inertia\Response;
  * the sections it does not edit through unchanged, so recording founder hours
  * cannot quietly discard a reserve policy somebody else recorded first.
  *
- * @phpstan-type StreamMonthRow array{period:string,booked_units:string|null,delivery_units:string|null,invoiced_units:string|null,founder_hours:string|null,additional_capacity_units:string|null,provider:string|null,provider_unit_cost:string|null,no_cost_basis:string|null}
+ * @phpstan-type StreamMonthRow array{period:string,booked_units:string|null,delivery_units:string|null,invoiced_units:string|null,founder_hours:string|null,additional_capacity_units:string|null,provider:string|null,provider_unit_cost:string|null,no_cost_basis:string|null,provider_capacity_hours:string|null,provider_start:string|null}
  * @phpstan-type StreamRow array{id:string,name:string,unit:string|null,price:string|null,preparation_hours_per_unit:string|null,delivery_hours_per_unit:string|null,in_base_case:string|null,evidence_status:string|null,schedule:list<StreamMonthRow>}
  * @phpstan-type FounderRow array{period:string,available_hours:string|null,administration_hours:string|null,business_development_hours:string|null}
  */
@@ -154,6 +154,12 @@ final class EntrepreneurForecastModelController extends Controller
             'streams.*.schedule.*.provider' => ['present', 'nullable', 'string', 'max:160'],
             'streams.*.schedule.*.provider_unit_cost' => $number,
             'streams.*.schedule.*.no_cost_basis' => ['present', 'nullable', 'string', 'max:255'],
+            // What the provider can deliver in the month and the date they
+            // start. Each is independently optional, so a half-described
+            // provider can be saved and come back to; PM-11 reports what is
+            // still wanted rather than this form refusing the row.
+            'streams.*.schedule.*.provider_capacity_hours' => $number,
+            'streams.*.schedule.*.provider_start' => ['present', 'nullable', 'date_format:Y-m-d'],
             'founder_months' => ['present', 'array', 'max:60'],
             'founder_months.*.period' => $month,
             'founder_months.*.available_hours' => $number,
@@ -393,6 +399,7 @@ final class EntrepreneurForecastModelController extends Controller
                 $blank($entry['booked_units']), $blank($entry['delivery_units']), $blank($entry['invoiced_units']),
                 $blank($entry['founder_hours']), $blank($entry['additional_capacity_units']),
                 $blank($entry['provider']), $blank($entry['provider_unit_cost']), $blank($entry['no_cost_basis']),
+                $blank($entry['provider_capacity_hours']), $blank($entry['provider_start']),
             );
         }
 
