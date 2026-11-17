@@ -1588,6 +1588,46 @@ final class ForecastModelInputsTest extends TestCase
         return $drivers;
     }
 
+    /**
+     * The runway figures PM-10 has never been given, and what they count.
+     *
+     * Nothing on the platform stated how long the money lasts, so the rule
+     * could only report its model side missing however complete the
+     * reconstruction was. The two bases are stated separately because they
+     * answer different questions and are never reconciled against each other.
+     */
+    public function test_the_reconstruction_states_a_runway_on_each_basis_it_can_measure(): void
+    {
+        $this->budget();
+        $this->twelveMonthsOfCostedCash();
+        $facts = app(GateContextFactory::class)->current($this->plan->refresh(), 'plan')->facts;
+
+        // Opening cash over the policy's monthly basis, on the policy's own
+        // answer about owner pay. A no-sales measure counts no receipts by
+        // construction: that is what the measure is.
+        self::assertSame('1.20', $facts->one('model.runway_months', 'essential_cost_no_sales')?->value);
+        self::assertSame('months', $facts->one('model.runway_months', 'essential_cost_no_sales')?->unit);
+        self::assertFalse($facts->one('runway.includes_receipts', 'essential_cost_no_sales')?->value);
+        self::assertTrue($facts->one('runway.includes_owner_pay', 'essential_cost_no_sales')?->value);
+
+        // The forecast curve is a different measure on a different footing,
+        // and the two are never reconciled against each other: one month of
+        // cover if the sales stop is not a contradiction of a longer runway
+        // while they continue.
+        $forecast = $facts->one('model.runway_months', 'forecast_cash');
+        self::assertNotNull($forecast, 'This model runs out of cash inside its horizon, so it has a runway to state.');
+        self::assertSame('months', $forecast->unit);
+        self::assertSame('months_closing_without_negative_forecast_cash', $forecast->basis);
+        self::assertNotSame($facts->one('model.runway_months', 'essential_cost_no_sales')?->basis, $forecast->basis);
+
+        // Both inclusions are read off the movements in the curve rather than
+        // asserted: this ledger settles a receivable in April and pays the
+        // owner from July, and the figure has to say so for PM-10 to know
+        // which claims it is a like measure for.
+        self::assertTrue($facts->one('runway.includes_receipts', 'forecast_cash')?->value);
+        self::assertTrue($facts->one('runway.includes_owner_pay', 'forecast_cash')?->value);
+    }
+
     public function test_a_recorded_fixed_cost_schedule_is_what_the_fixed_cost_rule_was_missing(): void
     {
         $this->budget();

@@ -139,6 +139,7 @@ final class ForecastModelFacts implements ProvidesMethodology
         private readonly ScenarioInputFacts $scenarioInputs = new ScenarioInputFacts,
         private readonly ProfitDecompositionFacts $decomposition = new ProfitDecompositionFacts,
         private readonly FundingRequestFacts $fundingRequest = new FundingRequestFacts,
+        private readonly RunwayFacts $runway = new RunwayFacts,
     ) {}
 
     /** @return list<Fact> */
@@ -648,6 +649,14 @@ final class ForecastModelFacts implements ProvidesMethodology
         // while every scenario derived from it reconciled.
         $facts = [...$facts, ...$this->decomposition->capture(
             $inputs->calendar, $this->run->profit($inputs, $run['movements']), $at)];
+        // How long the money lasts, on each basis the model can state one.
+        // Stated for the base case only: a runway claim is made about the
+        // business as planned, so PM-10 reads the base case's figure, and a
+        // copy of the no-sales measure under every scenario would be the same
+        // number five times over - a shock to trading cannot change how long
+        // cash covers costs when the trading stops.
+        $facts = [...$facts, ...$this->runway->capture($inputs->calendar, $run['months'],
+            $run['movements'], $inputs->reservePolicy, $inputs->cashOpening?->amount, $at)];
 
         // The entries come from the shared emitter, because SS-01 reconciles
         // each scenario's against the same classification MI-01 reconciles
