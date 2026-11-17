@@ -462,6 +462,168 @@ One consequence worth recording for whoever fills these screens: a month states 
 
 Still ahead: the scenario run. SS-01, SS-02 and SS-03 need `ScenarioRunner` and `ScenarioCatalogue` driven from the reconstruction, and a per-scenario version of this decomposition. The decomposition itself is now in place for them.
 
+### Provenance of records 2E-4k to 2E-4t
+
+**These ten records were written on 17 November 2026 from the merged commits, not at the time of each merge.** The slices shipped between 10 and 16 November while the doc stood still at 2E-4j, which left its closing line above — "Still ahead: the scenario run" — reading as the current state of work that had since been completed. Each slice carries its own reasoning in its commit message and pull request; this reconstruction preserves the load-bearing decisions, the measurements and the defects found, and does not add reasoning the commits do not state. Where a record is thinner than those above it, that is the limit of the contemporaneous record rather than a smaller slice. 2E-4u was written with its slice.
+
+### Slice 2E-4k implementation record
+
+PR #193. `ScenarioRunner` applied one of its three shock types. It called `shockCollections()` on a movement list handed to it, ledgered those, and left `shockStreams()` and `shockCostRates()` unused; a volume shock reached the output only through `revenueShockReport()`, which reports and does not touch cash. **Every catalogue scenario ranks on `cash_deficit`, so `revenue_downside`, `slow_start` and `cost_upside` returned the base case's own deficit while presenting themselves as downsides.** Four of six scenarios could not differ from base on the metric the worst case is chosen by, and SS-02 and SS-03 size the funding ask off that worst case.
+
+A scenario is now the reconstruction with shocked inputs run back through the engines: `shockInputs()` returns a shocked `ForecastModelInputs`, `ForecastRun::movements()` builds the dated set from it, the collection delay moves dates on that set, and the ledger and funding measures follow. `movements()` is public for that seam, because `cash()` builds and ledgers in one step with nowhere to apply a date shock between.
+
+The routes to cash are narrower than they look and are named in the code rather than implied. A fixed-cost rate reaches cash through the invoices its recurrence raises, and an asset's cost through the payment its schedule dates. A volume shock reaches cash only through revenue-linked owner pay, because forecast stream revenue had no cash leg in this engine. **That gap was recorded rather than fixed** — as R12 in `PLAN.md` (PR #194), because the choice between deriving receivables from the stream schedule, carrying one model-level collections assumption, and stating the limitation while withholding the revenue-driven ask is an owner decision about what the budget claims to model. It is resolved in 2E-4t.
+
+Three further decisions, each load-bearing. The base scenario is handed the reconstruction itself, not an equal copy, so its ledger is the main model's ledger by construction — that is the reconciliation SS-01 checks, rather than an agreement two separate computations happen to arrive at. A cost-rate shock scoped to named months is refused on fixed costs and capex, because those rates are one arrangement-level figure with no month of their own. And a scenario whose movement set has gaps publishes no measures at all, carrying its reasons into `unranked`, because a deficit missing part of what it was built from is not a mild case and the ranking feeds a funding recommendation.
+
+`ForecastEngineVersion::CURRENT` stays at `fsa-forecast.2d.1`, since `assertReadable()` refuses any stored model whose version differs and the stored input shape did not change; only the two component versions move to `phase-2e.1`. `ForecastModelInputs::withCostInputs()` copies twenty-one fields by hand, the class being readonly with `clone with` unavailable on 8.4, so `ForecastModelInputsCloneTest` compares every property by reflection and also fails when the fixture leaves a new field unstated.
+
+Verified by disabling `shockInputs()`: `cost_upside` then reports 1900.00 against base's 1900.00 and capex 900.00 against 900.00, the defect exactly. With it enabled, 2100.00 and 1000.00.
+
+### Slice 2E-4l implementation record
+
+PR #196, two commits: SS-02's stress dimensions and SS-01's curves and profits.
+
+**SS-02 had been registered since phase 2D with nothing producing its facts,** so it reported every dimension as not established on every plan. `ScenarioFacts` runs the catalogue and the scenario engines from the reconstruction and states, for each single-dimension scenario, what was tested, over which months, at what requested size and at what size the model actually applied. Every effective figure is measured off the shocked model rather than copied from the request, which is the whole point of the rule: a requested figure reported as the applied one passes SS-02 while overstating the test. The cost rate is the ratio of shocked to base cost across the categories the shock names, so a category that fails to scale shows up instead of being assumed, and a collections delay reports zero when no eligible receipt falls inside the window, because a delay that moves nothing applied nothing however many days it asked for.
+
+The base and combined scenarios carry no dimension. Two records under one key resolve to nothing, so a combined scenario emitting the three dimensions its parts already establish would take SS-02's reading of all three with it. The actuals window is built at the release snapshot's own as-of date rather than one derived from the records: deriving it would make the window agree with whatever had been reviewed and silently close the gap MI-07 exists to report.
+
+This surfaced a fault it did not introduce. The window's guard raises a `LogicException` from inside the shock application, reached from a fact producer, so it would have travelled out through the whole capture and taken every other producer's facts with it — the gate falling silent on exactly the plans it has most to say about. The status is now checked before any shock is applied, and a refused scenario leaves the others readable. Verified by returning nothing from the producer: eight of the twelve new tests fail, including SS-02 reporting that it still sees no stress dimensions at all.
+
+**SS-01 reaches its own reconciliation.** It too had been registered since 2D and could only report that it had no scenarios; on the feature fixture the blanket gap becomes 186 subchecks, of which the opening basis and the trough extremum resolve. Each scenario's ledger had been built and thrown away with only its funding measures kept; the outcome carries the months now, emitted through `CashCurveFacts` — extracted verbatim from the base producer — because MI-01 checks the base curve against the arithmetic SS-01 checks each scenario's against, and two implementations of that would drift. This is the first of the shared emitters, and the pattern recurs through 2E-4n, 2E-4p and 2E-4q.
+
+`scenario.lowest_cash` stops being withheld. It was withheld because nothing could state it correctly: the rule compares it against the minimum of the month-end closings, while the ledger's own lowest cash is the balance after every individual movement and can dip below every month end, so publishing the ledger's figure would have failed a check that was working. It is now the month-end trough and says so in its basis. The base trough is stated by the reconstruction rather than the scenario run, because the key is superseded off the budget whether or not a scenario set can be built — left to the scenario producer it would take the figure off the budget and replace it with nothing on every plan whose scenarios cannot be established.
+
+On the decomposition: interest was lumped in with operating payments and fees, and a decomposition reading revenue less costs, depreciation and interest cannot be stated from a figure with the interest buried in it, so `MonthlyProfit` reports it on its own line — same profit, charged once. The model keeps nine parts and the rule wants five, so three are grouped and each published line carries a basis naming what went into it. The grouping is arithmetically closed by construction, which is what makes the rule's check a test of the decomposition rather than of a rounding of it. A month the model could not complete publishes none of its parts: a decomposition missing a line still adds up to something, and that something would reconcile.
+
+### Slice 2E-4m implementation record
+
+PR #197. SS-01 holds each scenario's baseline against a shared one, which is the evidence that none of them was quietly built from a different model. Nothing stated it, so the rule reported every scenario's inputs unestablished.
+
+The identity is the unshocked reconstruction's, hashed over its drivers, its actuals and its reserve policy. **The choice is load-bearing in both directions and tested in both.** Hashing the shocked inputs would give every scenario its own identity and fail the comparison by construction. Hashing something weaker would let a scenario be built from different drivers and still claim the same baseline, so a test moves a fixed-cost rate and asserts the identity moves with it.
+
+`scenario.shocks` declares what each one changed, as the shock definitions themselves rather than a summary of them. The base case declares none and says so with an empty declaration; absent would read as a scenario whose shocks nobody recorded, which is a different state. The base case states both here rather than in the scenario run, for the reason its trough is stated here: SS-01 reads the base case whenever the reconstruction closes its months, and that happens whether or not a scenario set can be built.
+
+### Slice 2E-4n implementation record
+
+PR #198, two commits: the shared tax arrangement and the per-scenario ledger entries.
+
+SS-01 holds each scenario's tax policy, rate, opening losses and payment policy against the base case's, because a shock is a change to trading rather than to the tax the business is subject to. **One of the four was emitted by nothing at all.** `tax.payment_policy` was not a per-scenario gap: the reconstruction stated three of the four, so the rule reported the fourth missing even for the base case and would have gone on doing so however many scenarios were wired. It comes from the tax cash plan's own scope state, confirmed only where the record behind it is named. All four or none — a payment schedule for a tax nobody has established the basis of states the timing of a figure that has none.
+
+Each scenario's four are read back off its own shocked reconstruction rather than copied from the base one. The difference is whether the rule checks something or asserts it: no shock touches tax today, but one that did would pass unnoticed if both sides came from the same place.
+
+`LedgerEntryFacts` is extracted from the reconstruction's producer with the category mapping moved verbatim. A nine-way classification rewritten from its own docblock is a place for a silent difference, and a verbatim move reads as one in review; the existing release-gate tests passing unchanged is what says the base case's entries did not move. The entries are each scenario's own rather than the base case's relabelled, collection-delayed where the shock moved them, so a delayed scenario reports its receipt thirty days later than the base case does and the lines explain the movement the curve reports.
+
+This also corrected two unit assertions that passed on the gap they were meant to prove gone. A missing subcheck carries the same id prefix as a decided one, so asserting the prefix existed proved nothing; the cause was `model.horizon`, which the plan's budget states rather than the reconstruction, leaving the cash-ledger checks refusing to run at all.
+
+### Slice 2E-4o implementation record
+
+PR #199, a performance slice. **Measured while sizing the next SS-01 slice rather than suspected.** On a twenty-four month plan with three streams the reconstruction states 2,559 facts and SS-01 alone took 11.6 seconds to evaluate them. The gate runs inside an HTTP request and the hygiene rule holds the whole review to ten seconds, so that is not a slow test — it is a page that does not load, and the rule was already over budget before the slice that prompted the measurement added anything.
+
+The cause was not SS-01. `one()` and `all()` were full scans with a closure per fact, and the gate makes a hundred and sixty-five distinct kinds of lookup across its rules, so every one of them walked every fact. Two indexes built once in the constructor, by key and by the full coordinate, leave SS-01 at 405ms on the same plan and 250ms on a twelve-month one.
+
+What says it is the same answer faster, rather than a different answer, is the subcheck count: 1,333 and 971, unchanged at both horizons.
+
+**Two behaviours the index had to keep, both now pinned.** Competing records under one coordinate still resolve to nothing — the index appends rather than overwrites, because overwriting would turn the ambiguity `one()` exists to catch into a silent last-one-wins. And insertion order survives, because rules number their subchecks by position and reordering would renumber findings. A third test holds that a field containing the separator cannot forge a colliding coordinate. (The first of those two is the mechanic 2E-4u turns out to depend on.)
+
+The hygiene rule's own timing test had been intermittently over its budget and was attributed to machine load. It passed consistently afterwards, and the unit suite halved from 136 to 65 seconds, so lookup cost was likely a real contributor rather than noise.
+
+### Slice 2E-4p implementation record
+
+PR #200. SS-01 runs the whole tax rule against every scenario's facts, so each one needs its own monthly chain: profit, adjustment, expense, closing losses, payment and payable movement. Nothing stated one, so the rule reported every scenario's tax unestablished however complete its cash side was.
+
+`TaxChainFacts` is the fourth shared emitter, and the reconstruction's chain, its tax cash and its period adjustments all move into it. The producer's own tax method is now two delegated calls, which is the shape the comparison needs: the rule holds the two sides against each other, and sides derived two ways test the derivations rather than the models.
+
+**A downside owes less.** That is the reason a scenario needs its own chain rather than a relabelled copy, and a test holds the revenue downside's total expense below the base case's — a copied chain would have every scenario owing identical tax on different profits, which is the failure worth making impossible to reintroduce. Reviewed months still outrank the decomposition, per scenario as much as for the base case: a shock changes what the model implies about the future and never what the accounts recorded about the past, and using one emitter means that holds by construction.
+
+The first run of the new test found no expense anywhere, including the base case, because the fixture declared no tax periods: every month's adjustment was unstated and the chain withheld the expense behind it. That is the chain being right, so the fixture was completed rather than the assertion loosened.
+
+### Slice 2E-4q implementation record
+
+PR #202, the last of the eight things SS-01 reads. The rule walks each scenario's inputs against the base case's: a value with no declared shock has to be unchanged, and a value with one has to be the baseline with that shock applied. That is what catches a scenario which quietly moved something it never declared, and nothing stated any of it.
+
+The inventory is exactly what `ScenarioApplication` can reach — three volume fields and the provider unit cost on each stream month, each fixed cost's rate, each asset's cost. **Completeness is not cosmetic here:** the rule is told the inventory is complete, so enumerating a convenient subset while claiming so would let an undeclared change hide in whatever was left out.
+
+The multiplier comes from the definition, never from dividing the scenario value by the base one. Derived that way it would agree with itself however the shock had actually been applied, and the rule would confirm its own arithmetic instead of the engine's. `ScenarioApplication` publishes the two factor accessors that makes possible.
+
+The feature suite then found an asymmetry this work introduced: every scenario stated a profit decomposition and the base case did not, so SS-01 would have reported its profit unestablished indefinitely while every scenario derived from it reconciled. `ProfitDecompositionFacts` is the fifth shared emitter and both state it the same way now. The feature test moves with it — it had pinned the inventory as evidence the rule still lacked, so it now asserts what is established instead, and keeps asserting the verdict is still `cannot_verify`. That last line is what holds the test to the difference between more evidence and a pass.
+
+### Slice 2E-4r implementation record
+
+PR #203, a performance slice. Profiling the gate's capture found `revenueShockReport` was more than half the cost of every shocked scenario. It projected revenue twice: once over the unshocked streams, which is the same figure for all six scenarios, and once over streams it shocked itself into an object nothing else could reuse. It now takes both totals from projections the caller already holds and projects nothing.
+
+**One thing would have defeated that.** The run memoises a single reconstruction, so asking for the baseline inside the scenario loop would evict the shocked projection every pass and recompute both for all six. The baseline is taken once before the loop and passed down; without that the change reads correctly and saves nothing.
+
+Measured on a twenty-four month plan with three streams: capture 2,743ms to 2,144ms, the six scenario runs 1,526ms to 954ms, one shocked scenario 375ms to 268ms. The dimension path paid the same cost on its own run instance and is fixed with it.
+
+Three tests moved rather than being handed the totals. They prove founder capacity binds before the shock does, so cutting requested volume by a fifth cuts delivered revenue by less — feeding them pre-computed figures would have turned that into a test of arithmetic.
+
+### Slice 2E-4s implementation record
+
+PR #204, two commits: SS-03's funding measures and the external request record.
+
+**Everything the measures needed was already computed and thrown away at the fact boundary.** The run decides which scenario each measure peaks in and every outcome carries its own deficit and shortfall; none of it reached a fact, so SS-03 could only report that it had no scenarios. Three emissions now: each scenario's cash deficit and reserve gap, the basis they were measured on, and the scenario each measure peaks in. The last is taken from the run's own maxima rather than recomputed, which is what lets the rule check the claim instead of agreeing with itself.
+
+The basis had to become one string rather than two. SS-03 reads a deficit whose basis differs from the one the scenarios share as missing evidence rather than as a mismatch — a deficit on a different footing is a different number — and the base case's measures are stated by the reconstruction while the scenarios' are stated by the run, so the scope now lives on `ScenarioRunner` for both to name. The base case is still stated once, by the reconstruction, so it survives on a plan whose scenarios cannot be established.
+
+A test-helper bug surfaced on the way and is worth recording, because the engine looked guilty. No worst-scenario fact appeared, and the funding measures withhold everything when a ledger or policy is incomplete — but the cash run was returning a deficit of 2000.00 and a shortfall of 5300.00 perfectly well. The capture helper hard-coded a null reserve policy when building the source record, so the policy never survived the round trip. Chasing it to the engine would have meant fixing working code.
+
+**SS-03 will not read an amount on its own.** It asks which requirement the request answers, which scenario that requirement came from, what the business applies before reaching outside, and when the money is needed, because a request sized against the base case and one sized against the worst downside are different asks and the amount cannot say which. The metric and the basis scenario are chosen rather than typed: the rule reads a request sized against a scenario the run does not build as unstated, so a free text field would take an answer it could never use and say nothing about why the rule had not moved. The form offers the six the catalogue builds, and the server refuses the rest.
+
+`model.external_request` moves from withheld to superseded. It was withheld because a second record would have made PM-12's lookup ambiguous; the reconstruction now states it instead, so there is one record rather than two. **This changes PM-12 on existing plans:** where a budget records a request and the reconstruction does not, the key now goes unstated rather than falling back, which is the trade the funding inventory already makes.
+
+Three guards fired and each was right. The reflection clone guard caught the new field the moment it existed, which is what it was built for. The supersede test caught the key being taken off the budget with nothing replacing it. The drift guard required the value object to be marked or excluded with a reason.
+
+### Slice 2E-4t implementation record
+
+PR #205, two commits. **This resolves R12, recorded in 2E-4k and carried in `PLAN.md` since 11 November.**
+
+Before this the cash ledger's only operating receipts came from trade items — opening debtors and one-offs an advisor types as amounts — so revenue the model projected never became a receipt. A revenue downside barely moved the cash deficit, while SS-02 and SS-03 size the funding ask from exactly that figure.
+
+Collection terms are now stated once for the model: the share collected when billed, how many days later the balance arrives, and the record they come from. **Receipts are scheduled from invoiced units rather than delivered ones, because cash follows the bill**, and billing falls at month end — the conservative convention, since cash then arrives later than under any mid-month assumption.
+
+Absent stays absent. A reconstruction that states no terms generates no receipts and says so rather than assuming revenue is collected the moment it is earned. Half-stated terms collect nothing either and name the answer still wanted, because a day count with no invoice share leaves the split unknown and a share with no day count leaves the balance undated.
+
+The second commit fixes a collision the first one created, and the mechanism is worth recording because it is a general hazard in the ledger. Numbering receipts by stream and part gave every month of a stream one position, which is unique only while the dates are. An ordinary uniform collection-delay shock breaks that: it moves only receipts whose current date still falls in a forecast period, so a receipt dated inside the horizon moves and one already dated past it stays, and the two can meet on a single date. The ledger refuses two movements claiming one position and the whole scenario run fails. The schedule now allocates one slot per receipt from a running counter and reports how many it took, so the caller reserves what was actually allocated instead of recomputing a count that can diverge from it — which is how the collision arrived in the first place.
+
+### Slice 2E-4u implementation record
+
+PR #206. **PM-11 is registered as `Severity::Block` and could not pass for any model where someone other than the founder delivers the work.** The reconstruction held a provider's name and unit cost but neither the hours they can deliver nor the date they start, so a stream delivered by a contractor reported its provider unverified however completely the advisor had filled the rest in — a live blocking finding nobody could clear. `provider_capacity_hours` and `provider_start` are now captured on each stream month, through the codec, the controller, the payload and the driver form.
+
+Fixing the fields exposed a second, latent defect in the same place, and it is the mechanic 2E-4o pinned. PM-11 reads provider facts at the coordinate `(provider, month)`, but the emitter published **one record per stream row**. Two streams delivered by one provider in one month is ordinary, and it put several records under a single coordinate; `FactSet::one()` resolves competing records to nothing by design, so a provider the advisor had described **identically on both rows** was reported as undescribed.
+
+Provider facts therefore move to a producer of their own, whose unit of record is the provider's month rather than the row that mentions it. Rows that agree publish once, citing every row that stated it. Rows that disagree publish nothing, because contradictory figures are not a statement and the rule reporting the provider as unverified is the honest reading of two figures that cannot both be true. **Agreement is exact text:** deciding that `8` and `8.0` are one capacity would be this producer resolving a contradiction it was handed rather than reporting it. Capacity, start date and cost publish even when unstated, so the fact set records that the producer looked; a no-cost basis publishes only when stated, because an absent one is not a claim that the provider is free.
+
+A scenario shock carries both new fields unscaled. A revenue downside does not shrink a provider's capacity and a cost upside does not move their start date, so every scenario is held against the same stated capacity.
+
+`StreamProjection::$providerMissing` is deliberately unchanged. Capacity is gated on `$providerMissing === []`, so adding the new fields there would silently suppress revenue in every existing model that names a provider.
+
+Both behaviours were verified from both sides: reverting to per-row emission reproduced the live finding (`['provider:0','provider:1']`), and withholding `capacity_hours` left `provider:0` unresolved. Local verification passed the full feature suite at 1,603 tests and 18,455 assertions, `ForecastModelInputsTest` at 74, `ForecastModelFactsTest` at 20 and the client contracts at 26. PHPStan level 6 clean, Pint, `tsc --noEmit`, Prettier and ESLint all pass.
+
+### Phase 2E current state
+
+Checked on 17 November 2026 against `origin/main` at `facec2e8`, plus PR #206 pending.
+
+**26 of the 37 catalogued rules are enabled, and all 26 reach the verdict the F1 reference package specifies for them** — `F1Test` asserts that per rule against `f1-manifest.json` and passes. The model side of the gate is complete: producers emit 85 distinct fact keys, and six shared emitters (`CashCurveFacts`, `LedgerEntryFacts`, `TaxChainFacts`, `TaxPolicyFacts`, `ScenarioInputFacts` and `ProfitDecompositionFacts`) serve the base case and every scenario from one implementation, because the rules that compare the two sides would otherwise be comparing two derivations rather than two models.
+
+`RunwayFacts` and `FundingRequestFacts` are deliberately **not** shared: both state something about the business as planned rather than about a shock to it, so each is emitted for the base case alone.
+
+The eleven deferred rules reduce to four missing producers. Every key below appears only in `RuleCatalogue`, as a declared input, and in the rule that consumes it; nothing in `app/` produces any of them.
+
+| Rules | Rule class | Producer needed | Model side |
+| --- | --- | --- | --- |
+| PM-10 Runway definition | written | `runway.months`, `runway.start_cash` | complete — `RunwayFacts` |
+| PM-05 Revenue ramp | written | `plan.ramp`, `plan.start_period` | complete |
+| PM-08 Profit allocation | written | all five `allocation.*` | none |
+| DH-07 Offer consistency | written (`HygieneRule`) | `document.blocks` | none |
+| NB-01, NB-02, EV-01 to EV-05 | **none** | `plan.claims`, `budget.facts`, `evidence.records` | none |
+
+**Nine of the eleven are blocked behind the claim and evidence side, which is barely begun.** `PlanFacts` is 93 lines emitting three keys, `FactCodec` is a 20-line stub, and `ClaimVersionStore`, `DocumentBlock` and `CandidateBlocks` add roughly 120 lines between them. The seven NB and EV rules are catalogue definitions with no implementation at all — `deferred()` is computed as catalogue-minus-registered, which is why they count toward the eleven.
+
+PM-10 and PM-05 are the cheapest remaining work: rule written, model side complete, each needing only its two claim keys. PM-08 needs a model side as well. **Registering any of the three before its claim producer exists would be wrong rather than merely premature:** the manifest expects each to Fail on the F1 plan, a rule with no facts can only report its inputs missing, and recording Cannot verify where a contradiction is specified understates the finding. Forcing the expected Fail by adding a claim to the anonymised reference fixture would fabricate the evidence the test exists to check.
+
+`RunwayFacts` was built ahead of its registration in this way, and the reasoning is recorded here rather than in a slice record because no rule moved: the two bases — months of modelled solvency on the forecast curve, and opening cash over the reserve policy's monthly cost basis with no sales — are stated separately and never reconciled against each other, since a business can have nine months of the first and three of the second with nothing wrong. Each figure carries whether it counts receipts and whether it counts owner pay, read off the movements in the curve rather than asserted, because PM-10 refuses to compare unlike measures. A curve that never goes negative states no runway at all: the model did not find the business solvent indefinitely, it stopped looking at the end of the horizon, and publishing the horizon's own length would let a claim of eighteen months read as a demonstrated contradiction of a twelve-month model that is simply silent past month twelve.
+
 ### Navigation repair handover (Phase 2A baseline)
 
 PR #170 is merged and deployed as 1.0.282, with `/api/deployment` identifying `9f9e2a10d8e60b9d87893e181e23ed9f3195c631`. Authenticated Chrome checks returned HTTP 200 for Tania's direct document request (5.84 seconds), her name-link XHR (3.82 seconds), a full refresh (12.23 seconds), and another entrepreneur's direct document request (1.98 seconds). Each detail page rendered its matching heading; the previous 502/reconnecting state did not recur in these checks. These are individual production observations, not a latency guarantee: the full refresh remains materially slower than in-app navigation. No client data was edited during verification.
