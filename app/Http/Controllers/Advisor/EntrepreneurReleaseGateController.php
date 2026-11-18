@@ -27,6 +27,11 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * @phpstan-type ConfirmedClaim array{key:string,value:string|int|bool|null,entity:string,period:string,
+ *     unit:string|null,basis:string|null,as_of:string|null,revision:int,section_title:string|null,
+ *     applies:bool,confirmed_by:string|null,confirmed_at:string|null,reason:string}
+ */
 final class EntrepreneurReleaseGateController extends Controller
 {
     public function show(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, ReleaseGate $gate): Response
@@ -67,7 +72,7 @@ final class EntrepreneurReleaseGateController extends Controller
      * decision.
      *
      * @param  list<array{id:string,title:string,hash:string}>  $sections
-     * @return list<array<string,mixed>>
+     * @return list<ConfirmedClaim>
      */
     private function confirmedClaims(BusinessPlan $businessPlan, array $sections): array
     {
@@ -93,11 +98,11 @@ final class EntrepreneurReleaseGateController extends Controller
 
                 return [
                     'key' => $fact->key, 'value' => $fact->value, 'entity' => $fact->entity, 'period' => $fact->period,
-                    'unit' => $fact->unit, 'basis' => $fact->basis, 'as_of' => $fact->asOf, 'revision' => $claim->revision,
+                    'unit' => $fact->unit, 'basis' => $fact->basis, 'as_of' => $fact->asOf, 'revision' => (int) $claim->revision,
                     'section_title' => $section === null ? null : ($titles[$section->id] ?? null),
                     'applies' => $section !== null && hash_equals($hashes[$section->id] ?? '', $section->version),
-                    'confirmed_by' => $claim->actor?->name, 'confirmed_at' => $claim->created_at?->toIso8601String(),
-                    'reason' => $claim->reason,
+                    'confirmed_by' => $claim->actor?->name === null ? null : (string) $claim->actor->name, 'confirmed_at' => $claim->created_at?->toIso8601String(),
+                    'reason' => (string) $claim->reason,
                 ];
             })
             // Read in the order they were entered rather than by claim_key,
