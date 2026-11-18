@@ -1,5 +1,105 @@
 type Measurement = 'period' | 'unit' | 'basis';
 
+export const claimNames: Record<string, string> = {
+    'plan.profitability': 'Profitability year',
+    'plan.owner_pay': 'Owner pay',
+    'plan.opening_cash': 'Opening cash',
+    'plan.margin_min': 'Profit margin target minimum',
+    'plan.margin_max': 'Profit margin target maximum',
+    'plan.margin_explanation': 'Margin explanation',
+    'plan.commitment': 'Committed cost',
+    'plan.commitment_in_scope': 'Cost included in current plan',
+    'scope.required_horizon': 'Required forecast horizon in months',
+    'runway.months': 'Runway in months',
+    'runway.start_cash': 'Cash the runway starts from',
+    'runway.includes_receipts': 'Runway counts future customer receipts',
+    'runway.includes_owner_pay': 'Runway counts owner pay',
+};
+
+// Mirrors ClaimVersionStore::BOOLEAN_KEYS. A yes/no answer typed as prose is
+// refused by the server, so it is never offered as a free text box.
+export const booleanKeys = [
+    'plan.commitment_in_scope',
+    'runway.includes_receipts',
+    'runway.includes_owner_pay',
+];
+
+// Mirrors ClaimVersionStore::GROUPS. PM-10 reads a runway's inclusions at the
+// same subject and period as the figure, so they are confirmed as one act.
+// Offered separately they would be four chances to disagree about a
+// coordinate nothing made them share, and the rule would find the figure,
+// none of its companions, and report evidence the advisor had entered as
+// absent.
+export const groups: Record<string, string[]> = {
+    'runway.months': [
+        'runway.start_cash',
+        'runway.includes_receipts',
+        'runway.includes_owner_pay',
+    ],
+};
+
+// A companion is never offered as a statement of its own, because the server
+// refuses one recorded on its own.
+export const companionKeys = Object.values(groups).flat();
+
+/**
+ * The statements that travel with a figure, asked for beside it.
+ *
+ * Every one is required: an unanswered inclusion left blank would reach the
+ * server as an empty string, which reads as "not counted" rather than as
+ * unanswered, so the form does not offer a way to leave one out.
+ */
+export function ClaimCompanionFields({
+    claimKey,
+    values,
+    onChange,
+}: {
+    claimKey: string;
+    values: Record<string, string>;
+    onChange: (next: Record<string, string>) => void;
+}) {
+    return (
+        <>
+            {(groups[claimKey] ?? []).map((companion) => (
+                <label key={companion}>
+                    {claimNames[companion]}
+                    {booleanKeys.includes(companion) ? (
+                        <select
+                            className="block w-full rounded border p-2"
+                            required
+                            value={values[companion] ?? ''}
+                            onChange={(e) =>
+                                onChange({
+                                    ...values,
+                                    [companion]: e.target.value,
+                                })
+                            }
+                        >
+                            <option value="">
+                                Choose whether this is counted
+                            </option>
+                            <option value="true">Counted</option>
+                            <option value="false">Not counted</option>
+                        </select>
+                    ) : (
+                        <input
+                            className="block w-full rounded border p-2"
+                            required
+                            value={values[companion] ?? ''}
+                            onChange={(e) =>
+                                onChange({
+                                    ...values,
+                                    [companion]: e.target.value,
+                                })
+                            }
+                        />
+                    )}
+                </label>
+            ))}
+        </>
+    );
+}
+
 const units = {
     NZD: 'New Zealand dollars',
     'NZD/week': 'New Zealand dollars per week',

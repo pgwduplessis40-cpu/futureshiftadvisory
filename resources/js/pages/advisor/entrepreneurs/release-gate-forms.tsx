@@ -1,35 +1,17 @@
 import { useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import { ClaimMeasurementFields } from './release-gate-claim-fields';
+import {
+    ClaimCompanionFields,
+    ClaimMeasurementFields,
+    booleanKeys,
+    claimNames,
+    companionKeys,
+} from './release-gate-claim-fields';
 import type {
     Configuration,
     GateProps,
     RuleResult,
 } from './release-gate-types';
-
-const claimNames: Record<string, string> = {
-    'plan.profitability': 'Profitability year',
-    'plan.owner_pay': 'Owner pay',
-    'plan.opening_cash': 'Opening cash',
-    'plan.margin_min': 'Profit margin target minimum',
-    'plan.margin_max': 'Profit margin target maximum',
-    'plan.margin_explanation': 'Margin explanation',
-    'plan.commitment': 'Committed cost',
-    'plan.commitment_in_scope': 'Cost included in current plan',
-    'scope.required_horizon': 'Required forecast horizon in months',
-    'runway.months': 'Runway in months',
-    'runway.start_cash': 'Cash the runway starts from',
-    'runway.includes_receipts': 'Runway counts future customer receipts',
-    'runway.includes_owner_pay': 'Runway counts owner pay',
-};
-
-// Mirrors ClaimVersionStore::BOOLEAN_KEYS. A yes/no answer typed as prose is
-// refused by the server, so it is never offered as a free text box.
-const booleanKeys = [
-    'plan.commitment_in_scope',
-    'runway.includes_receipts',
-    'runway.includes_owner_pay',
-];
 
 // A runway the rule cannot read is refused on save, so the unit it must be
 // stated in is set when the statement is chosen rather than left to be
@@ -59,6 +41,7 @@ export function ReleaseClaimForm({
         basis: '',
         as_of: '',
         reason: '',
+        companions: {} as Record<string, string>,
     });
 
     return (
@@ -110,17 +93,20 @@ export function ReleaseClaimForm({
                                 key: e.target.value,
                                 basis: '',
                                 value: '',
+                                companions: {},
                                 unit:
                                     unitForKey[e.target.value] ??
                                     form.data.unit,
                             })
                         }
                     >
-                        {Object.entries(claimNames).map(([key, label]) => (
-                            <option key={key} value={key}>
-                                {label}
-                            </option>
-                        ))}
+                        {Object.entries(claimNames)
+                            .filter(([key]) => !companionKeys.includes(key))
+                            .map(([key, label]) => (
+                                <option key={key} value={key}>
+                                    {label}
+                                </option>
+                            ))}
                     </select>
                 </label>
                 {(['value', 'entity', 'as_of'] as const).map((key) => (
@@ -160,6 +146,11 @@ export function ReleaseClaimForm({
                         )}
                     </label>
                 ))}
+                <ClaimCompanionFields
+                    claimKey={form.data.key}
+                    values={form.data.companions}
+                    onChange={(next) => form.setData('companions', next)}
+                />
                 <ClaimMeasurementFields
                     claimKey={form.data.key}
                     data={form.data}

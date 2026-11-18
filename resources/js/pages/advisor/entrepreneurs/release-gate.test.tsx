@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInertiaApp } from '@inertiajs/react';
 import { renderToString } from 'react-dom/server';
-import { ClaimMeasurementFields } from './release-gate-claim-fields';
+import {
+    ClaimCompanionFields,
+    ClaimMeasurementFields,
+} from './release-gate-claim-fields';
 import type { GateProps, Subcheck } from './release-gate-types';
 import ReleaseGateReview from './ReleaseGate';
 
@@ -165,10 +168,36 @@ test('a runway and the inclusions that give it meaning can be confirmed', async 
         ],
     });
     assert.match(html, /Runway in months/);
-    assert.match(html, /Cash the runway starts from/);
-    assert.match(html, /Runway counts future customer receipts/);
-    assert.match(html, /Runway counts owner pay/);
+    // The inclusions are not offered as statements of their own. Confirmed
+    // separately they would sit at a coordinate the figure need not share,
+    // and the server refuses one recorded alone.
+    assert.doesNotMatch(html, /Cash the runway starts from/);
+    assert.doesNotMatch(html, /Runway counts owner pay/);
     assert.doesNotMatch(html.replace(/<[^>]*>/g, ''), /runway\./);
+});
+
+// They are asked for beside the figure instead, as one act.
+test('a runway is confirmed together with the statements that give it meaning', async () => {
+    const fields = (claimKey: string) =>
+        renderToString(
+            <ClaimCompanionFields
+                claimKey={claimKey}
+                values={{}}
+                onChange={() => {}}
+            />,
+        );
+
+    const runway = fields('runway.months');
+    assert.match(runway, /Cash the runway starts from/);
+    assert.match(runway, /Runway counts future customer receipts/);
+    assert.match(runway, /Runway counts owner pay/);
+    // Every one is required: left blank, an inclusion reaches the server as an
+    // empty string, which reads as "not counted" rather than as unanswered.
+    assert.equal(runway.match(/required=""/g)?.length, 3);
+    assert.doesNotMatch(runway.replace(/<[^>]*>/g, ''), /runway\./);
+
+    // A claim that travels alone brings no companions with it.
+    assert.equal(fields('plan.opening_cash'), '');
 });
 
 // The two bases the model measures are offered by name, and the description

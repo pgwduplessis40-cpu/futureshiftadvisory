@@ -64,13 +64,34 @@ final class EntrepreneurReleaseGateController extends Controller
             'key' => ['required', 'in:'.implode(',', ClaimVersionStore::KEYS)], 'value' => ['required', 'string', 'max:2000'],
             'entity' => ['required', 'string', 'max:100'], 'period' => ['required', 'string', 'max:50'],
             'unit' => ['nullable', 'string', 'max:30'], 'basis' => ['required', 'string', 'max:100'],
-            'as_of' => ['nullable', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:15', 'max:2000']]);
+            'as_of' => ['nullable', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:15', 'max:2000'],
+            'companions' => ['sometimes', 'array'], 'companions.*' => ['required', 'string', 'max:2000']]);
         $section = $businessPlan->sections()->findOrFail($data['section_id']);
-        $value = in_array($data['key'], ClaimVersionStore::BOOLEAN_KEYS, true)
-            ? filter_var($data['value'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
-            : $data['value'];
-        $fact = new Fact($data['key'], $value, $data['entity'], $data['period'], unit: $data['unit'] ?? null, basis: $data['basis'], asOf: $data['as_of'] ?? null);
-        $claims->confirm($businessPlan, $section, $actor, $fact, $data['source_hash'], $data['reason']);
+        $read = fn (string $key, string $value): string|bool|null => in_array($key, ClaimVersionStore::BOOLEAN_KEYS, true)
+            ? filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+            : $value;
+        $fact = new Fact($data['key'], $read($data['key'], $data['value']), $data['entity'], $data['period'], unit: $data['unit'] ?? null, basis: $data['basis'], asOf: $data['as_of'] ?? null);
+        $group = ClaimVersionStore::GROUPS[$data['key']] ?? null;
+        if ($group === null) {
+            $claims->confirm($businessPlan, $section, $actor, $fact, $data['source_hash'], $data['reason']);
+
+            return back()->with('status', 'plan-claim-confirmed');
+        }
+        // The companions share the lead's coordinate by construction rather
+        // than by the advisor entering it the same way four times, and their
+        // units come from the group so the rule cannot be handed a start cash
+        // stated in weeks.
+        $facts = [$fact];
+        foreach ($group as $key => $unit) {
+            // An unanswered companion stays unanswered. An empty string reads
+            // as false to filter_var, so supplying one for a missing answer
+            // would record "not counted" as a confirmed statement nobody made,
+            // and PM-10 would hold the model against it.
+            $given = $data['companions'][$key] ?? null;
+            $facts[] = new Fact($key, $given === null ? null : $read($key, $given), $data['entity'], $data['period'],
+                unit: $unit, basis: $data['basis'], asOf: $data['as_of'] ?? null);
+        }
+        $claims->confirmGroup($businessPlan, $section, $actor, $facts, $data['source_hash'], $data['reason']);
 
         return back()->with('status', 'plan-claim-confirmed');
     }

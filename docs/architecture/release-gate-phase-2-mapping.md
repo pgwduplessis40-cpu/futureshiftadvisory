@@ -634,9 +634,27 @@ A feature test records all four claims over HTTP and asserts the rule's unresolv
 
 What this does not do is group a claim with its inclusions. They are four separate confirmations that must share an entity, period and scenario for the rule to find them together, and the form does not enforce that. An advisor who records the months against `year:1` and the inclusions against `current` gets a `definition:N` missing subcheck with no indication why. That is inherent to the generic claim form rather than new here, and it is worth a slice of its own before the next claim-reading rule lands.
 
+### Slice 2E-4x implementation record
+
+2E-4w gave an advisor four runway claims to confirm and nothing to make them agree on a coordinate. PM-10 reads the inclusions at the same entity, period and scenario as the figure, so a set recorded one month apart — or against the business and then against a named offer — leaves the rule finding the figure, none of its companions, and reporting the claim's definition missing. That reads to the advisor as *evidence absent*, for evidence they entered.
+
+A runway is now **one act, not four**. `ClaimVersionStore::GROUPS` declares the lead claim and the companions that give it meaning, each mapped to the unit it is stated in, and `confirmGroup()` writes the whole set at one coordinate in one transaction. The units are fixed in the group rather than asked for, because the rule reads the companions by key and has no use for a start cash stated in weeks.
+
+**A partial group is refused, and so is a lone companion.** A figure stored without its inclusions is one PM-10 must ignore, so recording it would leave an advisor looking at a saved claim the gate reports as absent — the same reasoning that refuses an unmeasurable basis in 2E-4w, applied one level up. `confirm()` now rejects any key belonging to a group and names the group path; the form stops offering the companions as statements of their own.
+
+**The defect worth recording is the one the test caught.** The controller first supplied an empty string for a companion the advisor had not answered, and `filter_var('', FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)` returns **false**, not null — so an unanswered inclusion was recorded as a confirmed "not counted", and PM-10 would have held the model against an answer nobody gave. An unanswered companion now stays null and the write is refused. Absent stays absent, in a place where an empty form field quietly meant something.
+
+The coordinate invariant is checked in the store rather than assumed from the controller. The controller builds the companions at the figure's own subject and period, so the form cannot produce a mismatch — but `confirmGroup()` is a public seam, and a set spanning two periods would be the original defect wearing a group's name. A test records one directly against the store.
+
+`claimNames`, `booleanKeys` and the group definition move into `release-gate-claim-fields.tsx` beside the fields that render them, and the companion inputs become `ClaimCompanionFields`. That is what makes the contract testable: the page renders with a default statement chosen, so the companion fields only appear after an interaction the static harness cannot perform, and the component renders on its own.
+
+Not covered, and PM-05 will need it: **the repeating-series shape.** A ramp is one claim per stream per month, which is a series across periods rather than a fixed companion set at one coordinate. The group definition is data-driven, so the vocabulary is ready, but the form and the store both assume a single coordinate.
+
+Still open: the gate page has no `claims` prop, so an advisor cannot see what they have confirmed — only whether a verdict moved. Grouping prevents new mismatches and leaves existing ones invisible.
+
 ### Phase 2E current state
 
-Checked on 18 November 2026 against `origin/main` at `1d3a5399`, plus slices 2E-4v and 2E-4w.
+Checked on 19 November 2026 against `origin/main` at `76d4e6a8`, plus slices 2E-4w and 2E-4x.
 
 **27 of the 37 catalogued rules are enabled, and all 27 reach the verdict the F1 reference package specifies for them** — `F1Test` asserts that per rule against `f1-manifest.json` and passes. The model side of the gate is complete: producers emit 85 distinct fact keys, and six shared emitters (`CashCurveFacts`, `LedgerEntryFacts`, `TaxChainFacts`, `TaxPolicyFacts`, `ScenarioInputFacts` and `ProfitDecompositionFacts`) serve the base case and every scenario from one implementation, because the rules that compare the two sides would otherwise be comparing two derivations rather than two models.
 
