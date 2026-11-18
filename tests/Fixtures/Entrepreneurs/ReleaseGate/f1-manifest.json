@@ -2,6 +2,15 @@
   "fixture_version": "F1-anonymised-1",
   "extracted_at": "2026-11-04",
   "extractor": "pypdf text extraction with rendered-page review; selected observations normalised to typed facts",
+  "supplements": [
+    {
+      "at": "2026-11-18",
+      "added": ["runway.months", "runway.start_cash", "runway.includes_receipts", "runway.includes_owner_pay", "model.runway_months"],
+      "for_rule": "PM-10",
+      "extractor": "pdftotext -layout with page-located review of the plan and budget",
+      "note": "The 4 November pass did not cover runway, because PM-10 had no producer then. The plan (page 45) and budget (pages 5 and 10) were re-verified against the source hashes above before extraction; the brief on hand at the time was a later revision and no fact here is taken from it."
+    }
+  ],
   "sources": {
     "brief": {
       "pages": 11,
@@ -18,7 +27,7 @@
   },
   "derivative": {
     "file": "f1.json",
-    "sha256": "c5c5546cdda44fbc80845629a686767d8773fc745185632d4aad5813ab9aca5a"
+    "sha256": "3887347210b57480699178775b66e89219c6af719a2e2da29a9b2089267f6c36"
   },
   "privacy": "Names, contacts, original PDFs and client prose are excluded. Short synthetic excerpts preserve the reviewed hygiene defects. Financial observations are unchanged; unknowns are explicit.",
   "expectations": {
@@ -59,8 +68,14 @@
       "detail": "Fail / Block for $1,750; Review for unpriced items"
     },
     "PM-10": {
-      "result": "fail",
-      "detail": "Fail / Review"
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Review: the claim and the model measure different things",
+      "revised_at": "2026-11-18",
+      "was": {
+        "result": "fail",
+        "detail": "Fail / Review"
+      },
+      "revision_reason": "The plan (page 45) claims approximately 12 months of runway from approximately $7,300, on essential operating costs of approximately $600 per month, stating explicitly that it excludes the owner's wages and assumes no new revenue. The budget's own monthly cost basis is $4,335 (page 5), of which $3,792 is owner's compensation, so the model measures 1.74 months on a basis that includes owner pay. The two figures are not the same measure, and the original Fail compared them as though they were - which is the error PM-10 exists to prevent. The rule reports the model runway on the claim's own basis as missing instead. Revised from the source documents, not from the implementation's output; the plan and budget PDFs were re-verified against the source hashes above on 18 November 2026."
     },
     "PM-11": {
       "result": "cannot_verify",
