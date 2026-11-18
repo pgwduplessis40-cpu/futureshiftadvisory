@@ -1312,6 +1312,106 @@
       ],
       "period": "year:1",
       "unit": "NZD"
+    },
+    {
+      "key": "runway.months",
+      "value": "12",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:45",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "months",
+      "basis": "essential_cost_no_sales"
+    },
+    {
+      "key": "runway.start_cash",
+      "value": "7300",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:45",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ],
+      "unit": "NZD"
+    },
+    {
+      "key": "runway.includes_receipts",
+      "value": false,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:45",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ]
+    },
+    {
+      "key": "runway.includes_owner_pay",
+      "value": false,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "plan",
+          "location": "page:45",
+          "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+        }
+      ]
+    },
+    {
+      "key": "model.runway_months",
+      "value": "1.74",
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:10",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        },
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:5",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "entity": "essential_cost_no_sales",
+      "unit": "months",
+      "basis": "opening_cash_over_the_policy_monthly_cost_basis"
+    },
+    {
+      "key": "runway.includes_receipts",
+      "value": false,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:5",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "entity": "essential_cost_no_sales",
+      "basis": "a_no_sales_measure_counts_no_receipts"
+    },
+    {
+      "key": "runway.includes_owner_pay",
+      "value": true,
+      "sources": [
+        {
+          "kind": "pdf_observation",
+          "id": "budget",
+          "location": "page:5",
+          "version": "1e3610e1046ddba6e929d7327be388ef8c41d99709961dfae680108c977bc789"
+        }
+      ],
+      "entity": "essential_cost_no_sales",
+      "basis": "the_reserve_policy_monthly_cost_basis"
     }
   ],
   "blocks": [

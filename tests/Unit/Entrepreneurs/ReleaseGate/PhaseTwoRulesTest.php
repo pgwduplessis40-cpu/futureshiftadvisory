@@ -43,23 +43,28 @@ final class PhaseTwoRulesTest extends TestCase
     }
 
     /**
-     * The six whose verdict on the F1 reference package matches what the
+     * The seven whose verdict on the F1 reference package matches what the
      * package specifies for them. Each reports Cannot verify where its
      * evidence is absent, which is the documented expectation.
+     *
+     * PM-10 is the seventh. Its evidence now exists on both sides, and the
+     * package's Fail was revised against the source documents: the plan's
+     * runway excludes the owner's wages while the model's cost basis includes
+     * them, so the two are different measures rather than a disagreement.
      */
-    private const REGISTERED = ['PM-06', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
+    private const REGISTERED = ['PM-06', 'PM-10', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
 
     /**
-     * The three the package expects to Fail. A rule with no facts can only
+     * The two the package expects to Fail. A rule with no facts can only
      * report its inputs missing, and Cannot verify where a contradiction is
      * specified understates the finding rather than making it.
      */
-    private const DEFERRED = ['PM-05', 'PM-08', 'PM-10'];
+    private const DEFERRED = ['PM-05', 'PM-08'];
 
-    public function test_six_of_the_nine_rules_are_registered_and_three_await_the_facts_that_would_fail(): void
+    public function test_seven_of_the_nine_rules_are_registered_and_two_await_the_facts_that_would_fail(): void
     {
         $registered = array_map(fn (Rule $rule): string => $rule->id(), PhaseOneRules::all());
-        self::assertCount(26, $registered);
+        self::assertCount(27, $registered);
         foreach (self::REGISTERED as $id) {
             self::assertContains($id, $registered, $id.' reaches the verdict the F1 package specifies for it.');
             self::assertSame(2, RuleCatalogue::get($id)->phase);
