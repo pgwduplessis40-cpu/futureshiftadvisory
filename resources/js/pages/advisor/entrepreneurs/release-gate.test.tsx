@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createInertiaApp } from '@inertiajs/react';
 import { renderToString } from 'react-dom/server';
+import { ClaimMeasurementFields } from './release-gate-claim-fields';
 import type { GateProps, Subcheck } from './release-gate-types';
 import ReleaseGateReview from './ReleaseGate';
 
@@ -149,4 +150,49 @@ test('claim confirmation offers readable measurement choices against a saved ans
         html.replace(/<[^>]*>/g, ''),
         /annual_profit|current_rate|year:1/,
     );
+});
+
+// PM-10 was registered while no advisor could record a runway, because the
+// claim whitelist did not carry its keys. The figure and the two inclusions
+// that say what it counts are confirmed together: a runway that counts future
+// receipts and one that does not are different measures, and the rule refuses
+// to compare unlike ones.
+test('a runway and the inclusions that give it meaning can be confirmed', async () => {
+    const html = await render({
+        can_confirm: true,
+        sections: [
+            { id: 'answer-1', title: 'Cash position', hash: 'saved-answer' },
+        ],
+    });
+    assert.match(html, /Runway in months/);
+    assert.match(html, /Cash the runway starts from/);
+    assert.match(html, /Runway counts future customer receipts/);
+    assert.match(html, /Runway counts owner pay/);
+    assert.doesNotMatch(html.replace(/<[^>]*>/g, ''), /runway\./);
+});
+
+// The two bases the model measures are offered by name, and the description
+// box is withdrawn. The server refuses a runway stated on anything else, so a
+// free text box here would take an answer the rule could never read and the
+// advisor would learn that only from a rejection.
+test('a runway basis is chosen from what the model measures, not described', async () => {
+    const basisFor = (claimKey: string) =>
+        renderToString(
+            <ClaimMeasurementFields
+                claimKey={claimKey}
+                data={{ period: 'current', unit: 'months', basis: '' }}
+                setData={() => {}}
+            />,
+        );
+
+    const runway = basisFor('runway.months');
+    assert.match(runway, /Essential costs with no sales/);
+    assert.match(runway, /Forecast cash while trading/);
+    assert.doesNotMatch(runway, /Basis description/);
+    assert.doesNotMatch(runway.replace(/<[^>]*>/g, ''), /runway\.|_no_sales/);
+
+    // Every other claim keeps the description box it has always had.
+    const other = basisFor('plan.opening_cash');
+    assert.match(other, /Basis description/);
+    assert.doesNotMatch(other, /Essential costs with no sales/);
 });

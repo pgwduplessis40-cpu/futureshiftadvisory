@@ -17,6 +17,28 @@ const claimNames: Record<string, string> = {
     'plan.commitment': 'Committed cost',
     'plan.commitment_in_scope': 'Cost included in current plan',
     'scope.required_horizon': 'Required forecast horizon in months',
+    'runway.months': 'Runway in months',
+    'runway.start_cash': 'Cash the runway starts from',
+    'runway.includes_receipts': 'Runway counts future customer receipts',
+    'runway.includes_owner_pay': 'Runway counts owner pay',
+};
+
+// Mirrors ClaimVersionStore::BOOLEAN_KEYS. A yes/no answer typed as prose is
+// refused by the server, so it is never offered as a free text box.
+const booleanKeys = [
+    'plan.commitment_in_scope',
+    'runway.includes_receipts',
+    'runway.includes_owner_pay',
+];
+
+// A runway the rule cannot read is refused on save, so the unit it must be
+// stated in is set when the statement is chosen rather than left to be
+// discovered from an error message.
+const unitForKey: Record<string, string> = {
+    'runway.months': 'months',
+    'runway.start_cash': 'NZD',
+    'scope.required_horizon': 'months',
+    'plan.margin_explanation': 'text',
 };
 
 export function ReleaseClaimForm({
@@ -88,6 +110,9 @@ export function ReleaseClaimForm({
                                 key: e.target.value,
                                 basis: '',
                                 value: '',
+                                unit:
+                                    unitForKey[e.target.value] ??
+                                    form.data.unit,
                             })
                         }
                     >
@@ -108,7 +133,7 @@ export function ReleaseClaimForm({
                             }[key]
                         }
                         {key === 'value' &&
-                        form.data.key === 'plan.commitment_in_scope' ? (
+                        booleanKeys.includes(form.data.key) ? (
                             <select
                                 className="block w-full rounded border p-2"
                                 value={form.data.value}
@@ -118,7 +143,7 @@ export function ReleaseClaimForm({
                                 required
                             >
                                 <option value="">
-                                    Choose whether this cost is included
+                                    Choose whether this is included
                                 </option>
                                 <option value="true">Included</option>
                                 <option value="false">Excluded</option>
@@ -136,6 +161,7 @@ export function ReleaseClaimForm({
                     </label>
                 ))}
                 <ClaimMeasurementFields
+                    claimKey={form.data.key}
                     data={form.data}
                     setData={(key, value) => form.setData(key, value)}
                 />

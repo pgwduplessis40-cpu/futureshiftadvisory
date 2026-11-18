@@ -8,13 +8,20 @@ use App\Services\Entrepreneurs\ReleaseGate\Checks;
 use App\Services\Entrepreneurs\ReleaseGate\DocumentContext;
 use App\Services\Entrepreneurs\ReleaseGate\Rule;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
+use App\Services\Entrepreneurs\ReleaseGate\RunwayFacts;
 use App\Services\Entrepreneurs\ReleaseGate\Severity;
 use App\Services\Entrepreneurs\ReleaseGate\Subcheck;
 
 final class RunwayDefinitionRule implements Rule
 {
-    /** The model publishes one runway per basis, under that basis as its entity. */
-    private const BASES = ['forecast_cash', 'essential_cost_no_sales'];
+    /**
+     * The model publishes one runway per basis, under that basis as its entity.
+     *
+     * Named by the producer rather than repeated here. A basis renamed on one
+     * side of a literal list and not the other would not fail: the rule would
+     * quietly stop recognising a claim it used to read.
+     */
+    private const BASES = [RunwayFacts::FORECAST_CASH, RunwayFacts::NO_SALES];
 
     public function id(): string
     {

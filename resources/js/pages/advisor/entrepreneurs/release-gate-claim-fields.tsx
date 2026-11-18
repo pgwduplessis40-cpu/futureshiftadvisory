@@ -12,15 +12,27 @@ const units = {
     text: 'Explanation',
 };
 
+// PM-10 measures a runway on these two bases and no others, and the server
+// refuses a claim stated on anything else. Offering a description box here
+// would take an answer the rule could never read.
+const runwayBases = {
+    essential_cost_no_sales: 'Essential costs with no sales',
+    forecast_cash: 'Forecast cash while trading',
+};
+
 export function ClaimMeasurementFields({
+    claimKey,
     data,
     setData,
 }: {
+    claimKey: string;
     data: Record<Measurement, string>;
     setData: (key: Measurement, value: string) => void;
 }) {
     const period = data.period.split(':')[0];
-    const namedBasis = ['annual_profit', 'current_rate'].includes(data.basis);
+    const runway = claimKey === 'runway.months';
+    const namedBasis =
+        ['annual_profit', 'current_rate'].includes(data.basis) || runway;
 
     return (
         <>
@@ -82,10 +94,30 @@ export function ClaimMeasurementFields({
                     className="block w-full rounded border p-2"
                     value={namedBasis ? data.basis : ''}
                     onChange={(e) => setData('basis', e.target.value)}
+                    required={runway}
                 >
-                    <option value="">Describe the basis</option>
-                    <option value="annual_profit">Annual profit</option>
-                    <option value="current_rate">Current owner-pay rate</option>
+                    {runway ? (
+                        <>
+                            <option value="">
+                                Choose what the runway measures
+                            </option>
+                            {Object.entries(runwayBases).map(
+                                ([value, label]) => (
+                                    <option key={value} value={value}>
+                                        {label}
+                                    </option>
+                                ),
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <option value="">Describe the basis</option>
+                            <option value="annual_profit">Annual profit</option>
+                            <option value="current_rate">
+                                Current owner-pay rate
+                            </option>
+                        </>
+                    )}
                 </select>
             </label>
             {!namedBasis && (

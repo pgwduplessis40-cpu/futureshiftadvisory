@@ -220,6 +220,73 @@ final class ReleaseGateTest extends TestCase
         $this->assertDatabaseCount('plan_rule_config_versions', 1);
     }
 
+    /**
+     * A runway claim an advisor can actually record.
+     *
+     * PM-10 was registered against the reference package while no advisor
+     * could confirm a runway on a live plan, because the claim whitelist did
+     * not carry its keys. The rule could only ever report its claim missing.
+     *
+     * The three inclusions are confirmed beside the figure rather than read
+     * out of the prose. A runway that counts future receipts and one that
+     * does not are different measures, and the rule refuses to compare
+     * unlike ones, so a figure recorded without them is one it cannot use.
+     */
+    public function test_a_runway_claim_can_be_confirmed_and_is_read_with_its_inclusions(): void
+    {
+        $url = route('advisor.entrepreneurs.plans.release-gate.show', [$this->plan->entrepreneurProfile, $this->plan]);
+        $gate = app(ReleaseGate::class);
+        $unresolved = function () use ($gate): array {
+            $rule = array_values(array_filter($gate->evaluate($this->plan->refresh())->results,
+                fn ($r): bool => $r->definition->id === 'PM-10'))[0];
+
+            return array_column($rule->subchecks, 'id');
+        };
+        self::assertSame(['runway'], $unresolved(), 'With no claim the rule reports only that it has none.');
+
+        $base = ['section_id' => $this->section->id, 'source_hash' => CanonicalJson::hash($this->section->body),
+            'entity' => 'business', 'period' => 'current', 'basis' => 'essential_cost_no_sales',
+            'reason' => 'Confirmed against the runway paragraph and the stated monthly cost basis.'];
+        $this->actingAsMfa($this->advisor);
+        foreach ([
+            ['key' => 'runway.months', 'value' => '12', 'unit' => 'months'],
+            ['key' => 'runway.start_cash', 'value' => '7300', 'unit' => 'NZD'],
+            ['key' => 'runway.includes_receipts', 'value' => '0'],
+            ['key' => 'runway.includes_owner_pay', 'value' => '0'],
+        ] as $claim) {
+            $this->post($url.'/claims', [...$base, ...$claim])->assertRedirect()->assertSessionHasNoErrors();
+        }
+
+        // The claim is now read in full: the rule gets past the guard that
+        // wants start cash and both inclusions, checks the no-sales basis
+        // against its own receipts answer, and asks for the model figure.
+        // This plan has no selected reconstruction, so that is what is left.
+        self::assertSame(['no-sales:0', 'model:0'], $unresolved());
+        $facts = $gate->evaluate($this->plan->refresh())->context->facts;
+        self::assertFalse($facts->one('runway.includes_owner_pay')?->value);
+        self::assertTrue($facts->one('runway.months')?->confirmed);
+        $this->assertDatabaseCount('plan_claim_versions', 4);
+    }
+
+    /** A runway the rule could never read is refused while the advisor is
+     * still looking at it, rather than recorded and silently unused. */
+    public function test_a_runway_claim_the_model_cannot_be_compared_with_is_refused_at_entry(): void
+    {
+        $url = route('advisor.entrepreneurs.plans.release-gate.show', [$this->plan->entrepreneurProfile, $this->plan]);
+        $claim = ['section_id' => $this->section->id, 'source_hash' => CanonicalJson::hash($this->section->body),
+            'key' => 'runway.months', 'value' => '12', 'entity' => 'business', 'period' => 'current',
+            'unit' => 'months', 'basis' => 'essential_cost_no_sales', 'reason' => 'Confirmed against the runway paragraph.'];
+        $this->actingAsMfa($this->advisor);
+        $this->post($url.'/claims', [...$claim, 'basis' => 'what the founder told me'])->assertSessionHasErrors('claim');
+        $this->post($url.'/claims', [...$claim, 'unit' => 'weeks'])->assertSessionHasErrors('claim');
+        $this->post($url.'/claims', [...$claim, 'value' => '-3'])->assertSessionHasErrors('claim');
+        $this->post($url.'/claims', [...$claim, 'key' => 'runway.includes_receipts', 'value' => 'sometimes'])->assertSessionHasErrors('claim');
+        $this->assertDatabaseCount('plan_claim_versions', 0);
+
+        $this->post($url.'/claims', $claim)->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('plan_claim_versions', 1);
+    }
+
     public function test_http_risk_decision_cannot_accept_integrity_or_use_a_stale_run(): void
     {
         $url = route('advisor.entrepreneurs.plans.release-gate.show', [$this->plan->entrepreneurProfile, $this->plan]);

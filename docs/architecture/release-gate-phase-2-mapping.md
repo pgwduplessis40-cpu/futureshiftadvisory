@@ -618,9 +618,25 @@ What this does not do is give PM-10 a claim on any live plan. `ClaimVersionStore
 
 **[NEEDS DECISION] A claim whose cost basis omits a stated cost is reported as an uncomparable measure rather than as a finding.** The useful sentence about this plan is that the founder's twelve-month runway omits 87.5% of their own monthly cost base. PM-10 cannot say it. It says the two measures cannot be compared, which is honest and much less useful, and an advisor reading Cannot verify is told that evidence is missing when the evidence is present and the bases differ. Whether the rule should report a basis mismatch as a finding in its own right — with its own severity, distinct from both Fail and missing evidence — is a rule-design question affecting every plan-versus-model comparison that carries a basis, not only this one. Recorded as R13 in `PLAN.md`.
 
+### Slice 2E-4w implementation record
+
+2E-4v registered PM-10 against the reference package while leaving it inert on every live plan: `ClaimVersionStore::KEYS` whitelisted nine plan claims, the runway keys were not among them, and the rule could only ever report its claim missing. This closes that.
+
+The four keys join the whitelist and the mechanism absorbs them without change — the route, the controller's generic entity/period/unit/basis/as-of validation, the locked read, the section body-hash check, the versioned `PlanClaimVersion` and the audit event were all already there. What needed work was two single-key special cases that had been written for the only boolean claim that existed. `plan.commitment_in_scope` was tested by name in both the controller's value coercion and the store's numeric check, so both become `BOOLEAN_KEYS` lists, and the prose-valued claims become `TEXT_KEYS` beside them.
+
+**The inclusions are confirmed beside the figure rather than inferred from the prose that stated it.** A runway that counts future customer receipts and one that does not are different measures, and PM-10 refuses to compare unlike ones, so a figure recorded without them is a figure the rule cannot use. The form offers them as Included/Excluded rather than as free text, which the server would reject anyway.
+
+**A runway the rule could never read is refused at entry.** PM-10 measures on two bases and requires months as the unit; anything else reaches the rule as a `definition:N` missing subcheck, which reads to an advisor as *the evidence is absent* while they are looking at the claim they just recorded. The store now refuses a `runway.months` whose basis is not one of the two or whose unit is not months, and the form offers the two bases by name and withdraws the description box, following the "chosen rather than typed" discipline from 2E-4s.
+
+The basis vocabulary is named once. `RunwayDefinitionRule` carried its own literal copy of the two basis strings and the store would have been a third; both now reference `RunwayFacts::FORECAST_CASH` and `RunwayFacts::NO_SALES`. A basis renamed on one side of a duplicated list and not the other would not fail — the rule would quietly stop recognising a claim it used to read.
+
+A feature test records all four claims over HTTP and asserts the rule's unresolved set moves from `['runway']` to `['no-sales:0', 'model:0']`. That transition is the whole slice: before, the rule had no claim; after, it has read the claim in full, checked the no-sales basis against the claim's own receipts answer, and is asking only for the model figure, which this plan has no selected reconstruction to supply.
+
+What this does not do is group a claim with its inclusions. They are four separate confirmations that must share an entity, period and scenario for the rule to find them together, and the form does not enforce that. An advisor who records the months against `year:1` and the inclusions against `current` gets a `definition:N` missing subcheck with no indication why. That is inherent to the generic claim form rather than new here, and it is worth a slice of its own before the next claim-reading rule lands.
+
 ### Phase 2E current state
 
-Checked on 18 November 2026 against `origin/main` at `1d3a5399`, plus slice 2E-4v.
+Checked on 18 November 2026 against `origin/main` at `1d3a5399`, plus slices 2E-4v and 2E-4w.
 
 **27 of the 37 catalogued rules are enabled, and all 27 reach the verdict the F1 reference package specifies for them** — `F1Test` asserts that per rule against `f1-manifest.json` and passes. The model side of the gate is complete: producers emit 85 distinct fact keys, and six shared emitters (`CashCurveFacts`, `LedgerEntryFacts`, `TaxChainFacts`, `TaxPolicyFacts`, `ScenarioInputFacts` and `ProfitDecompositionFacts`) serve the base case and every scenario from one implementation, because the rules that compare the two sides would otherwise be comparing two derivations rather than two models.
 
@@ -630,13 +646,13 @@ The ten deferred rules group by what they actually wait on, and by the phase the
 
 | Rules | Phase | Rule class | What is missing |
 | --- | --- | --- | --- |
-| PM-05 Revenue ramp | 2 | written | `plan.ramp`, `plan.start_period`. Model side complete |
+| PM-05 Revenue ramp | 2 | written | `plan.ramp`, `plan.start_period`, and `stream.membership`, which the package declares unknown. Model side complete |
 | PM-08 Profit allocation | 2 | written | all five `allocation.*`, on both sides |
 | DH-07 Offer consistency | 3 | `HygieneRule` rejects any id outside DH-01 to DH-06 | a seventh branch. The blocks it reads are already produced and already consumed by its six siblings |
 | NB-01, NB-02 | 3 | **none** | implementation and a typed narrative provenance record |
 | EV-01 to EV-05 | 4 | **none** | implementation and a versioned claim-evidence index |
 
-Two corrections to an earlier reading of this, both worth recording because they changed the plan. The claim side is **not** a missing capability: `ClaimVersionStore::confirm()` authorises `assess`, whitelists the key, validates types, locks the row, verifies the plan section's body hash has not changed since the advisor read it, writes a versioned `PlanClaimVersion` with a mandatory reason, and audit-logs it, and `PlanFacts` decodes confirmed claims and binds them over any regex-extracted proposal. It is wired to `EntrepreneurReleaseGateController::claim()`. PM-05 and PM-10 need **keys added to a nine-key whitelist**, not a new mechanism. And `plan.claims`, `budget.facts` and `evidence.records` are the **placeholder** input list from slice 2E-2, not real fact keys — `PhaseTwoRulesTest` asserts that an implemented rule no longer carries them, so "nothing produces them" was true but misleading.
+Two corrections to an earlier reading of this, both worth recording because they changed the plan. The claim side is **not** a missing capability: `ClaimVersionStore::confirm()` authorises `assess`, whitelists the key, validates types, locks the row, verifies the plan section's body hash has not changed since the advisor read it, writes a versioned `PlanClaimVersion` with a mandatory reason, and audit-logs it, and `PlanFacts` decodes confirmed claims and binds them over any regex-extracted proposal. It is wired to `EntrepreneurReleaseGateController::claim()`. PM-05 and PM-10 need **keys added to a whitelist**, not a new mechanism — 2E-4w added PM-10's four, taking it from nine keys to thirteen, and the only code the mechanism itself needed was turning two single-key special cases into lists. PM-05's two should be the same shape of change. And `plan.claims`, `budget.facts` and `evidence.records` are the **placeholder** input list from slice 2E-2, not real fact keys — `PhaseTwoRulesTest` asserts that an implemented rule no longer carries them, so "nothing produces them" was true but misleading.
 
 The seven NB and EV rules are catalogue definitions with no implementation at all — `deferred()` is computed as catalogue-minus-registered, which is why they count toward the ten. The F1 package's own `unknown_inputs` declares "typed narrative provenance" and "claim evidence dependency index" absent, so that tier needs source work and not only extraction.
 

@@ -66,7 +66,9 @@ final class EntrepreneurReleaseGateController extends Controller
             'unit' => ['nullable', 'string', 'max:30'], 'basis' => ['required', 'string', 'max:100'],
             'as_of' => ['nullable', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:15', 'max:2000']]);
         $section = $businessPlan->sections()->findOrFail($data['section_id']);
-        $value = $data['key'] === 'plan.commitment_in_scope' ? filter_var($data['value'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : $data['value'];
+        $value = in_array($data['key'], ClaimVersionStore::BOOLEAN_KEYS, true)
+            ? filter_var($data['value'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+            : $data['value'];
         $fact = new Fact($data['key'], $value, $data['entity'], $data['period'], unit: $data['unit'] ?? null, basis: $data['basis'], asOf: $data['as_of'] ?? null);
         $claims->confirm($businessPlan, $section, $actor, $fact, $data['source_hash'], $data['reason']);
 

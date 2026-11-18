@@ -16,7 +16,28 @@ use Illuminate\Validation\ValidationException;
 final readonly class ClaimVersionStore
 {
     public const KEYS = ['plan.profitability', 'plan.owner_pay', 'plan.opening_cash', 'plan.margin_min', 'plan.margin_max',
-        'plan.margin_explanation', 'plan.commitment', 'plan.commitment_in_scope', 'scope.required_horizon'];
+        'plan.margin_explanation', 'plan.commitment', 'plan.commitment_in_scope', 'scope.required_horizon',
+        'runway.months', 'runway.start_cash', 'runway.includes_receipts', 'runway.includes_owner_pay'];
+
+    /**
+     * Claims whose value is an answer rather than an amount.
+     *
+     * A runway figure means nothing without them: PM-10 refuses to compare a
+     * claim that counts future receipts against a model figure that does not,
+     * so the two inclusions are confirmed alongside the months rather than
+     * inferred from the prose that stated them.
+     */
+    public const BOOLEAN_KEYS = ['plan.commitment_in_scope', 'runway.includes_receipts', 'runway.includes_owner_pay'];
+
+    /** Claims whose value is prose, and so has no number to validate. */
+    public const TEXT_KEYS = ['plan.margin_explanation'];
+
+    /**
+     * The bases a runway can be claimed on, named by the producer that states
+     * the model's own figures, so a claim cannot be recorded against a basis
+     * the rule has nothing to compare it with.
+     */
+    public const RUNWAY_BASES = [RunwayFacts::FORECAST_CASH, RunwayFacts::NO_SALES];
 
     public function __construct(private AuditWriter $audit) {}
 
@@ -27,12 +48,17 @@ final readonly class ClaimVersionStore
         if (! in_array($fact->key, self::KEYS, true) || $fact->value === null || mb_strlen(trim($reason)) < 15) {
             throw ValidationException::withMessages(['claim' => 'Choose a supported plan claim and record its value and confirmation reason.']);
         }
-        $numeric = ! in_array($fact->key, ['plan.margin_explanation', 'plan.commitment_in_scope'], true);
+        $numeric = ! in_array($fact->key, [...self::TEXT_KEYS, ...self::BOOLEAN_KEYS], true);
         if (($numeric && ($fact->number() === null || $fact->number()->isNegative()))
             || ($fact->key === 'scope.required_horizon' && FactValidation::horizon($fact) === null)
-            || ($fact->key === 'plan.commitment_in_scope' && ! is_bool($fact->value))
+            || (in_array($fact->key, self::BOOLEAN_KEYS, true) && ! is_bool($fact->value))
+            // A runway stated on a basis PM-10 does not measure, or in any unit
+            // but months, is an answer the rule can never read: it would report
+            // the claim's definition missing while the advisor saw it recorded.
+            // Refusing it at entry says so while they are still looking at it.
+            || ($fact->key === 'runway.months' && (! in_array($fact->basis, self::RUNWAY_BASES, true) || $fact->unit !== 'months'))
             || ($fact->asOf !== null && ! FactValidation::date($fact->asOf))) {
-            throw ValidationException::withMessages(['claim' => 'Use a valid non-negative amount, whole forecast period, scope choice and calendar date.']);
+            throw ValidationException::withMessages(['claim' => 'Use a valid non-negative amount, whole forecast period, scope choice, calendar date, and a runway stated in months on a basis the model measures.']);
         }
 
         return DB::transaction(function () use ($plan, $section, $actor, $fact, $expectedBodyHash, $reason): PlanClaimVersion {
