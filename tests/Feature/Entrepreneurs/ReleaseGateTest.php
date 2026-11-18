@@ -290,6 +290,60 @@ final class ReleaseGateTest extends TestCase
     }
 
     /**
+     * The gate says what it is holding, including what it has stopped reading.
+     *
+     * A confirmed claim binds to the wording it was confirmed against, so
+     * PlanFacts drops one whose plan answer has since been edited. Nothing
+     * said so: the advisor saw the claim saved, then saw the rule report its
+     * evidence missing, with no way to connect the two. The claim is still on
+     * the record, so it is listed as no longer read rather than vanishing.
+     */
+    public function test_the_page_lists_confirmed_claims_and_marks_the_ones_the_gate_no_longer_reads(): void
+    {
+        $url = route('advisor.entrepreneurs.plans.release-gate.show', [$this->plan->entrepreneurProfile, $this->plan]);
+        $this->actingAsMfa($this->advisor)->post($url.'/claims', $this->runwayClaim())
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $claims = fn (): array => $this->get($url)->viewData('page')['props']['claims'];
+        $current = $claims();
+        self::assertCount(4, $current, 'Each statement in the group is listed, and no superseded revision is.');
+        // The figure leads its inclusions. Ordered by claim_key they would be
+        // ordered by a hash, which can put the answers above the question.
+        self::assertSame(['runway.months', 'runway.includes_owner_pay', 'runway.includes_receipts', 'runway.start_cash'],
+            array_column($current, 'key'));
+        foreach ($current as $claim) {
+            self::assertTrue($claim['applies'], $claim['key'].' is read while its plan answer stands.');
+            self::assertSame($this->advisor->name, $claim['confirmed_by']);
+            self::assertNotSame('', $claim['reason']);
+        }
+
+        // The plan answer is rewritten after the fact. The gate stops reading
+        // every claim bound to it, and now says so.
+        $this->section->forceFill(['body' => 'The runway paragraph has been rewritten.'])->save();
+        foreach ($claims() as $claim) {
+            self::assertFalse($claim['applies'], $claim['key'].' is no longer read once its plan answer changed.');
+        }
+        self::assertCount(4, $claims(), 'A claim the gate stopped reading is still on the record.');
+    }
+
+    /** A re-confirmation supersedes rather than accumulates: the advisor sees
+     * what the gate reads, not every answer ever given. */
+    public function test_a_superseded_claim_revision_is_not_listed_twice(): void
+    {
+        $url = route('advisor.entrepreneurs.plans.release-gate.show', [$this->plan->entrepreneurProfile, $this->plan]);
+        $this->actingAsMfa($this->advisor);
+        $this->post($url.'/claims', $this->runwayClaim())->assertRedirect()->assertSessionHasNoErrors();
+        $this->post($url.'/claims', [...$this->runwayClaim(), 'value' => '9'])->assertRedirect()->assertSessionHasNoErrors();
+
+        $claims = $this->get($url)->viewData('page')['props']['claims'];
+        $months = array_values(array_filter($claims, fn (array $c): bool => $c['key'] === 'runway.months'));
+        self::assertCount(1, $months);
+        self::assertSame('9', $months[0]['value']);
+        self::assertSame(2, $months[0]['revision']);
+        $this->assertDatabaseCount('plan_claim_versions', 8);
+    }
+
+    /**
      * The coordinate is the whole point of the group, so it is checked rather
      * than assumed.
      *

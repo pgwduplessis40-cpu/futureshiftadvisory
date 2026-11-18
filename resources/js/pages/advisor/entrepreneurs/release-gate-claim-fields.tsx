@@ -1,3 +1,5 @@
+import type { ConfirmedClaim } from './release-gate-types';
+
 type Measurement = 'period' | 'unit' | 'basis';
 
 export const claimNames: Record<string, string> = {
@@ -41,6 +43,92 @@ export const groups: Record<string, string[]> = {
 // A companion is never offered as a statement of its own, because the server
 // refuses one recorded on its own.
 export const companionKeys = Object.values(groups).flat();
+
+function readValue(claim: ConfirmedClaim) {
+    if (typeof claim.value === 'boolean') {
+        return claim.value ? 'Counted' : 'Not counted';
+    }
+
+    if (claim.value === null) {
+        return 'Not stated';
+    }
+
+    return claim.unit === null
+        ? String(claim.value)
+        : `${claim.value} ${claim.unit}`;
+}
+
+/**
+ * What the gate is holding, and what it has stopped reading.
+ *
+ * A confirmed claim binds to the wording it was confirmed against, so one
+ * whose plan answer has since been edited is no longer read. Nothing said so:
+ * the advisor saw the claim saved and then saw the rule report its evidence
+ * missing, with no way to connect the two. A claim that no longer applies is
+ * listed as such rather than disappearing, because it is still on the record
+ * and re-confirming it against the current wording is the way back.
+ */
+export function ConfirmedClaims({ claims }: { claims: ConfirmedClaim[] }) {
+    if (claims.length === 0) {
+        return <p>No statements have been confirmed on this plan yet.</p>;
+    }
+
+    const stale = claims.filter((claim) => !claim.applies).length;
+
+    return (
+        <>
+            {stale > 0 && (
+                <p role="status" className="my-3">
+                    {stale === 1
+                        ? '1 confirmed statement is no longer read, because the plan answer behind it changed.'
+                        : `${stale} confirmed statements are no longer read, because the plan answers behind them changed.`}{' '}
+                    Confirm them again against the current wording.
+                </p>
+            )}
+            <ul className="space-y-3">
+                {claims.map((claim) => (
+                    <li
+                        className="rounded border p-3"
+                        key={`${claim.key}:${claim.entity}:${claim.period}`}
+                    >
+                        <p className="font-semibold">
+                            {claimNames[claim.key] ?? claim.key}
+                            {': '}
+                            {readValue(claim)}
+                        </p>
+                        <p>
+                            {claim.entity}
+                            {' · '}
+                            {claim.period}
+                            {claim.basis === null ? '' : ` · ${claim.basis}`}
+                            {claim.as_of === null
+                                ? ''
+                                : ` · as at ${claim.as_of}`}
+                        </p>
+                        <p>
+                            {claim.applies
+                                ? 'Read by the gate.'
+                                : 'No longer read: the plan answer behind this changed after it was confirmed.'}
+                            {claim.section_title === null
+                                ? ''
+                                : ` From "${claim.section_title}".`}
+                        </p>
+                        <p>
+                            Confirmed
+                            {claim.confirmed_by === null
+                                ? ''
+                                : ` by ${claim.confirmed_by}`}
+                            {claim.revision > 1
+                                ? ` · revision ${claim.revision}`
+                                : ''}
+                        </p>
+                        <p>{claim.reason}</p>
+                    </li>
+                ))}
+            </ul>
+        </>
+    );
+}
 
 /**
  * The statements that travel with a figure, asked for beside it.
