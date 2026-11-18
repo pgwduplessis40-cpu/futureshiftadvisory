@@ -1,22 +1,26 @@
 import { useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import { ClaimMeasurementFields } from './release-gate-claim-fields';
+import {
+    ClaimCompanionFields,
+    ClaimMeasurementFields,
+    booleanKeys,
+    claimNames,
+    companionKeys,
+} from './release-gate-claim-fields';
 import type {
     Configuration,
     GateProps,
     RuleResult,
 } from './release-gate-types';
 
-const claimNames: Record<string, string> = {
-    'plan.profitability': 'Profitability year',
-    'plan.owner_pay': 'Owner pay',
-    'plan.opening_cash': 'Opening cash',
-    'plan.margin_min': 'Profit margin target minimum',
-    'plan.margin_max': 'Profit margin target maximum',
-    'plan.margin_explanation': 'Margin explanation',
-    'plan.commitment': 'Committed cost',
-    'plan.commitment_in_scope': 'Cost included in current plan',
-    'scope.required_horizon': 'Required forecast horizon in months',
+// A runway the rule cannot read is refused on save, so the unit it must be
+// stated in is set when the statement is chosen rather than left to be
+// discovered from an error message.
+const unitForKey: Record<string, string> = {
+    'runway.months': 'months',
+    'runway.start_cash': 'NZD',
+    'scope.required_horizon': 'months',
+    'plan.margin_explanation': 'text',
 };
 
 export function ReleaseClaimForm({
@@ -37,6 +41,7 @@ export function ReleaseClaimForm({
         basis: '',
         as_of: '',
         reason: '',
+        companions: {} as Record<string, string>,
     });
 
     return (
@@ -88,14 +93,20 @@ export function ReleaseClaimForm({
                                 key: e.target.value,
                                 basis: '',
                                 value: '',
+                                companions: {},
+                                unit:
+                                    unitForKey[e.target.value] ??
+                                    form.data.unit,
                             })
                         }
                     >
-                        {Object.entries(claimNames).map(([key, label]) => (
-                            <option key={key} value={key}>
-                                {label}
-                            </option>
-                        ))}
+                        {Object.entries(claimNames)
+                            .filter(([key]) => !companionKeys.includes(key))
+                            .map(([key, label]) => (
+                                <option key={key} value={key}>
+                                    {label}
+                                </option>
+                            ))}
                     </select>
                 </label>
                 {(['value', 'entity', 'as_of'] as const).map((key) => (
@@ -108,7 +119,7 @@ export function ReleaseClaimForm({
                             }[key]
                         }
                         {key === 'value' &&
-                        form.data.key === 'plan.commitment_in_scope' ? (
+                        booleanKeys.includes(form.data.key) ? (
                             <select
                                 className="block w-full rounded border p-2"
                                 value={form.data.value}
@@ -118,7 +129,7 @@ export function ReleaseClaimForm({
                                 required
                             >
                                 <option value="">
-                                    Choose whether this cost is included
+                                    Choose whether this is included
                                 </option>
                                 <option value="true">Included</option>
                                 <option value="false">Excluded</option>
@@ -135,7 +146,13 @@ export function ReleaseClaimForm({
                         )}
                     </label>
                 ))}
+                <ClaimCompanionFields
+                    claimKey={form.data.key}
+                    values={form.data.companions}
+                    onChange={(next) => form.setData('companions', next)}
+                />
                 <ClaimMeasurementFields
+                    claimKey={form.data.key}
                     data={form.data}
                     setData={(key, value) => form.setData(key, value)}
                 />
