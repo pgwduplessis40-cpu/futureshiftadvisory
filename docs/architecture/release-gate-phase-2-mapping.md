@@ -652,9 +652,25 @@ Not covered, and PM-05 will need it: **the repeating-series shape.** A ramp is o
 
 Still open: the gate page has no `claims` prop, so an advisor cannot see what they have confirmed — only whether a verdict moved. Grouping prevents new mismatches and leaves existing ones invisible.
 
+### Slice 2E-4y implementation record
+
+The gate held confirmed claims and never showed them. An advisor confirmed a statement, got a flash message, and then read the rule's verdict - with no list of what had been recorded, at which coordinate, or by whom. For a rule whose model side is still absent the verdict does not move at all, so the only feedback was silence.
+
+Worse than unhelpful, it was untruthful in one specific way. **A confirmed claim binds to the wording it was confirmed against**: `PlanFacts` compares the claim's recorded source-reference version against the section's current body hash and drops it where they differ. So editing a plan answer silently stops the gate reading every claim bound to it, and the rule then reports that evidence as missing - evidence the platform is still holding. The page now states which claims the gate reads and which it has stopped reading, and a claim that no longer applies is listed as such rather than disappearing, because it is still on the record and re-confirming it against the current wording is the way back.
+
+**The claims are read for display only, and deliberately not from the captured source records.** `SourceCapture` carries `id`, `claim_key`, `revision`, `state`, `source_hash` and `fact` for each claim, and hashes them into the source version that risk decisions are taken against. Widening that to carry an actor, a reason and a timestamp - none of which the rules read - would change the hash and invalidate every stored risk decision and gate run. Display data must not move the evidence hash, so the controller queries `PlanClaimVersion` separately.
+
+The listing mirrors the producer rather than reimplementing it: ordered by `claim_key` then `revision` and keyed last-wins, which is how `PlanFacts` picks the record the gate reads, so a superseded revision is not shown as a second claim. That ordering was checked rather than assumed - `SourceCapture` does order by revision, so the producer's last-wins really is the latest.
+
+**Reading order is a display decision and is made deliberately.** Keyed by `claim_key` the natural order is by a sha256 hash, which scatters a group and can put a runway's inclusions above the figure they qualify. A test caught that by failing on an assumed alphabetical order. Claims now sort by entity, then period, then their group's lead, with the lead first - so a runway reads as the figure and then what it counts, in the order the advisor entered it.
+
+Two smaller choices. A boolean renders as the answer it is - Counted or Not counted - because `false` printed raw reads as a missing value rather than as a stated exclusion. And a plan with nothing confirmed says so, rather than rendering an empty list that looks like a broken panel.
+
+Still open: this lists what has been confirmed, not what each rule is waiting for. An advisor reading `Cannot verify` still has to work out which claim would resolve it. Linking a rule's missing inputs to the claim that would supply them is the next thing in this line, and it is what would make the gate explain itself rather than only report.
+
 ### Phase 2E current state
 
-Checked on 19 November 2026 against `origin/main` at `76d4e6a8`, plus slices 2E-4w and 2E-4x.
+Checked on 19 November 2026 against `origin/main` at `76d4e6a8`, plus slices 2E-4w, 2E-4x and 2E-4y.
 
 **27 of the 37 catalogued rules are enabled, and all 27 reach the verdict the F1 reference package specifies for them** — `F1Test` asserts that per rule against `f1-manifest.json` and passes. The model side of the gate is complete: producers emit 85 distinct fact keys, and six shared emitters (`CashCurveFacts`, `LedgerEntryFacts`, `TaxChainFacts`, `TaxPolicyFacts`, `ScenarioInputFacts` and `ProfitDecompositionFacts`) serve the base case and every scenario from one implementation, because the rules that compare the two sides would otherwise be comparing two derivations rather than two models.
 

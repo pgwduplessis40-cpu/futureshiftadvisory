@@ -8,12 +8,14 @@ use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
+use App\Models\PlanClaimVersion;
 use App\Models\PlanGateRun;
 use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Entrepreneurs\ReleaseGate\CanonicalJson;
 use App\Services\Entrepreneurs\ReleaseGate\ClaimVersionStore;
 use App\Services\Entrepreneurs\ReleaseGate\Fact;
+use App\Services\Entrepreneurs\ReleaseGate\FactCodec;
 use App\Services\Entrepreneurs\ReleaseGate\ReleaseGate;
 use App\Services\Entrepreneurs\ReleaseGate\RiskDecisionStore;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
@@ -25,6 +27,11 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * @phpstan-type ConfirmedClaim array{key:string,value:string|int|bool|null,entity:string,period:string,
+ *     unit:string|null,basis:string|null,as_of:string|null,revision:int,section_title:string|null,
+ *     applies:bool,confirmed_by:string|null,confirmed_at:string|null,reason:string}
+ */
 final class EntrepreneurReleaseGateController extends Controller
 {
     public function show(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, ReleaseGate $gate): Response
@@ -35,15 +42,78 @@ final class EntrepreneurReleaseGateController extends Controller
         $run = $gate->record($businessPlan, $report, $actor);
         $url = route('advisor.entrepreneurs.plans.release-gate.show', [$entrepreneurProfile, $businessPlan], absolute: false);
 
+        $sections = $businessPlan->sections->map(fn (PlanSection $s): array => ['id' => (string) $s->getKey(), 'title' => $s->title, 'hash' => CanonicalJson::hash((string) $s->body)])->values()->all();
+
         return Inertia::render('advisor/entrepreneurs/ReleaseGate', [
             'report' => $report->jsonSerialize(), 'configuration' => $report->configuration->jsonSerialize(), 'run_id' => $run->getKey(),
             'can_accept' => $actor->can(Permission::ENTREPRENEURS_ACCEPT_RELEASE_RISK->value),
             'can_configure' => $actor->can(Permission::ENTREPRENEURS_RELEASE_POLICY->value),
             'can_confirm' => Gate::forUser($actor)->allows('assess', $entrepreneurProfile),
-            'sections' => $businessPlan->sections->map(fn (PlanSection $s): array => ['id' => (string) $s->getKey(), 'title' => $s->title, 'hash' => CanonicalJson::hash((string) $s->body)])->values()->all(),
+            'sections' => $sections,
+            'claims' => $this->confirmedClaims($businessPlan, $sections),
             'urls' => ['review' => $url, 'decision' => $url.'/decisions', 'claim' => $url.'/claims', 'policy' => $url.'/policy',
                 'workspace' => route('advisor.entrepreneurs.show', $entrepreneurProfile, absolute: false)],
         ]);
+    }
+
+    /**
+     * What the gate is holding, and whether it still counts.
+     *
+     * A confirmed claim binds to the wording it was confirmed against, so
+     * PlanFacts drops one whose plan answer has since been edited. Nothing
+     * said so: the advisor saw the claim saved, and then saw the rule report
+     * its evidence missing, with no way to connect the two. The page now
+     * states which claims the gate reads and which it has stopped reading.
+     *
+     * Read for display only, and deliberately not from the captured source
+     * records, which carry no actor, reason or timestamp. Those are hashed
+     * into the source version that risk decisions are taken against, so
+     * widening them to show a name here would invalidate every stored
+     * decision.
+     *
+     * @param  list<array{id:string,title:string,hash:string}>  $sections
+     * @return list<ConfirmedClaim>
+     */
+    private function confirmedClaims(BusinessPlan $businessPlan, array $sections): array
+    {
+        $hashes = array_column($sections, 'hash', 'id');
+        $titles = array_column($sections, 'title', 'id');
+
+        return PlanClaimVersion::query()->where('business_plan_id', $businessPlan->getKey())
+            ->with('actor')->orderBy('claim_key')->orderBy('revision')->get()
+            // Ordered by revision and keyed last-wins, which is how PlanFacts
+            // picks the record the gate reads. A superseded revision is not a
+            // second claim.
+            ->keyBy('claim_key')
+            ->map(function (PlanClaimVersion $claim) use ($hashes, $titles): array {
+                /** @var array{key:string,value:string|int|bool|null,entity?:string,period?:string,scenario?:string,unit?:string|null,basis?:string|null,as_of?:string|null,confirmed?:bool,sources?:list<array{kind:string,id:string,location:string,version:string}>} $data */
+                $data = $claim->fact;
+                $fact = FactCodec::decode($data);
+                $section = null;
+                foreach ($fact->sources as $reference) {
+                    if ($reference->kind === 'plan_section') {
+                        $section = $reference;
+                    }
+                }
+
+                return [
+                    'key' => $fact->key, 'value' => $fact->value, 'entity' => $fact->entity, 'period' => $fact->period,
+                    'unit' => $fact->unit, 'basis' => $fact->basis, 'as_of' => $fact->asOf, 'revision' => (int) $claim->revision,
+                    'section_title' => $section === null ? null : ($titles[$section->id] ?? null),
+                    'applies' => $section !== null && hash_equals($hashes[$section->id] ?? '', $section->version),
+                    'confirmed_by' => $claim->actor?->name === null ? null : (string) $claim->actor->name, 'confirmed_at' => $claim->created_at?->toIso8601String(),
+                    'reason' => (string) $claim->reason,
+                ];
+            })
+            // Read in the order they were entered rather than by claim_key,
+            // which is a hash and would scatter a group or put a runway's
+            // inclusions above the figure they qualify.
+            ->sortBy(fn (array $claim): array => [
+                $claim['entity'], $claim['period'],
+                ClaimVersionStore::groupLeadFor($claim['key']) ?? $claim['key'],
+                ClaimVersionStore::groupLeadFor($claim['key']) === $claim['key'] ? 0 : 1,
+                $claim['key'],
+            ])->values()->all();
     }
 
     public function decision(Request $request, EntrepreneurProfile $entrepreneurProfile, BusinessPlan $businessPlan, RiskDecisionStore $decisions): RedirectResponse
