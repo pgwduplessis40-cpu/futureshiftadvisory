@@ -55,8 +55,14 @@
       "detail": "Cannot verify / Block"
     },
     "PM-05": {
-      "result": "fail",
-      "detail": "Fail / Block"
+      "result": "cannot_verify",
+      "detail": "Cannot verify / Block: the plan states no revenue schedule by stream and month",
+      "revised_at": "2026-11-19",
+      "was": {
+        "result": "fail",
+        "detail": "Fail / Block"
+      },
+      "revision_reason": "PM-05 compares a claimed month-on-month ramp per stream against the model's own, which the model publishes as percentage growth in delivery units between consecutive months. The plan states revenue three ways and none of them is that schedule: an annual Year 1 total of approximately $162,500 (page 2); date-bounded milestone ranges, being 8-12 paid Intensives by 31 December 2026 at approximately $24,000-$36,000 and 4-8 Partnership conversions at $500-$1,000 per month giving $2,000-$8,000 per month (pages 19 and 20); and a longer-term capacity aim of approximately 2-3 Intensives per month against core delivery capacity of six to eight Intensive days per month (pages 19 and 27). A target range bounded by a date is not a monthly schedule, and an aim stated as longer-term is explicitly not the forecast's first year. The budget's own saved schedule is flat rather than ramped: revenue is capped at a constant monthly capacity per revenue line, being 4.00 units for Intensives, Partnership, Partnership Plus and Projects, 2.00 for Workshops and 1.00 for FaithnBiz Events (page 7). The plan's own financial risk section states that the business 'does not have confirmed bookings sufficient to guarantee the forecast revenue ramp' (page 27), which acknowledges the ramp as an assumption carried in the model rather than a schedule the plan sets out. The original Fail therefore specified a contradiction between two schedules when the plan supplies no second schedule to contradict; the rule reports the plan revenue schedule by stream and month as missing instead. Revised from the source documents, not from the implementation's output; the plan and budget PDFs were re-verified against the source hashes above on 19 November 2026. No fixture fact was added or changed to reach this verdict."
     },
     "PM-06": {
       "result": "cannot_verify",

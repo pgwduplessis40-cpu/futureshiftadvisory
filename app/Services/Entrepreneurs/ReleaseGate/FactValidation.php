@@ -30,6 +30,31 @@ final class FactValidation
         }
     }
 
+    /**
+     * A calendar month label, as the forecast calendar states its start.
+     *
+     * Distinct from a date: a start period names a month, and accepting a day
+     * alongside it would let two starts differing only in their day read as
+     * different periods on a model that has no notion of one.
+     */
+    public static function month(mixed $value): bool
+    {
+        return is_string($value) && preg_match('/^\d{4}-(?:0[1-9]|1[0-2])$/D', $value) === 1;
+    }
+
+    /**
+     * A forecast period label, as every monthly producer writes it.
+     *
+     * A claim recorded against any other period is one no rule can read. It
+     * would report the model figure missing while the advisor saw their claim
+     * recorded against the month they meant, which is the failure the runway
+     * basis guard exists to prevent.
+     */
+    public static function period(string $value): bool
+    {
+        return preg_match('/^month:(?:[1-9]|[1-9]\d{1,2})$/D', $value) === 1;
+    }
+
     /** @param list<Fact> $rows */
     public static function monthlyCoverage(array $rows, ?int $horizon): bool
     {

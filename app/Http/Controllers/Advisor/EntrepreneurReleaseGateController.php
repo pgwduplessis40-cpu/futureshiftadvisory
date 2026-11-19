@@ -133,14 +133,15 @@ final class EntrepreneurReleaseGateController extends Controller
         $data = $request->validate(['section_id' => ['required', 'uuid'], 'source_hash' => ['required', 'string', 'size:64'],
             'key' => ['required', 'in:'.implode(',', ClaimVersionStore::KEYS)], 'value' => ['required', 'string', 'max:2000'],
             'entity' => ['required', 'string', 'max:100'], 'period' => ['required', 'string', 'max:50'],
-            'unit' => ['nullable', 'string', 'max:30'], 'basis' => ['required', 'string', 'max:100'],
+            'unit' => ['nullable', 'string', 'max:30'],
+            'basis' => ['required_unless:key,'.implode(',', ClaimVersionStore::BASIS_FREE_KEYS), 'nullable', 'string', 'max:100'],
             'as_of' => ['nullable', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:15', 'max:2000'],
             'companions' => ['sometimes', 'array'], 'companions.*' => ['required', 'string', 'max:2000']]);
         $section = $businessPlan->sections()->findOrFail($data['section_id']);
         $read = fn (string $key, string $value): string|bool|null => in_array($key, ClaimVersionStore::BOOLEAN_KEYS, true)
             ? filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
             : $value;
-        $fact = new Fact($data['key'], $read($data['key'], $data['value']), $data['entity'], $data['period'], unit: $data['unit'] ?? null, basis: $data['basis'], asOf: $data['as_of'] ?? null);
+        $fact = new Fact($data['key'], $read($data['key'], $data['value']), $data['entity'], $data['period'], unit: $data['unit'] ?? null, basis: $data['basis'] ?? null, asOf: $data['as_of'] ?? null);
         $group = ClaimVersionStore::GROUPS[$data['key']] ?? null;
         if ($group === null) {
             $claims->confirm($businessPlan, $section, $actor, $fact, $data['source_hash'], $data['reason']);
@@ -159,7 +160,7 @@ final class EntrepreneurReleaseGateController extends Controller
             // and PM-10 would hold the model against it.
             $given = $data['companions'][$key] ?? null;
             $facts[] = new Fact($key, $given === null ? null : $read($key, $given), $data['entity'], $data['period'],
-                unit: $unit, basis: $data['basis'], asOf: $data['as_of'] ?? null);
+                unit: $unit, basis: $data['basis'] ?? null, asOf: $data['as_of'] ?? null);
         }
         $claims->confirmGroup($businessPlan, $section, $actor, $facts, $data['source_hash'], $data['reason']);
 

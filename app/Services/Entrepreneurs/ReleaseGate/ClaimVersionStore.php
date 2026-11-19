@@ -17,7 +17,8 @@ final readonly class ClaimVersionStore
 {
     public const KEYS = ['plan.profitability', 'plan.owner_pay', 'plan.opening_cash', 'plan.margin_min', 'plan.margin_max',
         'plan.margin_explanation', 'plan.commitment', 'plan.commitment_in_scope', 'scope.required_horizon',
-        'runway.months', 'runway.start_cash', 'runway.includes_receipts', 'runway.includes_owner_pay'];
+        'runway.months', 'runway.start_cash', 'runway.includes_receipts', 'runway.includes_owner_pay',
+        'plan.ramp', 'plan.start_period'];
 
     /**
      * Claims whose value is an answer rather than an amount.
@@ -31,6 +32,36 @@ final readonly class ClaimVersionStore
 
     /** Claims whose value is prose, and so has no number to validate. */
     public const TEXT_KEYS = ['plan.margin_explanation'];
+
+    /**
+     * Claims whose value names a calendar month rather than measuring anything.
+     *
+     * PM-05 compares the plan's first forecast month with the model's before it
+     * compares any figure in the schedule, because two schedules read from
+     * different first months describe different ramps even when every number
+     * in them matches.
+     */
+    public const MONTH_KEYS = ['plan.start_period'];
+
+    /**
+     * Claims that state nothing a basis could qualify.
+     *
+     * Opening cash names the account it was read from and a runway names the
+     * cost basis it was measured on, because either figure means something
+     * different read another way. A ramp and a start month have no such second
+     * reading, and the model publishes none for them, so requiring one would
+     * only block a claim the advisor can legitimately record.
+     */
+    public const BASIS_FREE_KEYS = ['plan.ramp', 'plan.start_period'];
+
+    /**
+     * Claims that may legitimately be negative.
+     *
+     * A ramp is month-on-month change, so a stream the plan expects to decline
+     * states a negative one. Every other claim here is an amount, and a
+     * negative amount is a data-entry error rather than a statement.
+     */
+    public const SIGNED_KEYS = ['plan.ramp'];
 
     /**
      * The bases a runway can be claimed on, named by the producer that states
@@ -159,17 +190,26 @@ final readonly class ClaimVersionStore
         if (! in_array($fact->key, self::KEYS, true) || $fact->value === null || mb_strlen(trim($reason)) < 15) {
             throw ValidationException::withMessages(['claim' => 'Choose a supported plan claim and record its value and confirmation reason.']);
         }
-        $numeric = ! in_array($fact->key, [...self::TEXT_KEYS, ...self::BOOLEAN_KEYS], true);
-        if (($numeric && ($fact->number() === null || $fact->number()->isNegative()))
+        $numeric = ! in_array($fact->key, [...self::TEXT_KEYS, ...self::BOOLEAN_KEYS, ...self::MONTH_KEYS], true);
+        $signed = in_array($fact->key, self::SIGNED_KEYS, true);
+        if (($numeric && ($fact->number() === null || (! $signed && $fact->number()->isNegative())))
             || ($fact->key === 'scope.required_horizon' && FactValidation::horizon($fact) === null)
             || (in_array($fact->key, self::BOOLEAN_KEYS, true) && ! is_bool($fact->value))
+            || (in_array($fact->key, self::MONTH_KEYS, true) && ! FactValidation::month($fact->value))
+            // A ramp is stated for one stream in one month, in the unit the
+            // model publishes its own ramp in. Recorded against the default
+            // entity and period, or in any other unit, it is a claim PM-05
+            // can never read: the rule would report the model ramp missing
+            // while the advisor saw their own figure recorded.
+            || ($fact->key === 'plan.ramp' && ($fact->unit !== 'percent' || $fact->entity === 'business'
+                || ! FactValidation::period($fact->period)))
             // A runway stated on a basis PM-10 does not measure, or in any unit
             // but months, is an answer the rule can never read: it would report
             // the claim's definition missing while the advisor saw it recorded.
             // Refusing it at entry says so while they are still looking at it.
             || ($fact->key === 'runway.months' && (! in_array($fact->basis, self::RUNWAY_BASES, true) || $fact->unit !== 'months'))
             || ($fact->asOf !== null && ! FactValidation::date($fact->asOf))) {
-            throw ValidationException::withMessages(['claim' => 'Use a valid non-negative amount, whole forecast period, scope choice, calendar date, and a runway stated in months on a basis the model measures.']);
+            throw ValidationException::withMessages(['claim' => 'Use a valid amount, whole forecast period, scope choice, calendar date, a named stream and forecast month for a ramp stated in percent, a start period naming a calendar month, and a runway stated in months on a basis the model measures. Only a ramp may be negative.']);
         }
     }
 }

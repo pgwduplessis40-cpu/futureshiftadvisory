@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Entrepreneurs\ReleaseGate;
 
 use App\Services\Entrepreneurs\ReleaseGate\CheckStatus;
+use App\Services\Entrepreneurs\ReleaseGate\ClaimVersionStore;
 use App\Services\Entrepreneurs\ReleaseGate\Fact;
+use App\Services\Entrepreneurs\ReleaseGate\FactSet;
 use App\Services\Entrepreneurs\ReleaseGate\PhaseOneRules;
 use App\Services\Entrepreneurs\ReleaseGate\Rule;
 use App\Services\Entrepreneurs\ReleaseGate\RuleCatalogue;
@@ -26,10 +28,10 @@ use PHPUnit\Framework\TestCase;
  * The nine phase-2 rules, tested here against synthetic facts whether or not
  * they are registered.
  *
- * Seven are now registered, because on the F1 reference package each reaches
- * the verdict the package specifies for it. Two are not: the package expects
- * them to Fail, and a rule with no facts can only report its inputs missing,
- * so registering one would record Cannot verify where a contradiction is
+ * Eight are now registered, because on the F1 reference package each reaches
+ * the verdict the package specifies for it. One is not: the package expects
+ * PM-08 to Fail, and a rule with no facts can only report its inputs missing,
+ * so registering it would record Cannot verify where a contradiction is
  * specified.
  */
 final class PhaseTwoRulesTest extends TestCase
@@ -43,31 +45,35 @@ final class PhaseTwoRulesTest extends TestCase
     }
 
     /**
-     * The seven whose verdict on the F1 reference package matches what the
+     * The eight whose verdict on the F1 reference package matches what the
      * package specifies for them. Each reports Cannot verify where its
      * evidence is absent, which is the documented expectation.
      *
-     * PM-10 is the seventh. Its evidence now exists on both sides, and the
-     * package's Fail was revised against the source documents: the plan's
-     * runway excludes the owner's wages while the model's cost basis includes
-     * them, so the two are different measures rather than a disagreement.
+     * PM-10 and PM-05 are here on a different footing from the other six: for
+     * each, the package's Fail was revised against the source documents rather
+     * than against this implementation's output. PM-10's plan runway excludes
+     * the owner's wages while the model's cost basis includes them, so the two
+     * are different measures rather than a disagreement. PM-05's plan states
+     * revenue as an annual total, as date-bounded milestone ranges and as a
+     * longer-term capacity aim, never as a schedule by stream and month, so
+     * there is no second schedule for the model's to contradict.
      */
-    private const REGISTERED = ['PM-06', 'PM-10', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
+    private const REGISTERED = ['PM-05', 'PM-06', 'PM-10', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
 
     /**
-     * The two the package expects to Fail. A rule with no facts can only
+     * The one the package still expects to Fail. A rule with no facts can only
      * report its inputs missing, and Cannot verify where a contradiction is
      * specified understates the finding rather than making it.
      */
-    private const DEFERRED = ['PM-05', 'PM-08'];
+    private const DEFERRED = ['PM-08'];
 
-    public function test_seven_of_the_nine_rules_are_registered_and_two_await_the_facts_that_would_fail(): void
+    public function test_eight_of_the_nine_rules_are_registered_and_one_awaits_the_facts_that_would_fail(): void
     {
         $registered = array_map(fn (Rule $rule): string => $rule->id(), PhaseOneRules::all());
-        // Fourteen phase-1 rules, the six document-hygiene rules, the seven
+        // Fourteen phase-1 rules, the six document-hygiene rules, the eight
         // below, and DH-07, which the catalogue carries as phase 3 but which
         // reads the document blocks the hygiene set already reads.
-        self::assertCount(28, $registered);
+        self::assertCount(29, $registered);
         foreach (self::REGISTERED as $id) {
             self::assertContains($id, $registered, $id.' reaches the verdict the F1 package specifies for it.');
             self::assertSame(2, RuleCatalogue::get($id)->phase);
@@ -81,6 +87,39 @@ final class PhaseTwoRulesTest extends TestCase
         $all = self::IDS;
         sort($all);
         self::assertSame($all, $accounted, 'Every phase-2 rule is accounted for as either registered or deferred.');
+    }
+
+    /**
+     * A rule reading a fact is not a reason to let an advisor claim it.
+     *
+     * `stream.membership` reads like PM-05's third claim key: the rule reads
+     * it, and it describes something the plan states. It is the model's key.
+     * `ForecastModelFacts` emits one per stream and PM-04, PM-05, PM-06 and
+     * PM-11 all read it from there, while the plan side has its own
+     * `plan.stream_membership`. A confirmed claim would land at the same
+     * coordinate as the model's fact, and `FactSet::one()` resolves competing
+     * records to nothing, so all four rules would report a membership they
+     * already had as missing, with nothing failing loudly to say so.
+     */
+    public function test_stream_membership_stays_out_of_the_claim_whitelist(): void
+    {
+        self::assertNotContains('stream.membership', ClaimVersionStore::KEYS,
+            'The model publishes stream.membership per stream; a claim would collide with it and blind four rules.');
+        // The plan side is a separate key, and PM-06 reads it alongside the
+        // model's rather than in place of it.
+        self::assertContains('plan.stream_membership', RuleCatalogue::get('PM-06')->inputs);
+        self::assertContains('stream.membership', RuleCatalogue::get('PM-06')->inputs);
+
+        // The runway inclusions look like the same hazard and are not: PM-10
+        // reads the claim at the claim's entity and the model's at the basis
+        // name, so the two coexist at different coordinates by design. That is
+        // why this guard names one key rather than banning every shared one.
+        $facts = new FactSet([
+            new Fact('runway.includes_receipts', false, 'business'),
+            new Fact('runway.includes_receipts', true, 'forecast_cash'),
+        ]);
+        self::assertFalse($facts->one('runway.includes_receipts', 'business')?->value);
+        self::assertTrue($facts->one('runway.includes_receipts', 'forecast_cash')?->value);
     }
 
     public function test_each_rule_declares_the_facts_its_implementation_reads(): void
