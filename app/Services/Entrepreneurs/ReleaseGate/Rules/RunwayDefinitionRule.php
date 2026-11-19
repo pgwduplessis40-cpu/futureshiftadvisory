@@ -6,6 +6,7 @@ namespace App\Services\Entrepreneurs\ReleaseGate\Rules;
 
 use App\Services\Entrepreneurs\ReleaseGate\Checks;
 use App\Services\Entrepreneurs\ReleaseGate\DocumentContext;
+use App\Services\Entrepreneurs\ReleaseGate\Fact;
 use App\Services\Entrepreneurs\ReleaseGate\Rule;
 use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
 use App\Services\Entrepreneurs\ReleaseGate\RunwayFacts;
@@ -60,9 +61,24 @@ final class RunwayDefinitionRule implements Rule
             }
             // Comparing a claim that counts future receipts with a model figure
             // that does not would report a difference the two measures are
-            // supposed to have. They are reconciled separately or not at all.
+            // supposed to have. They are never reconciled against each other.
+            //
+            // What the document owes its reader instead is both figures. A
+            // runway stated on one basis alone is true and reads as the whole
+            // answer: an owner-excluded twelve months and an owner-included
+            // 1.74 describe the same bank balance, and only one of them is on
+            // the page. So the rule looks for a second claim stating the
+            // measure this one leaves out, and reports the omission where
+            // there is none. It does not decide which figure is the right
+            // one; that is the reader's call, and they can only make it with
+            // both in front of them.
             if ($modelReceipts->value !== $receipts->value || $modelOwnerPay->value !== $ownerPay->value) {
-                $checks[] = Subcheck::missing('like-measure:'.$i, 'a model runway including the same future receipts and owner pay as the '.$claim->entity.' claim', Severity::Review);
+                $checks[] = Checks::result('both-bases:'.$i, $this->alsoClaimed($context, $claim, $modelReceipts, $modelOwnerPay),
+                    $claim->entity.' states '.$claim->value.' months '.$this->inclusions($receipts, $ownerPay)
+                        .'. On the same opening cash the model measures '.$model->value.' months '
+                        .$this->inclusions($modelReceipts, $modelOwnerPay)
+                        .'. Both readings are true and neither replaces the other, so both belong in the document.',
+                    [$claim, $model, $receipts, $ownerPay, $modelReceipts, $modelOwnerPay], Severity::Review, '0.5');
 
                 continue;
             }
@@ -72,5 +88,36 @@ final class RunwayDefinitionRule implements Rule
         }
 
         return $checks;
+    }
+
+    /**
+     * Whether the document also states the measure this claim leaves out.
+     *
+     * A plan that gives both runways confirms two claims on the same basis,
+     * each carrying its own inclusions, so the partner is found by matching
+     * the model's answers rather than by counting claims. Without this a plan
+     * that discloses both would still be reported for the first of them.
+     */
+    private function alsoClaimed(DocumentContext $context, Fact $claim, Fact $modelReceipts, Fact $modelOwnerPay): bool
+    {
+        foreach ($context->facts->all('runway.months') as $other) {
+            if ($other === $claim || $other->basis !== $claim->basis || $other->scenario !== $claim->scenario) {
+                continue;
+            }
+            $receipts = $context->facts->one('runway.includes_receipts', $other->entity, $other->period, $other->scenario);
+            $ownerPay = $context->facts->one('runway.includes_owner_pay', $other->entity, $other->period, $other->scenario);
+            if ($receipts?->value === $modelReceipts->value && $ownerPay?->value === $modelOwnerPay->value) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Stated as what the figure counts, because "false" is an answer and not a gap. */
+    private function inclusions(Fact $receipts, Fact $ownerPay): string
+    {
+        return ($ownerPay->value === true ? 'including owner pay' : 'excluding owner pay')
+            .($receipts->value === true ? ' and counting future receipts' : ' and assuming no new revenue');
     }
 }

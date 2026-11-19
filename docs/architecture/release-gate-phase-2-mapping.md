@@ -712,9 +712,25 @@ The original Fail therefore specified a contradiction between two schedules when
 
 **PM-08's claim keys were deliberately not added in this slice.** Whitelisting `allocation.policy`, `allocation.amount` and `allocation.trigger` would let an advisor confirm a profit-allocation policy that no registered rule reads and no producer can complete, because `allocation.schedule` and `allocation.duplicate_line` have no model side to come from. That is precisely the trap the runway basis guard and this slice's ramp guard exist to prevent, built on purpose. The reference plan does state a complete policy — 50% purpose-led giving, 25% reinvestment, 25% owner distributions of after-tax profit (page 40) — so there is a real claim waiting for it, which is the argument for doing the model side properly rather than for recording the claim early.
 
+### Slice 2E-4ac implementation record
+
+R13 is decided, and the decision changes what PM-10 is for rather than how strictly it runs.
+
+**The question was whether a basis mismatch needed its own severity.** It does not. The Principal Advisor's ruling is that where two bases measure the same cash, the document states **both figures** and the reader decides which governs — a lender or bank is the one making that call, and the platform's job is to make sure both numbers reach them. That reframes the rule. PM-10 was trying to answer "does the claimed runway match the model's", which is unanswerable across bases and is why it kept landing on Cannot verify. It now answers "is the document carrying both measures", which has a real answer.
+
+**Cannot verify was the wrong word for a full set of evidence.** On the reference plan the rule holds twelve months and 1.74 months, both bases named, nothing absent. Reporting that as Cannot verify told an advisor that evidence was missing and gave them a data-chasing task, when the actual finding — the headline runway assumes the founder is unpaid, and owner pay is 87.5% of the monthly cost base — went unsaid. The subcheck now carries an empty `missingInputs` and a Fail, and a test asserts the emptiness, because a Cannot verify here would be a false statement about the document rather than a cautious one.
+
+**The partner claim is found by its inclusions, not by counting.** A plan that states both runways confirms two `runway.months` claims on the same basis, each with its own receipts and owner-pay answers. `alsoClaimed()` looks for one whose answers match the model's, so a document that already discloses both is not reported for the first of them. Without that, satisfying the rule would make it complain.
+
+**Severity stays Review and no threshold moved.** Nothing in the document is wrong, so this does not block; `RuleConfiguration::VERSION` is untouched, and no new `CheckStatus` was added — the ruling specifically removes the need for one.
+
+**PM-10's F1 expectation returns to `fail`, the verdict the package specified at the outset.** That is the third state this expectation has held and the manifest now narrates all three, because a round trip is exactly the kind of thing a later reader will mistake for churn. The original Fail compared twelve against 1.74 as though they were one measure, which is the error the rule exists to prevent; slice 2E-4v was right to reject that comparison and wrong about what followed from it. **The verdict was right all along and the reason recorded against it was not.** No fixture fact was added or changed at any of the three revisions, and `f1.json` is untouched.
+
+What this does not settle: the ruling says "both", which is the right word while a rule carries at most two bases. A future rule measuring the same cash three ways would need the phrasing revisited, and R13 records that as the condition for reopening it.
+
 ### Phase 2E current state
 
-Checked on 19 November 2026 against `origin/main` at `16a0624d`, which carries slices 2E-4w through 2E-4z, plus slice 2E-4ab.
+Checked on 19 November 2026 against `origin/main` at `adee2d25`, which carries slices 2E-4w through 2E-4ab, plus slice 2E-4ac.
 
 **29 of the 37 catalogued rules are enabled, and all 29 reach the verdict the F1 reference package specifies for them** — `F1Test` asserts that per rule against `f1-manifest.json` and passes. The model side of the gate is complete: producers emit 85 distinct fact keys, and six shared emitters (`CashCurveFacts`, `LedgerEntryFacts`, `TaxChainFacts`, `TaxPolicyFacts`, `ScenarioInputFacts` and `ProfitDecompositionFacts`) serve the base case and every scenario from one implementation, because the rules that compare the two sides would otherwise be comparing two derivations rather than two models.
 
