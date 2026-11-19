@@ -313,6 +313,7 @@ final class MethodologyDriftGuardTest extends TestCase
         PlanReleaseGate\Rules\HygieneRule::class => 'DH-01 through DH-06 implementation within the EvaluateReleaseGate methodology.',
         PlanReleaseGate\Rules\MarginRule::class => 'PM-07 implementation within the EvaluateReleaseGate methodology.',
         PlanReleaseGate\Rules\MonthThirteenBridgeRule::class => 'MI-08 implementation within the EvaluateReleaseGate methodology.',
+        PlanReleaseGate\Rules\OfferConsistencyRule::class => 'DH-07 implementation within the EvaluateReleaseGate methodology.',
         PlanReleaseGate\Rules\OpeningCashRule::class => 'PM-03 implementation within the EvaluateReleaseGate methodology.',
         PlanReleaseGate\Rules\OwnerPayRule::class => 'PM-02 implementation within the EvaluateReleaseGate methodology.',
         PlanReleaseGate\Rules\ProfitAllocationRule::class => 'PM-08 implementation within the EvaluateReleaseGate methodology.',

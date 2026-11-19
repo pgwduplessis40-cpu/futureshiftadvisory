@@ -19,7 +19,7 @@ final class F1Test extends TestCase
         $byRule = [];
         foreach (['plan', 'budget', 'brief'] as $kind) {
             $report = PhaseOneRules::evaluator()->evaluate(Fixture::f1($kind));
-            self::assertCount(10, $report->deferred());
+            self::assertCount(9, $report->deferred());
             self::assertFalse($report->checksResolved());
             self::assertFalse($report->jsonSerialize()['can_certify']);
             foreach ($report->results as $result) {
@@ -30,7 +30,7 @@ final class F1Test extends TestCase
                 }
             }
         }
-        self::assertCount(27, $byRule);
+        self::assertCount(28, $byRule);
         $mismatched = [];
         foreach ($byRule as $id => $results) {
             $states = array_map(fn (RuleResult $r): CheckStatus => $r->status, $results);

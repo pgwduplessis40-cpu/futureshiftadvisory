@@ -9,6 +9,13 @@
       "for_rule": "PM-10",
       "extractor": "pdftotext -layout with page-located review of the plan and budget",
       "note": "The 4 November pass did not cover runway, because PM-10 had no producer then. The plan (page 45) and budget (pages 5 and 10) were re-verified against the source hashes above before extraction; the brief on hand at the time was a later revision and no fact here is taken from it."
+    },
+    {
+      "at": "2026-11-19",
+      "blocks": ["offer-rate", "offer-evidence", "offer-ramp"],
+      "for_rule": "DH-07",
+      "extractor": "section-located review of the plan; the three excerpts are synthetic and carry no source wording",
+      "note": "The plan states its flagship offer at a per-day rate in its pricing section, cites a four-day engagement at a lower bundled figure in its evidence section, and schedules the same four days at the per-day rate in its forecast ramp. The excerpts reproduce that shape under a synthetic offer name, preserving the ratios between the three figures. They are located by section rather than page, because the review located the statements by section and an unverified page number would read as a verified one."
     }
   ],
   "sources": {
@@ -27,7 +34,7 @@
   },
   "derivative": {
     "file": "f1.json",
-    "sha256": "3887347210b57480699178775b66e89219c6af719a2e2da29a9b2089267f6c36"
+    "sha256": "8b9032e99d623d7de9df4afe57ac831d3c423ba09ad8b25b436aabfddc0fd385"
   },
   "privacy": "Names, contacts, original PDFs and client prose are excluded. Short synthetic excerpts preserve the reviewed hygiene defects. Financial observations are unchanged; unknowns are explicit.",
   "expectations": {
