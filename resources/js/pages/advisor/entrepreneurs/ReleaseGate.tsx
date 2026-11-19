@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { ConfirmedClaims } from './release-gate-claim-fields';
 import { ReleaseClaimForm, ReleasePolicyForm } from './release-gate-forms';
 import type { GateProps } from './release-gate-types';
 
@@ -261,6 +262,15 @@ export default function ReleaseGateReview(props: GateProps) {
                     are not a reason to skip verification.
                 </p>
                 <p>{report.deferred.join(', ')}</p>
+            </details>
+            <details className="rounded border p-4">
+                <summary>Confirmed statements ({props.claims.length})</summary>
+                <p className="my-3">
+                    What the gate is holding, and what it has stopped reading. A
+                    confirmed statement binds to the wording it was confirmed
+                    against.
+                </p>
+                <ConfirmedClaims claims={props.claims} />
             </details>
             {props.can_confirm ? (
                 <ReleaseClaimForm sections={props.sections} url={urls.claim} />

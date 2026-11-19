@@ -5,8 +5,9 @@ import { renderToString } from 'react-dom/server';
 import {
     ClaimCompanionFields,
     ClaimMeasurementFields,
+    ConfirmedClaims,
 } from './release-gate-claim-fields';
-import type { GateProps, Subcheck } from './release-gate-types';
+import type { ConfirmedClaim, GateProps, Subcheck } from './release-gate-types';
 import ReleaseGateReview from './ReleaseGate';
 
 const missing: Subcheck = {
@@ -31,6 +32,7 @@ const props: GateProps = {
     can_confirm: false,
     can_configure: false,
     sections: [],
+    claims: [],
     configuration: { thresholds: {}, severities: {}, messages: {} },
     urls: {
         review: '/gate',
@@ -224,4 +226,65 @@ test('a runway basis is chosen from what the model measures, not described', asy
     const other = basisFor('plan.opening_cash');
     assert.match(other, /Basis description/);
     assert.doesNotMatch(other, /Essential costs with no sales/);
+});
+
+const confirmed: ConfirmedClaim = {
+    key: 'runway.months',
+    value: '12',
+    entity: 'business',
+    period: 'current',
+    unit: 'months',
+    basis: 'essential_cost_no_sales',
+    as_of: null,
+    revision: 1,
+    section_title: 'Cash position',
+    applies: true,
+    confirmed_by: 'A. Advisor',
+    confirmed_at: '2026-11-19T00:00:00+00:00',
+    reason: 'Confirmed against the runway paragraph.',
+};
+
+// A confirmed claim binds to the wording it was confirmed against, so one
+// whose plan answer has since been edited is no longer read. Before this the
+// advisor saw the claim saved and then saw the rule report its evidence
+// missing, with no way to connect the two.
+test('a claim the gate has stopped reading says so rather than disappearing', async () => {
+    const html = renderToString(
+        <ConfirmedClaims
+            claims={[
+                confirmed,
+                {
+                    ...confirmed,
+                    key: 'runway.includes_owner_pay',
+                    value: false,
+                    unit: null,
+                    applies: false,
+                },
+            ]}
+        />,
+    );
+
+    // Stripped of tags, because React puts comment markers between adjacent
+    // text expressions and the advisor reads the text, not the markup.
+    const text = html.replace(/<[^>]*>/g, '');
+    assert.match(text, /Runway in months: 12 months/);
+    // A boolean reads as the answer it is, not as true or false.
+    assert.match(text, /Runway counts owner pay: Not counted/);
+    assert.match(text, /Read by the gate\./);
+    assert.match(text, /No longer read: the plan answer behind this changed/);
+    assert.match(text, /1 confirmed statement is no longer read/);
+    assert.match(text, /A\. Advisor/);
+    assert.doesNotMatch(text, /runway\.|applies/);
+});
+
+test('a plan with nothing confirmed says so rather than showing an empty list', async () => {
+    assert.match(
+        renderToString(<ConfirmedClaims claims={[]} />),
+        /No statements have been confirmed on this plan yet/,
+    );
+    // No warning where there is nothing to warn about.
+    assert.doesNotMatch(
+        renderToString(<ConfirmedClaims claims={[confirmed]} />),
+        /no longer read/,
+    );
 });
