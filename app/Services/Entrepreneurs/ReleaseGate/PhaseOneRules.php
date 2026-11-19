@@ -37,17 +37,15 @@ final class PhaseOneRules
         return [new ProfitabilityRule, new OwnerPayRule, new OpeningCashRule, new CapacityRule, new MarginRule,
             new CommittedCostRule, new FundingPositionRule, new CashLedgerRule, new FundingSourcesRule,
             new FixedCostRule, new TaxRule, new AssetClassificationRule, new HorizonRule, new ScenarioRule,
-            // Eight of the nine phase-2 rules. Each reports Cannot verify
-            // where its evidence is absent, which is both the documented
-            // expectation and the honest answer.
+            // Every phase-2 rule that still stands. PM-08 is not absent from
+            // this list because it is deferred: it was withdrawn, since what
+            // an owner intends to do with profit after tax drives nothing in
+            // the plan or budget, and the one real check inside it is PM-09.
+            // Registering it is refused by the evaluator rather than merely
+            // unwise.
             //
-            // PM-08 stays deferred. The package expects it to Fail on this
-            // plan, and a rule with no facts can only report its inputs
-            // missing; registering it now would record Cannot verify where a
-            // contradiction is specified, which understates the finding
-            // rather than making it.
-            //
-            // PM-10 and PM-05 are here on the opposite footing: for each, the
+            // PM-10 and PM-05 each reached their F1 verdict against a revised
+            // expectation. For both, the
             // package's expectation was revised against the source documents
             // rather than against this implementation's output. PM-10's plan
             // runway excludes the owner's wages while the model's cost basis

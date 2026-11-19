@@ -30,7 +30,12 @@ final class FrameworkTest extends TestCase
         self::assertCount(37, $catalogue);
         self::assertCount(37, array_unique(array_column($catalogue, 'id')));
         self::assertCount(20, array_filter($catalogue, fn ($r) => $r->phase === 1));
-        foreach ($catalogue as $rule) {
+        // A withdrawn rule keeps its entry and its number but declares no
+        // inputs, because it reads nothing. Its condition stays, prefixed, so
+        // the record shows what it used to assert.
+        self::assertSame(['PM-08'], array_values(array_map(fn ($r): string => $r->id,
+            array_filter($catalogue, fn ($r): bool => $r->withdrawn !== null))));
+        foreach (array_filter($catalogue, fn ($r): bool => $r->withdrawn === null) as $rule) {
             self::assertNotEmpty($rule->inputs);
             self::assertNotEmpty($rule->condition);
             if ($rule->severity === Severity::Block) {
@@ -69,7 +74,9 @@ final class FrameworkTest extends TestCase
     {
         $context = $this->context();
         $empty = (new EvaluateReleaseGate)->evaluate($context);
-        self::assertCount(37, $empty->deferred());
+        // Thirty-six, not thirty-seven: a withdrawn rule is not deferred work
+        // and produces no result at all.
+        self::assertCount(36, $empty->deferred());
         self::assertFalse($empty->jsonSerialize()['can_certify']);
         $rule = new class implements Rule
         {
@@ -84,9 +91,46 @@ final class FrameworkTest extends TestCase
             }
         };
         $report = (new EvaluateReleaseGate([$rule]))->evaluate($context);
-        self::assertCount(36, $report->deferred());
+        self::assertCount(35, $report->deferred());
         self::assertTrue($report->checksResolved());
         self::assertFalse($report->jsonSerialize()['can_certify']);
+    }
+
+    /**
+     * A withdrawn rule keeps its number and loses everything else.
+     *
+     * Deleting the entry would leave a gap in a numbered specification, which
+     * reads as an oversight and invites someone to rebuild the rule on the
+     * premise that was wrong in the first place. Keeping it evaluable would
+     * put a verdict back on a document from a rule the catalogue has retired.
+     * So it stays visible, produces no result, is not deferred work, cannot be
+     * registered, and carries its reason.
+     */
+    public function test_a_withdrawn_rule_keeps_its_entry_and_produces_no_verdict(): void
+    {
+        $definition = RuleCatalogue::get('PM-08');
+        self::assertNotNull($definition->withdrawn);
+        self::assertFalse($definition->acceptsElevatedRisk(), 'Nothing is left to accept an elevated risk against.');
+        self::assertSame($definition->withdrawn, $definition->jsonSerialize()['withdrawn']);
+
+        $report = (new EvaluateReleaseGate)->evaluate($this->context());
+        self::assertNotContains('PM-08', $report->deferred());
+        self::assertNotContains('PM-08', array_map(fn (RuleResult $r): string => $r->definition->id, $report->results));
+
+        $rule = new class implements Rule
+        {
+            public function id(): string
+            {
+                return 'PM-08';
+            }
+
+            public function evaluate(DocumentContext $context, RuleConfiguration $configuration): array
+            {
+                return [];
+            }
+        };
+        $this->expectException(\InvalidArgumentException::class);
+        new EvaluateReleaseGate([$rule]);
     }
 
     public function test_integrity_outcomes_cannot_be_accepted_or_downgraded(): void

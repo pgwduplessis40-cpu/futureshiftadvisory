@@ -20,7 +20,7 @@ final class F1Test extends TestCase
         $byRule = [];
         foreach (['plan', 'budget', 'brief'] as $kind) {
             $report = PhaseOneRules::evaluator()->evaluate(Fixture::f1($kind));
-            self::assertCount(8, $report->deferred());
+            self::assertCount(7, $report->deferred());
             self::assertFalse($report->checksResolved());
             self::assertFalse($report->jsonSerialize()['can_certify']);
             foreach ($report->results as $result) {

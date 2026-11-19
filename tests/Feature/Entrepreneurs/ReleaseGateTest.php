@@ -76,7 +76,7 @@ final class ReleaseGateTest extends TestCase
         $gate = app(ReleaseGate::class);
         $report = $gate->evaluate($this->plan);
         $run = $gate->record($this->plan, $report, $this->principal);
-        self::assertCount(8, $report->deferred());
+        self::assertCount(7, $report->deferred());
         self::assertSame($report->context->hash(), $run->getAttribute('context_hash'));
         self::assertFalse($run->getAttribute('result_payload')['can_certify']);
         self::assertSame($report->context->hash(), $gate->evaluate($this->plan)->context->hash());
@@ -183,7 +183,7 @@ final class ReleaseGateTest extends TestCase
     public function test_review_route_enforces_profile_ownership_and_preserves_results(): void
     {
         $url = route('advisor.entrepreneurs.plans.release-gate.show', [$this->plan->entrepreneurProfile, $this->plan]);
-        $this->actingAsMfa($this->advisor)->get($url)->assertOk()->assertInertia(fn ($page) => $page->component('advisor/entrepreneurs/ReleaseGate')->where('report.can_certify', false)->has('report.results', 37)->where('can_accept', false));
+        $this->actingAsMfa($this->advisor)->get($url)->assertOk()->assertInertia(fn ($page) => $page->component('advisor/entrepreneurs/ReleaseGate')->where('report.can_certify', false)->has('report.results', 36)->where('can_accept', false));
         app(RequestContext::class)->apply('system', []);
         $other = User::factory()->withTwoFactor()->create(['user_type' => 'advisor', 'primary_role' => 'advisor']);
         $other->assignRole('advisor');

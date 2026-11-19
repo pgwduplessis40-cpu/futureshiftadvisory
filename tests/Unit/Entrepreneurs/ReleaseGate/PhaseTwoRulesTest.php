@@ -15,7 +15,6 @@ use App\Services\Entrepreneurs\ReleaseGate\RuleConfiguration;
 use App\Services\Entrepreneurs\ReleaseGate\RuleResult;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\ElapsedActualsRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\MonthThirteenBridgeRule;
-use App\Services\Entrepreneurs\ReleaseGate\Rules\ProfitAllocationRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\RevenueRampRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\RunwayDefinitionRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\ScenarioFundingRule;
@@ -26,18 +25,17 @@ use App\Services\Entrepreneurs\ReleaseGate\Subcheck;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The nine phase-2 rules, tested here against synthetic facts whether or not
- * they are registered.
+ * The phase-2 rules, tested here against synthetic facts.
  *
- * Eight are now registered, because on the F1 reference package each reaches
- * the verdict the package specifies for it. One is not: the package expects
- * PM-08 to Fail, and a rule with no facts can only report its inputs missing,
- * so registering it would record Cannot verify where a contradiction is
- * specified.
+ * All eight that still stand are registered, and each reaches the verdict the
+ * F1 reference package specifies for it. The ninth, PM-08, was withdrawn on
+ * 20 November 2026: profit allocation is what an owner intends to do with a
+ * surplus after tax, not a driver of the plan or budget, and the one real
+ * check inside it belongs to PM-09.
  */
 final class PhaseTwoRulesTest extends TestCase
 {
-    private const IDS = ['PM-05', 'PM-06', 'PM-08', 'PM-10', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
+    private const IDS = ['PM-05', 'PM-06', 'PM-10', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
 
     /** @param list<Fact> $facts */
     private function evaluateRule(Rule $rule, array $facts, int $required = 2): RuleResult
@@ -61,20 +59,18 @@ final class PhaseTwoRulesTest extends TestCase
      */
     private const REGISTERED = ['PM-05', 'PM-06', 'PM-10', 'PM-11', 'MI-07', 'MI-08', 'SS-02', 'SS-03'];
 
-    /**
-     * The one the package still expects to Fail. A rule with no facts can only
-     * report its inputs missing, and Cannot verify where a contradiction is
-     * specified understates the finding rather than making it.
-     */
-    private const DEFERRED = ['PM-08'];
+    /** No phase-2 rule is deferred any more; PM-08 was withdrawn rather than built. */
+    private const DEFERRED = [];
 
-    public function test_eight_of_the_nine_rules_are_registered_and_one_awaits_the_facts_that_would_fail(): void
+    public function test_every_standing_phase_two_rule_is_registered_and_the_withdrawn_one_cannot_be(): void
     {
         $registered = array_map(fn (Rule $rule): string => $rule->id(), PhaseOneRules::all());
         // Fourteen phase-1 rules, the six document-hygiene rules, the eight
         // below, and DH-07, which the catalogue carries as phase 3 but which
         // reads the document blocks the hygiene set already reads.
         self::assertCount(29, $registered);
+        self::assertNotContains('PM-08', $registered);
+        self::assertNotNull(RuleCatalogue::get('PM-08')->withdrawn, 'The entry stays so the number is not read as a gap.');
         foreach (self::REGISTERED as $id) {
             self::assertContains($id, $registered, $id.' reaches the verdict the F1 package specifies for it.');
             self::assertSame(2, RuleCatalogue::get($id)->phase);
@@ -158,18 +154,6 @@ final class PhaseTwoRulesTest extends TestCase
         self::assertSame(CheckStatus::Fail, $this->evaluateRule($rule, SyntheticCase::replace($facts, 'plan.stream_membership', true, 'upside'))->status);
         // A stream with no flag is unresolved; it is not quietly excluded.
         self::assertSame(CheckStatus::CannotVerify, $this->evaluateRule($rule, SyntheticCase::replace($facts, 'stream.membership', null, 'workshop'))->status);
-    }
-
-    public function test_profit_allocation_accepts_a_visible_exclusion_but_not_a_reinvestment_counted_twice(): void
-    {
-        [$rule, $facts] = $this->passingCases()['PM-08'];
-        self::assertSame(CheckStatus::Fail, $this->evaluateRule($rule, SyntheticCase::replace($facts, 'allocation.duplicate_line', true, 'reinvestment'))->status);
-        self::assertSame(CheckStatus::CannotVerify, $this->evaluateRule($rule, SyntheticCase::replace($facts, 'allocation.trigger', null, 'giving'))->status);
-        $excluded = array_values(array_filter(
-            SyntheticCase::replace($facts, 'allocation.policy', 'excluded', 'giving'),
-            fn (Fact $fact): bool => $fact->entity !== 'giving' || $fact->key === 'allocation.policy',
-        ));
-        self::assertSame(CheckStatus::Pass, $this->evaluateRule($rule, $excluded)->status, 'An excluded policy needs no amount, only a visible statement.');
     }
 
     public function test_runway_claims_are_compared_only_with_a_model_runway_on_the_same_terms(): void
@@ -315,13 +299,6 @@ final class PhaseTwoRulesTest extends TestCase
             $membership[] = $f('plan.stream_membership', $included, $entity, unit: null);
         }
 
-        $allocation = [];
-        foreach (['giving', 'reinvestment', 'owner_distribution'] as $policy) {
-            $allocation = [...$allocation, $f('allocation.policy', 'included', $policy, unit: null), $f('allocation.amount', '500', $policy),
-                $f('allocation.trigger', 'monthly net profit above 2000', $policy, unit: null),
-                $f('allocation.schedule', 'complete', $policy, unit: null), $f('allocation.duplicate_line', false, $policy, unit: null)];
-        }
-
         $runway = [$f('runway.months', '8', 'claim-1', unit: 'months', basis: 'forecast_cash'), $f('runway.start_cash', '24000', 'claim-1'),
             $f('runway.includes_receipts', true, 'claim-1', unit: null), $f('runway.includes_owner_pay', true, 'claim-1', unit: null),
             $f('model.runway_months', '8', 'forecast_cash', unit: 'months', basis: 'forecast_cash'),
@@ -363,7 +340,6 @@ final class PhaseTwoRulesTest extends TestCase
         return [
             'PM-05' => [new RevenueRampRule, $ramp, 2],
             'PM-06' => [new StreamMembershipRule, $membership, 2],
-            'PM-08' => [new ProfitAllocationRule, $allocation, 2],
             'PM-10' => [new RunwayDefinitionRule, $runway, 2],
             'PM-11' => [new SharedCapacityRule, $capacity, 2],
             'MI-07' => [new ElapsedActualsRule, $actuals, 2],

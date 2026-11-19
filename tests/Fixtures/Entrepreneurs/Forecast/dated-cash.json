@@ -1,7 +1,7 @@
 {
     "purpose": "Synthetic timing case; not client data or an approved F2 reconstruction",
     "enabled_rule_ids": [],
-    "supports_future_checks": ["MI-01", "MI-02", "MI-03", "PM-03", "PM-04", "PM-08", "F13"],
+    "supports_future_checks": ["MI-01", "MI-02", "MI-03", "PM-03", "PM-04", "F13"],
     "opening_cash": "100.00",
     "movements": [
         {"id": "early-cost", "source": "synthetic-supplier-commitment", "date": "2027-01-05", "amount": "150.00", "direction": "out", "category": "operating_payment", "sequence": 10},

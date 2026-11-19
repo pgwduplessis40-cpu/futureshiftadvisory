@@ -73,8 +73,13 @@
       "detail": "Fail / Review"
     },
     "PM-08": {
-      "result": "fail",
-      "detail": "Fail / Review"
+      "result": "withdrawn",
+      "detail": "Withdrawn 20 November 2026; no verdict is expected or produced",
+      "was": {
+        "result": "fail",
+        "detail": "Fail / Review"
+      },
+      "revision_reason": "The entry is kept rather than deleted so the number is not read as a gap someone forgot to fill. The expectation was never reached: no producer ever emitted an allocation fact, because the forecast models none. That is correct and not an omission. What an owner intends to do with profit after tax is a decision about surplus, not a driver of the plan, budget or founder brief, so the rule's demand for a cash schedule asked the model to hold something it should not. Its double-count clause cannot fire either: operating costs maintain what already exists, while reinvestment builds what does not and only occurs if a surplus remains, so the two never describe the same spend. The one real check inside it - that a capital or growth item the plan commits to is carried in the budget or explicitly deferred - is PM-09, which is registered, reaches its own specified verdict on this package, and covers the contingent case through its confirmed out-of-scope branch. Withdrawn by owner decision rather than reworded, because rewording it would have shipped a second copy of PM-09."
     },
     "PM-09": {
       "result": "fail",
