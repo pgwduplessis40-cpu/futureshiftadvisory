@@ -1488,6 +1488,36 @@
         "version": "9b13e5e86e5a1ad175d71ffac996e11cef64d03bb9d99d59b542b356f639f140"
       },
       "generated": true
+    },
+    {
+      "id": "offer-rate",
+      "text": "Studio Intensive delivery is priced at $1,500 + GST per day.",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "plan",
+        "location": "section:pricing",
+        "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+      }
+    },
+    {
+      "id": "offer-evidence",
+      "text": "Evidence cites a four-day Studio Intensive at approximately $4,000.",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "plan",
+        "location": "section:evidence",
+        "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+      }
+    },
+    {
+      "id": "offer-ramp",
+      "text": "Month 2 schedules four days of Studio Intensive at $6,000 + GST.",
+      "source": {
+        "kind": "synthetic_excerpt",
+        "id": "plan",
+        "location": "section:forecast-ramp",
+        "version": "c629b7434424fa0cbc0d117fec93cc18dc085247a9a0bc5cfac293b39513d382"
+      }
     }
   ],
   "unknown_inputs": [

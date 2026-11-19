@@ -16,6 +16,7 @@ use App\Services\Entrepreneurs\ReleaseGate\Rules\HorizonRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\HygieneRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\MarginRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\MonthThirteenBridgeRule;
+use App\Services\Entrepreneurs\ReleaseGate\Rules\OfferConsistencyRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\OpeningCashRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\OwnerPayRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\ProfitabilityRule;
@@ -54,7 +55,14 @@ final class PhaseOneRules
             // two different measures against each other.
             new ElapsedActualsRule, new StreamMembershipRule, new SharedCapacityRule, new MonthThirteenBridgeRule,
             new StressDimensionRule, new ScenarioFundingRule, new RunwayDefinitionRule,
-            ...array_map(fn (int $i): Rule => new HygieneRule(sprintf('DH-%02d', $i)), range(1, 6))];
+            ...array_map(fn (int $i): Rule => new HygieneRule(sprintf('DH-%02d', $i)), range(1, 6)),
+            // DH-07 completes the document-hygiene set. The catalogue carries
+            // it as phase 3 alongside NB-01 and NB-02, but those two wait on
+            // typed narrative binding while this one reads document.blocks,
+            // which every other hygiene rule already reads in full. Nothing it
+            // needs is outstanding, so it is registered rather than deferred
+            // behind work it does not depend on.
+            new OfferConsistencyRule];
     }
 
     public static function evaluator(): EvaluateReleaseGate

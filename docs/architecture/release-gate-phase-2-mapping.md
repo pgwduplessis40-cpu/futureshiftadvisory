@@ -652,27 +652,46 @@ Not covered, and PM-05 will need it: **the repeating-series shape.** A ramp is o
 
 Still open: the gate page has no `claims` prop, so an advisor cannot see what they have confirmed — only whether a verdict moved. Grouping prevents new mismatches and leaves existing ones invisible.
 
+### Slice 2E-4z implementation record
+
+DH-07 completes the document-hygiene set. The defect is a document that prices a day of delivery in one section, bundles the same days at a different implied rate in another, and leaves the reader to notice — which the F1 plan does: a per-day rate in its pricing section, a four-day engagement at a lower bundled figure in its evidence section, and the same four days at the per-day rate in its forecast ramp.
+
+**The earlier reading in this document was wrong about the shape.** The deferred table said DH-07 needed "a seventh branch" in `HygieneRule`. It does not. The six hygiene rules are per-block predicates: each block is independently clean or not, and `match` on the rule id returns a boolean per block. DH-07's finding is a property of a *pair* of statements in different sections. A per-block verdict would report the same disagreement twice and name neither partner, so it is its own rule class, `OfferConsistencyRule`. `HygieneRule`'s id whitelist is unchanged and still correct.
+
+**Two things decide whether the comparison is honest at all, and both are the reason this is not a regex.**
+
+*Which offer a price belongs to.* Two prices stated per day may be one offer described twice or two offers priced differently, and the second is not a defect. Grouping by the unit alone would manufacture a finding on any plan with two day-rate offers. Prices are therefore grouped by the offer **named beside them**, and a price with no identifiable offer is reported as Cannot verify rather than compared to anything. Two substantive capitalised words are the minimum for a name: one is not an identity, and a sentence opening "The Business charges" would otherwise name an offer called Business and pull an unrelated price into it. A shortened later mention joins the fuller name when its words are a subset, so "the Studio Intensive" is compared against "Creative Studio Intensive" instead of founding a group of its own.
+
+*GST.* A GST-exclusive rate and a GST-inclusive bundle are one price stated two ways, and reporting them as a difference would be reporting GST. Figures reconcile across every GST reading their own wording leaves open — the same discipline as PM-10 refusing to hold two runways on different bases against each other, and the reason R13 exists. A gap larger than any GST reading explains is a gap in the price. Both figures unmarked are read as one basis, because within a document that is the reading a reader takes, and an undisclosed basis switch is itself worth the Review.
+
+**The direction of error is deliberate.** A missed comparison asks the document to name its offers next to its prices, which is good hygiene and what the rule is for. A guessed one reports a difference nobody claimed. So the known limits all fall on the missing-finding side: an offer renamed rather than shortened between sections is two groups, and three offers whose short names are each a subset of a longer one over-merge into a single comparison.
+
+**No new policy threshold, and so no `RuleConfiguration::VERSION` bump.** A rate displayed in whole dollars cannot state the bundle it implies exactly, so the comparison needs a rounding allowance; the band is a code constant at half a percent, above any displayed rounding on a four-figure price and an order of magnitude below GST. That is a rounding allowance, not a policy choice like `material_cost` or `duplicate_similarity_percent`, and adding it to `DEFAULTS` would move the configuration version and invalidate every stored risk decision for no gain. The 15% rate is NZ law, named as such in the code. If the owner wants the band configurable, that is a deliberate version change rather than a side effect of this slice.
+
+**Fixture.** Three synthetic plan excerpts reproduce the shape under an invented offer name, preserving the ratios between the three figures. They are located by **section rather than page**: the review located the statements by section, and a page number nobody verified would sit in the fixture looking exactly like the verified `page:NN` locations beside it. No manifest expectation was revised — the package already specified Fail for DH-07, and the rule reaches it by the route the package describes, which a dedicated test pins rather than inferring from a matching verdict.
+
+DH-07 is a catalogue **phase-3** rule, registered now because nothing it needs is outstanding: it reads `document.blocks`, which the six hygiene rules already consume in full. NB-01 and NB-02 share its phase and stay deferred on typed narrative provenance, which is real missing work rather than a scheduling label.
+
 ### Phase 2E current state
 
-Checked on 19 November 2026 against `origin/main` at `76d4e6a8`, plus slices 2E-4w and 2E-4x.
+Checked on 19 November 2026 against `origin/main` at `bc30360f`, plus slice 2E-4z. Slice 2E-4y (claim visibility) is open on PR #211 and edits this same section, so one of the two will land with a mechanical conflict here.
 
-**27 of the 37 catalogued rules are enabled, and all 27 reach the verdict the F1 reference package specifies for them** — `F1Test` asserts that per rule against `f1-manifest.json` and passes. The model side of the gate is complete: producers emit 85 distinct fact keys, and six shared emitters (`CashCurveFacts`, `LedgerEntryFacts`, `TaxChainFacts`, `TaxPolicyFacts`, `ScenarioInputFacts` and `ProfitDecompositionFacts`) serve the base case and every scenario from one implementation, because the rules that compare the two sides would otherwise be comparing two derivations rather than two models.
+**28 of the 37 catalogued rules are enabled, and all 28 reach the verdict the F1 reference package specifies for them** — `F1Test` asserts that per rule against `f1-manifest.json` and passes. The model side of the gate is complete: producers emit 85 distinct fact keys, and six shared emitters (`CashCurveFacts`, `LedgerEntryFacts`, `TaxChainFacts`, `TaxPolicyFacts`, `ScenarioInputFacts` and `ProfitDecompositionFacts`) serve the base case and every scenario from one implementation, because the rules that compare the two sides would otherwise be comparing two derivations rather than two models.
 
 `RunwayFacts` and `FundingRequestFacts` are deliberately **not** shared: both state something about the business as planned rather than about a shock to it, so each is emitted for the base case alone.
 
-The ten deferred rules group by what they actually wait on, and by the phase the catalogue schedules them in.
+The nine deferred rules group by what they actually wait on, and by the phase the catalogue schedules them in. Every remaining one waits on **source work**, not on a rule class: with DH-07 registered, nothing is deferred merely for want of an implementation branch.
 
 | Rules | Phase | Rule class | What is missing |
 | --- | --- | --- | --- |
 | PM-05 Revenue ramp | 2 | written | `plan.ramp`, `plan.start_period`, and `stream.membership`, which the package declares unknown. Model side complete |
 | PM-08 Profit allocation | 2 | written | all five `allocation.*`, on both sides |
-| DH-07 Offer consistency | 3 | `HygieneRule` rejects any id outside DH-01 to DH-06 | a seventh branch. The blocks it reads are already produced and already consumed by its six siblings |
 | NB-01, NB-02 | 3 | **none** | implementation and a typed narrative provenance record |
 | EV-01 to EV-05 | 4 | **none** | implementation and a versioned claim-evidence index |
 
 Two corrections to an earlier reading of this, both worth recording because they changed the plan. The claim side is **not** a missing capability: `ClaimVersionStore::confirm()` authorises `assess`, whitelists the key, validates types, locks the row, verifies the plan section's body hash has not changed since the advisor read it, writes a versioned `PlanClaimVersion` with a mandatory reason, and audit-logs it, and `PlanFacts` decodes confirmed claims and binds them over any regex-extracted proposal. It is wired to `EntrepreneurReleaseGateController::claim()`. PM-05 and PM-10 need **keys added to a whitelist**, not a new mechanism — 2E-4w added PM-10's four, taking it from nine keys to thirteen, and the only code the mechanism itself needed was turning two single-key special cases into lists. PM-05's two should be the same shape of change. And `plan.claims`, `budget.facts` and `evidence.records` are the **placeholder** input list from slice 2E-2, not real fact keys — `PhaseTwoRulesTest` asserts that an implemented rule no longer carries them, so "nothing produces them" was true but misleading.
 
-The seven NB and EV rules are catalogue definitions with no implementation at all — `deferred()` is computed as catalogue-minus-registered, which is why they count toward the ten. The F1 package's own `unknown_inputs` declares "typed narrative provenance" and "claim evidence dependency index" absent, so that tier needs source work and not only extraction.
+The seven NB and EV rules are catalogue definitions with no implementation at all — `deferred()` is computed as catalogue-minus-registered, which is why they count toward the nine. The F1 package's own `unknown_inputs` declares "typed narrative provenance" and "claim evidence dependency index" absent, so that tier needs source work and not only extraction.
 
 PM-05 is the cheapest remaining work: rule written, model side complete, two claim keys needed. **Registering it before its claim producer exists would be wrong rather than merely premature:** the manifest expects it to Fail, a rule with no facts can only report its inputs missing, and recording Cannot verify where a contradiction is specified understates the finding. PM-10 was registered on the opposite footing — its evidence exists on both sides and the expectation was revised against the source documents, as slice 2E-4v records. Neither case permits inventing fixture data to reach a specified verdict.
 
