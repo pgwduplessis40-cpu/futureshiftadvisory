@@ -77,7 +77,7 @@ This repo includes a project skill at `.claude/skills/fsa-app/SKILL.md`. Use `/f
 ```
 app/                # Laravel application code
 docs/               # Plan, spec, brand kit, legal text, architecture decisions
-  PLAN.md           # Mirror of root PLAN.md
+  PLAN.md           # Pointer to root PLAN.md, deliberately not a copy
   spec/             # Spec V2.4 docx (source of truth)
   brand/            # Meridian Warm design system, FSA logo
   legal/            # T&C source text (14 clauses)

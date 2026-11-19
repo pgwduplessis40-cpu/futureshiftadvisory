@@ -53,6 +53,20 @@ final class HygieneTest extends TestCase
         self::assertSame(CheckStatus::Pass, $checks[1]->status);
     }
 
+    /**
+     * Processor seconds allowed for duplicate review of the oversized plan below.
+     *
+     * This is a regression guard on algorithmic cost, not a service-level
+     * promise: fifty sections of sixty sentences is far longer than any real
+     * plan, chosen so that anything quadratic in the comparison shows up by
+     * orders of magnitude rather than by a few percent. The span measures
+     * around 7 processor seconds on the development machine, so the budget is
+     * set for roughly threefold headroom against slower hardware. A genuine
+     * regression of the kind this was written for — comparing full block text
+     * pairwise — does not land inside that margin.
+     */
+    private const DUPLICATE_REVIEW_BUDGET_SECONDS = 20.0;
+
     public function test_long_plan_duplicate_review_finishes_within_the_page_request_budget(): void
     {
         $blocks = [];
@@ -65,12 +79,32 @@ final class HygieneTest extends TestCase
             $blocks[] = ['text' => implode(' ', $sentences)];
         }
         $blocks[] = $blocks[0];
-        $started = microtime(true);
+        $started = self::cpuSeconds();
         $checks = $this->duplicates($blocks);
+        $spent = self::cpuSeconds() - $started;
 
         self::assertSame(CheckStatus::Fail, $checks[50]->status);
         self::assertSame(CheckStatus::Pass, $checks[49]->status);
-        self::assertLessThan(10.0, microtime(true) - $started, 'Long plan checks must not exhaust the HTTP execution limit.');
+        self::assertLessThan(self::DUPLICATE_REVIEW_BUDGET_SECONDS, $spent,
+            'Duplicate review has become disproportionately expensive on a long plan.');
+    }
+
+    /**
+     * Processor time this process has consumed, user and system together.
+     *
+     * The budget above used wall-clock, which on a machine running several
+     * test processes at once measures the contention as well as the work: the
+     * same check was observed at 4.4, 7.1, 10.0 and 13.0 seconds without the
+     * rule changing, so the assertion failed on scheduling rather than on a
+     * regression. Duplicate review is pure computation with no waiting in it,
+     * so processor time is what the budget was always about.
+     */
+    private static function cpuSeconds(): float
+    {
+        $usage = getrusage();
+
+        return ($usage['ru_utime.tv_sec'] ?? 0) + ($usage['ru_utime.tv_usec'] ?? 0) / 1_000_000
+            + ($usage['ru_stime.tv_sec'] ?? 0) + ($usage['ru_stime.tv_usec'] ?? 0) / 1_000_000;
     }
 
     /** @param list<array{text:string,heading?:bool}> $rows
