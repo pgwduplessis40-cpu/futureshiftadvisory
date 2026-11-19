@@ -129,7 +129,7 @@ final class ForecastModelInputsTest extends TestCase
     {
         $gate = app(ReleaseGate::class);
         $before = $gate->evaluate($this->plan->refresh(), 'plan');
-        self::assertCount(9, $before->deferred(), 'Two phase-2 rules and the seven narrative and evidence rules stay deferred.');
+        self::assertCount(8, $before->deferred(), 'One phase-2 rule and the seven narrative and evidence rules stay deferred.');
 
         $this->actingAsMfa($this->advisor)->post($this->url(), $this->payload())->assertRedirect();
         $this->post($this->url().'/selection', ['selected' => true])->assertRedirect()->assertSessionHasNoErrors();
@@ -144,7 +144,7 @@ final class ForecastModelInputsTest extends TestCase
             CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($after)),
             'Selecting a reconstruction must move no rule that was enabled before it could be read.',
         );
-        self::assertCount(9, $after->deferred());
+        self::assertCount(8, $after->deferred());
     }
 
     public function test_the_elapsed_actuals_rule_reports_its_missing_evidence_before_a_model_supplies_it(): void
@@ -309,7 +309,7 @@ final class ForecastModelInputsTest extends TestCase
             CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($after)),
             'Recording streams must move no rule that was enabled before the model could be read.',
         );
-        self::assertCount(9, $after->deferred(), 'Two phase-2 rules stay deferred until their facts can produce the specified Fail, with the seven narrative and evidence rules.');
+        self::assertCount(8, $after->deferred(), 'PM-08 stays deferred until its facts can produce the specified Fail, with the seven narrative and evidence rules.');
     }
 
     public function test_drivers_are_refused_before_a_calendar_exists_to_hold_them(): void
@@ -604,7 +604,7 @@ final class ForecastModelInputsTest extends TestCase
             CanonicalJson::encode($this->rulesEnabledBeforePhaseTwo($after)),
             'Recording terms must move no rule that was enabled before the model could be read.',
         );
-        self::assertCount(9, $after->deferred(), 'Two phase-2 rules stay deferred until their facts can produce the specified Fail, with the seven narrative and evidence rules.');
+        self::assertCount(8, $after->deferred(), 'PM-08 stays deferred until its facts can produce the specified Fail, with the seven narrative and evidence rules.');
     }
 
     public function test_terms_are_refused_before_a_calendar_exists_to_hold_them(): void

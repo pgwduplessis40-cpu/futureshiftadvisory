@@ -76,7 +76,7 @@ final class ReleaseGateTest extends TestCase
         $gate = app(ReleaseGate::class);
         $report = $gate->evaluate($this->plan);
         $run = $gate->record($this->plan, $report, $this->principal);
-        self::assertCount(9, $report->deferred());
+        self::assertCount(8, $report->deferred());
         self::assertSame($report->context->hash(), $run->getAttribute('context_hash'));
         self::assertFalse($run->getAttribute('result_payload')['can_certify']);
         self::assertSame($report->context->hash(), $gate->evaluate($this->plan)->context->hash());
@@ -400,6 +400,74 @@ final class ReleaseGateTest extends TestCase
 
         $this->post($url.'/claims', $claim)->assertRedirect()->assertSessionHasNoErrors();
         $this->assertDatabaseCount('plan_claim_versions', 4);
+    }
+
+    /**
+     * A ramp claim an advisor can actually record.
+     *
+     * Before this, PM-05 could only ever report its claim missing: the
+     * whitelist carried no ramp, start period or membership key, so an
+     * advisor reading a plan that did state a monthly schedule had nowhere to
+     * record it. The model publishes its ramp as month-on-month percentage
+     * growth per stream, so a claim is confirmed in those terms or not at all.
+     */
+    public function test_a_ramp_claim_can_be_confirmed_and_is_read_against_the_model(): void
+    {
+        $url = route('advisor.entrepreneurs.plans.release-gate.show', [$this->plan->entrepreneurProfile, $this->plan]);
+        $this->actingAsMfa($this->advisor)->post($url.'/claims', $this->rampClaim())
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $facts = app(ReleaseGate::class)->evaluate($this->plan->refresh())->context->facts;
+        $ramp = $facts->one('plan.ramp', 'intensive', 'month:3');
+        self::assertSame('25', $ramp?->value);
+        self::assertSame('percent', $ramp?->unit);
+        self::assertTrue($ramp?->confirmed);
+        $this->assertDatabaseCount('plan_claim_versions', 1);
+    }
+
+    /**
+     * A ramp the rule could never read is refused at entry.
+     *
+     * A ramp recorded against the default entity and period, or in any unit
+     * but the model's, would leave PM-05 reporting the model ramp missing
+     * while the advisor saw their own figure saved against the month they
+     * meant. A decline is a statement, so a negative ramp is accepted where a
+     * negative amount is not.
+     */
+    public function test_a_ramp_claim_the_model_cannot_be_compared_with_is_refused_at_entry(): void
+    {
+        $url = route('advisor.entrepreneurs.plans.release-gate.show', [$this->plan->entrepreneurProfile, $this->plan]);
+        $claim = $this->rampClaim();
+        $this->actingAsMfa($this->advisor);
+        $this->post($url.'/claims', [...$claim, 'unit' => 'NZD'])->assertSessionHasErrors('claim');
+        $this->post($url.'/claims', [...$claim, 'entity' => 'business'])->assertSessionHasErrors('claim');
+        $this->post($url.'/claims', [...$claim, 'period' => 'current'])->assertSessionHasErrors('claim');
+        $this->post($url.'/claims', [...$claim, 'period' => '2026-03'])->assertSessionHasErrors('claim');
+        $this->assertDatabaseCount('plan_claim_versions', 0);
+        // Opening cash names the account it was read from, so dropping its
+        // basis is still refused. Only the keys with nothing for a basis to
+        // qualify are exempt.
+        $this->post($url.'/claims', ['section_id' => $this->section->id, 'source_hash' => CanonicalJson::hash($this->section->body),
+            'key' => 'plan.opening_cash', 'value' => '1000', 'entity' => 'business', 'period' => 'current',
+            'unit' => 'NZD', 'reason' => 'Checked the dated unrestricted opening balance.'])->assertSessionHasErrors('basis');
+
+        // A stream the plan expects to decline states a negative ramp, and a
+        // start period names a month without a day.
+        $this->post($url.'/claims', [...$claim, 'value' => '-20'])->assertRedirect()->assertSessionHasNoErrors();
+        $start = [...$claim, 'key' => 'plan.start_period', 'value' => '2026-01', 'unit' => null,
+            'entity' => 'business', 'period' => 'current'];
+        $this->post($url.'/claims', [...$start, 'value' => '2026-01-01'])->assertSessionHasErrors('claim');
+        $this->post($url.'/claims', [...$start, 'value' => '2026-13'])->assertSessionHasErrors('claim');
+        $this->post($url.'/claims', $start)->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('plan_claim_versions', 2);
+    }
+
+    /** @return array<string,mixed> */
+    private function rampClaim(): array
+    {
+        return ['section_id' => $this->section->id, 'source_hash' => CanonicalJson::hash($this->section->body),
+            'key' => 'plan.ramp', 'value' => '25', 'entity' => 'intensive', 'period' => 'month:3',
+            'unit' => 'percent',
+            'reason' => 'Confirmed against the monthly delivery schedule stated in the plan.'];
     }
 
     public function test_http_risk_decision_cannot_accept_integrity_or_use_a_stale_run(): void
