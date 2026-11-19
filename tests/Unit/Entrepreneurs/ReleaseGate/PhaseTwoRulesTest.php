@@ -22,6 +22,7 @@ use App\Services\Entrepreneurs\ReleaseGate\Rules\ScenarioFundingRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\SharedCapacityRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\StreamMembershipRule;
 use App\Services\Entrepreneurs\ReleaseGate\Rules\StressDimensionRule;
+use App\Services\Entrepreneurs\ReleaseGate\Subcheck;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -175,7 +176,6 @@ final class PhaseTwoRulesTest extends TestCase
     {
         [$rule, $facts] = $this->passingCases()['PM-10'];
         self::assertSame(CheckStatus::Fail, $this->evaluateRule($rule, SyntheticCase::replace($facts, 'model.runway_months', '4'))->status);
-        self::assertSame(CheckStatus::CannotVerify, $this->evaluateRule($rule, SyntheticCase::replace($facts, 'runway.includes_receipts', false, 'forecast_cash'))->status);
         $f = SyntheticCase::fact(...);
         $noSales = [$f('runway.months', '3', 'claim-2', unit: 'months', basis: 'essential_cost_no_sales'),
             $f('runway.start_cash', '9000', 'claim-2'), $f('runway.includes_receipts', true, 'claim-2', unit: null),
@@ -184,6 +184,42 @@ final class PhaseTwoRulesTest extends TestCase
             $f('runway.includes_receipts', true, 'essential_cost_no_sales', unit: null),
             $f('runway.includes_owner_pay', false, 'essential_cost_no_sales', unit: null)];
         self::assertSame(CheckStatus::Fail, $this->evaluateRule($rule, $noSales)->status, 'A no-sales runway cannot count future receipts.');
+    }
+
+    /**
+     * A runway stated on one basis alone is true and reads as the whole
+     * answer. An owner-excluded twelve months and an owner-included two
+     * describe the same bank balance, and a reader given only the first takes
+     * away a year of safety the business does not have. The rule reports the
+     * omission and states both figures, leaving which one matters to the
+     * reader rather than deciding it for them.
+     */
+    public function test_a_runway_stated_on_one_basis_alone_is_reported_with_the_figure_it_omits(): void
+    {
+        // As on the reference plan: the claim is stated without the owner's
+        // wages, the model's own cost basis carries them.
+        [$rule, $facts] = $this->passingCases()['PM-10'];
+        $omitted = SyntheticCase::replace($facts, 'runway.includes_owner_pay', false, 'claim-1');
+        $result = $this->evaluateRule($rule, $omitted);
+        self::assertSame(CheckStatus::Fail, $result->status);
+        $check = array_values(array_filter($result->subchecks, fn (Subcheck $s): bool => str_starts_with($s->id, 'both-bases:')))[0];
+        // Both figures and both readings are in the sentence, so an advisor
+        // can lift it straight into the document.
+        self::assertStringContainsString('excluding owner pay', $check->message);
+        self::assertStringContainsString('including owner pay', $check->message);
+        self::assertSame([], $check->missingInputs, 'Nothing is missing here; the evidence is present on both sides.');
+
+        // Stating the second figure resolves it. The partner is found by its
+        // inclusions, so a plan that discloses both is not reported for the
+        // first of them.
+        $f = SyntheticCase::fact(...);
+        $both = [...$omitted,
+            $f('runway.months', '8', 'claim-owner-pay', unit: 'months', basis: 'forecast_cash'),
+            $f('runway.start_cash', '24000', 'claim-owner-pay'),
+            $f('runway.includes_receipts', true, 'claim-owner-pay', unit: null),
+            $f('runway.includes_owner_pay', true, 'claim-owner-pay', unit: null)];
+        $ids = array_column($this->evaluateRule($rule, $both)->subchecks, 'status', 'id');
+        self::assertSame(CheckStatus::Pass, $ids['both-bases:0'], 'The omitted measure is now stated, so nothing is withheld.');
     }
 
     public function test_shared_capacity_fits_one_time_budget_and_prices_additional_delivery(): void

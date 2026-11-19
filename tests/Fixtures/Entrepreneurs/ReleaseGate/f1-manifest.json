@@ -81,14 +81,14 @@
       "detail": "Fail / Block for $1,750; Review for unpriced items"
     },
     "PM-10": {
-      "result": "cannot_verify",
-      "detail": "Cannot verify / Review: the claim and the model measure different things",
-      "revised_at": "2026-11-18",
+      "result": "fail",
+      "detail": "Fail / Review: the plan states one runway basis and not the figure the other gives",
+      "revised_at": "2026-11-19",
       "was": {
-        "result": "fail",
-        "detail": "Fail / Review"
+        "result": "cannot_verify",
+        "detail": "Cannot verify / Review: the claim and the model measure different things"
       },
-      "revision_reason": "The plan (page 45) claims approximately 12 months of runway from approximately $7,300, on essential operating costs of approximately $600 per month, stating explicitly that it excludes the owner's wages and assumes no new revenue. The budget's own monthly cost basis is $4,335 (page 5), of which $3,792 is owner's compensation, so the model measures 1.74 months on a basis that includes owner pay. The two figures are not the same measure, and the original Fail compared them as though they were - which is the error PM-10 exists to prevent. The rule reports the model runway on the claim's own basis as missing instead. Revised from the source documents, not from the implementation's output; the plan and budget PDFs were re-verified against the source hashes above on 18 November 2026."
+      "revision_reason": "This expectation has now held three states and the history matters, because it returns to the verdict it started with. The facts are not in dispute at any point: the plan (page 45) claims approximately 12 months of runway from approximately $7,300 on essential operating costs of approximately $600 per month, stating explicitly that this excludes the owner's wages and assumes no new revenue; the budget's own monthly cost basis is $4,335 (page 5), of which $3,792 is owner's compensation, so the model measures 1.74 months on a basis that includes owner pay. The original Fail held 12 against 1.74 as though they were one measure, which is the error PM-10 exists to prevent, and the 18 November revision to Cannot verify was right to reject that comparison. It was wrong about what follows from it. Cannot verify states that evidence is missing, and nothing here is missing: both figures are present, both bases are named, and the rule holds both. Recorded as Cannot verify, the most consequential sentence on the page went unsaid and an advisor read it as a data-chasing task. Resolved by Principal Advisor decision on 19 November 2026 (PLAN.md R13): where two bases measure the same cash, the document states both figures and the reader decides which governs; the platform does not choose a basis on their behalf. PM-10 therefore reports the omission rather than a disagreement - the plan states the owner-excluded figure and not the owner-included one - and names both figures with their inclusions so an advisor can lift the sentence straight into the document. Severity stays Review: nothing is wrong, something is unstated. The verdict the package specified at the outset was correct; the reason recorded against it was not. No fixture fact was added or changed at any revision."
     },
     "PM-11": {
       "result": "cannot_verify",

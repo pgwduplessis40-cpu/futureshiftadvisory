@@ -9,6 +9,7 @@ use App\Services\Entrepreneurs\ReleaseGate\CheckStatus;
 use App\Services\Entrepreneurs\ReleaseGate\DocumentContext;
 use App\Services\Entrepreneurs\ReleaseGate\PhaseOneRules;
 use App\Services\Entrepreneurs\ReleaseGate\RuleResult;
+use App\Services\Entrepreneurs\ReleaseGate\Severity;
 use PHPUnit\Framework\TestCase;
 
 final class F1Test extends TestCase
@@ -61,24 +62,28 @@ final class F1Test extends TestCase
     }
 
     /**
-     * PM-10 reports the two runways as different measures, not as a difference.
+     * PM-10 reports the runway figure the plan does not state.
      *
-     * The package originally specified Fail here. The plan claims about twelve
-     * months from about $7,300 on essential operating costs of about $600 a
-     * month, saying in terms that this excludes the owner's wages and assumes
-     * no new revenue. The budget's own monthly cost basis is $4,335, of which
-     * $3,792 is owner's compensation, so the model measures 1.74 months on a
-     * basis that includes the owner pay the claim leaves out.
+     * The plan claims about twelve months from about $7,300 on essential
+     * operating costs of about $600 a month, saying in terms that this
+     * excludes the owner's wages and assumes no new revenue. The budget's own
+     * monthly cost basis is $4,335, of which $3,792 is owner's compensation,
+     * so the model measures 1.74 months on a basis that includes the owner pay
+     * the claim leaves out.
      *
-     * Holding twelve against 1.74 would report a difference the two measures
-     * are supposed to have, which is the mistake the rule exists to prevent,
-     * so the expectation was revised against the source documents and the rule
-     * names the model runway it would need instead. This test pins the reason:
-     * a Cannot verify reached by rejecting the claim, or by finding no claim at
-     * all, would satisfy the manifest while meaning something entirely
-     * different.
+     * Both are true of the same bank balance. Holding twelve against 1.74
+     * would report a difference the two measures are supposed to have, and the
+     * rule never does that. What it reports instead is that only one of them
+     * reaches the reader: a lender who sees twelve months takes away a year of
+     * safety the business has only if its founder is unpaid.
+     *
+     * This test pins the route, not just the verdict. A Fail reached by
+     * comparing the two figures, by rejecting the claim, or by finding no
+     * claim at all would satisfy the manifest while meaning something entirely
+     * different - and the first of those is the error the rule exists to
+     * prevent.
      */
-    public function test_the_runway_claim_and_the_model_are_reported_as_unlike_measures(): void
+    public function test_the_runway_the_plan_leaves_unstated_is_reported_with_both_figures(): void
     {
         $report = PhaseOneRules::evaluator()->evaluate(Fixture::f1('plan'));
         $rule = array_values(array_filter($report->results, fn ($r) => $r->definition->id === 'PM-10'))[0];
@@ -87,15 +92,23 @@ final class F1Test extends TestCase
             $byId[$subcheck->id] = $subcheck;
         }
 
-        self::assertSame(CheckStatus::CannotVerify, $rule->status);
-        self::assertSame(['no-sales:0', 'like-measure:0'], array_keys($byId),
+        self::assertSame(CheckStatus::Fail, $rule->status);
+        self::assertSame(['no-sales:0', 'both-bases:0'], array_keys($byId),
             'The claim was read in full: anything less means it was rejected before the comparison.');
         self::assertSame(CheckStatus::Pass, $byId['no-sales:0']->status,
             'A no-sales claim that counts no receipts is consistent on its own basis.');
-        self::assertSame(CheckStatus::CannotVerify, $byId['like-measure:0']->status);
-        self::assertNotEmpty($byId['like-measure:0']->missingInputs);
-        self::assertStringContainsString('owner pay', $byId['like-measure:0']->missingInputs[0],
-            'The advisor is told which inclusion the model and the claim disagree on.');
+
+        $omission = $byId['both-bases:0'];
+        self::assertSame(CheckStatus::Fail, $omission->status);
+        self::assertSame(Severity::Review, $omission->severity, 'Nothing is wrong; something is unstated.');
+        self::assertSame([], $omission->missingInputs,
+            'Both figures are in hand, so reporting this as missing evidence would be untrue.');
+        // The sentence carries both readings, so an advisor can put them in
+        // front of the lender and let them judge.
+        self::assertStringContainsString('12', $omission->message);
+        self::assertStringContainsString('1.74', $omission->message);
+        self::assertStringContainsString('excluding owner pay', $omission->message);
+        self::assertStringContainsString('including owner pay', $omission->message);
     }
 
     public function test_internal_prompts_do_not_block_draft_viewing_and_are_not_reported_as_external_release(): void
