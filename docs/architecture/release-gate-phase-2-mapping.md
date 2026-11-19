@@ -714,7 +714,7 @@ The original Fail therefore specified a contradiction between two schedules when
 
 ### Phase 2E current state
 
-Checked on 19 November 2026 against `origin/main` at `88c83509`, which carries slices 2E-4w, 2E-4x and 2E-4y, plus slices 2E-4z and 2E-4ab.
+Checked on 19 November 2026 against `origin/main` at `16a0624d`, which carries slices 2E-4w through 2E-4z, plus slice 2E-4ab.
 
 **29 of the 37 catalogued rules are enabled, and all 29 reach the verdict the F1 reference package specifies for them** — `F1Test` asserts that per rule against `f1-manifest.json` and passes. The model side of the gate is complete: producers emit 85 distinct fact keys, and six shared emitters (`CashCurveFacts`, `LedgerEntryFacts`, `TaxChainFacts`, `TaxPolicyFacts`, `ScenarioInputFacts` and `ProfitDecompositionFacts`) serve the base case and every scenario from one implementation, because the rules that compare the two sides would otherwise be comparing two derivations rather than two models.
 
